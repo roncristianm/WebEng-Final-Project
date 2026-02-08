@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
+import { auth } from '../../config/firebase'
 import '../../styles/Auth.css'
 
 
@@ -7,11 +9,42 @@ function LandingPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log('Login submitted:', { email, password, rememberMe })
-    // Add your login logic here
+    setError('')
+    setLoading(true)
+    
+    try {
+      // Set persistence based on remember me checkbox
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence)
+      
+      // Sign in with email and password
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      console.log('User logged in successfully:', userCredential.user)
+      navigate('/dashboard')
+    } catch (error) {
+      console.error('Login error:', error)
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+          setError('Invalid email or password')
+          break
+        case 'auth/invalid-email':
+          setError('Invalid email address')
+          break
+        case 'auth/too-many-requests':
+          setError('Too many failed attempts. Please try again later')
+          break
+        default:
+          setError('Failed to log in. Please try again.')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -24,6 +57,8 @@ function LandingPage() {
         
         <div className="auth-card">
           <h2 className="form-title">Welcome Back!</h2>
+          
+          {error && <div className="error-message">{error}</div>}
           
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
@@ -62,8 +97,8 @@ function LandingPage() {
               </label>
             </div>
 
-            <button type="submit" className="btn-primary">
-              Log In
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Logging In...' : 'Log In'}
             </button>
           </form>
 
