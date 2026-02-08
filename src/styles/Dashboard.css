@@ -5,6 +5,201 @@
   background: #f8f9fa;
 }
 
+/* Dashboard Page Specific Styles */
+.dashboard-page {
+  padding: 32px;
+  width: 100%;
+  height: 100%;
+}
+
+/* Top Section - Header with Student Name and Join Button */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 32px 40px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.student-greeting h1 {
+  margin: 0 0 8px 0;
+  font-size: 32px;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.greeting-subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.join-class-btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.join-class-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+/* Unified Grid Layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  grid-auto-rows: minmax(200px, auto);
+}
+
+/* Grid Cards - Unified Styling */
+.grid-card {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #7c3aed;
+}
+
+/* Large Content Cards (Announcements, Assignments, Materials) */
+.grid-card:not(.activity) {
+  min-height: 300px;
+}
+
+.grid-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.grid-card .card-icon {
+  font-size: 28px;
+}
+
+.grid-card .card-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.grid-card .card-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 16px;
+}
+
+/* Activity Cards Styling */
+.grid-card.activity {
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+}
+
+.grid-card.activity::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #7c3aed, #6d28d9);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.grid-card.activity:hover::before {
+  transform: scaleX(1);
+}
+
+.card-icon-large {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.grid-card.activity h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.grid-card.activity .count {
+  margin: 0;
+  font-size: 36px;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+/* Activity Card Color Coding */
+.grid-card.activity.pending:hover {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.grid-card.activity.completed:hover {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+}
+
+.grid-card.activity.overdue:hover {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.grid-card.activity.posted:hover {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.grid-card.activity.quizzes:hover {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+}
+
+.grid-card.activity.performance:hover {
+  border-color: #ec4899;
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+}
+
 /* Sidebar Navigation */
 .sidebar {
   width: 260px;
@@ -177,6 +372,12 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 70px;
@@ -218,5 +419,33 @@
 
   .placeholder-card h3 {
     font-size: 24px;
+  }
+
+  /* Dashboard Page Responsive */
+  .dashboard-page {
+    padding: 16px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .student-greeting h1 {
+    font-size: 24px;
+  }
+
+  .greeting-subtitle {
+    font-size: 14px;
+  }
+
+  .join-class-btn {
+    width: 100%;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
   }
 }
