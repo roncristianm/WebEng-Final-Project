@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import '../../styles/Auth.css'
 
 function Signup() {
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -15,7 +16,7 @@ function Signup() {
       return
     }
     
-    console.log('Signup submitted:', { email, password })
+    console.log('Signup submitted:', { name, email, password })
     // Add your signup logic here
   }
 
@@ -31,6 +32,19 @@ function Signup() {
           <h2 className="form-title">Create Your Account</h2>
           
           <form onSubmit={handleSubmit} className="auth-form">
+
+            <div className="form-group">
+              <label htmlFor="name">Name</label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your name"
+                required
+              />
+            </div>
+
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <input
