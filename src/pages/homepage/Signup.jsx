@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { auth } from '../../config/firebase'
 import '../../styles/Auth.css'
 
 function Signup() {
@@ -7,17 +9,55 @@ function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
     if (password !== confirmPassword) {
-      alert('Passwords do not match!')
+      setError('Passwords do not match!')
       return
     }
     
-    console.log('Signup submitted:', { name, email, password })
-    // Add your signup logic here
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+    
+    setError('')
+    setLoading(true)
+    
+    try {
+      // Create user with email and password
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      
+      // Update user profile with name
+      await updateProfile(userCredential.user, {
+        displayName: name
+      })
+      
+      console.log('User created successfully:', userCredential.user)
+      navigate('/dashboard')
+    } catch (error) {
+      console.error('Signup error:', error)
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          setError('This email is already registered')
+          break
+        case 'auth/invalid-email':
+          setError('Invalid email address')
+          break
+        case 'auth/weak-password':
+          setError('Password is too weak')
+          break
+        default:
+          setError('Failed to create account. Please try again.')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -30,6 +70,8 @@ function Signup() {
         
         <div className="auth-card">
           <h2 className="form-title">Create Your Account</h2>
+          
+          {error && <div className="error-message">{error}</div>}
           
           <form onSubmit={handleSubmit} className="auth-form">
 
@@ -81,8 +123,8 @@ function Signup() {
               />
             </div>
 
-            <button type="submit" className="btn-primary">
-              Sign Up
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Sign Up'}
             </button>
           </form>
 
