@@ -6,6 +6,7 @@ import '../../styles/Auth.css'
 
 function Signup() {
   const [name, setName] = useState('')
+  const [gender, setGender] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -121,6 +122,34 @@ function Signup() {
                 placeholder="Confirm your password"
                 required
               />
+            </div>
+
+                        <div className="form-group">
+              <label>Gender</label>
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="male"
+                    checked={gender === 'male'}
+                    onChange={(e) => setGender(e.target.value)}
+                    required
+                  />
+                  <span>Male</span>
+                </label>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="female"
+                    checked={gender === 'female'}
+                    onChange={(e) => setGender(e.target.value)}
+                    required
+                  />
+                  <span>Female</span>
+                </label>
+              </div>
             </div>
 
             <button type="submit" className="btn-primary" disabled={loading}>
