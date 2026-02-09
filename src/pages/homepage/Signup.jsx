@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { auth } from '../../config/firebase'
+import { doc, setDoc } from 'firebase/firestore'
+import { auth, db } from '../../config/firebase'
 import '../../styles/Auth.css'
 
 function Signup() {
@@ -40,8 +41,24 @@ function Signup() {
         displayName: name
       })
       
+      // Save user data to Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        name: name,
+        email: email,
+        gender: gender,
+        role: role,
+        createdAt: new Date()
+      })
+      
       console.log('User created successfully:', userCredential.user)
-      navigate('/dashboard')
+      
+      // Route based on role
+      if (role === 'student') {
+        navigate('/dashboard')
+      } else if (role === 'teacher') {
+        // Don't navigate for teachers yet
+        console.log('Teacher account created. Waiting for dashboard implementation.')
+      }
     } catch (error) {
       console.error('Signup error:', error)
       switch (error.code) {
