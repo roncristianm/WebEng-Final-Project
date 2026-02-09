@@ -124,7 +124,7 @@ function Signup() {
               />
             </div>
 
-                        <div className="form-group">
+            <div className="form-group">
               <label>Gender</label>
               <div className="radio-group">
                 <label className="radio-label">
