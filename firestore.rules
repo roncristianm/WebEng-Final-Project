@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Validate user data fields
+    function isValidUserData() {
+      let requiredFields = ['name', 'email', 'gender', 'role', 'createdAt'];
+      let allowedRoles = ['student', 'teacher'];
+      let allowedGenders = ['male', 'female'];
+      
+      return request.resource.data.keys().hasAll(requiredFields) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0 &&
+             request.resource.data.email is string &&
+             request.resource.data.email.matches('.*@.*\\..*') &&
+             request.resource.data.gender in allowedGenders &&
+             request.resource.data.role in allowedRoles &&
+             request.resource.data.createdAt is timestamp;
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Allow read if authenticated and it's the user's own document
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Allow create during signup with valid data
+      allow create: if isAuthenticated() && 
+                      isOwner(userId) && 
+                      isValidUserData();
+      
+      // Allow update only by the user themselves, protecting critical fields
+      allow update: if isAuthenticated() && 
+                      isOwner(userId) &&
+                      request.resource.data.email == resource.data.email &&
+                      request.resource.data.role == resource.data.role &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      
+      // Prevent deletion of user documents
+      allow delete: if false;
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
