@@ -294,6 +294,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 
 .sidebar-footer {
@@ -497,6 +504,11 @@
     font-size: 22px;
   }
 
+  .nav-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
   .dashboard-content {
     margin-left: 70px;
     padding: 24px 16px;
@@ -614,6 +626,11 @@
 
   .nav-icon {
     font-size: 20px;
+  }
+
+  .nav-icon svg {
+    width: 20px;
+    height: 20px;
   }
 
   .logout-btn span:not(.nav-icon) {
@@ -749,6 +766,11 @@
 
   .nav-icon {
     font-size: 18px;
+  }
+
+  .nav-icon svg {
+    width: 18px;
+    height: 18px;
   }
 
   .logout-btn span:not(.nav-icon) {
