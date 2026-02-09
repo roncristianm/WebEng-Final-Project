@@ -79,26 +79,9 @@ function Dashboard() {
           <p className="count">0</p>
         </div>
 
-        {/* Posted */}
-        <div className="grid-card activity posted">
-          <div className="card-icon-large">📌</div>
-          <h3>Posted</h3>
-          <p className="count">0</p>
-        </div>
 
-        {/* Quizzes */}
-        <div className="grid-card activity quizzes">
-          <div className="card-icon-large">📋</div>
-          <h3>Quizzes</h3>
-          <p className="count">0</p>
-        </div>
 
-        {/* Performance Tasks */}
-        <div className="grid-card activity performance">
-          <div className="card-icon-large">🎯</div>
-          <h3>Performance Tasks</h3>
-          <p className="count">0</p>
-        </div>
+
       </div>
     </div>
   )
