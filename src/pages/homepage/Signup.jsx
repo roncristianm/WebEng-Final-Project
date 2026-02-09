@@ -7,6 +7,7 @@ import '../../styles/Auth.css'
 function Signup() {
   const [name, setName] = useState('')
   const [gender, setGender] = useState('')
+  const [role, setRole] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -150,6 +151,20 @@ function Signup() {
                   <span>Female</span>
                 </label>
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="role">Role</label>
+              <select
+                id="role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                required
+              >
+                <option value="">Select your role</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
             </div>
 
             <button type="submit" className="btn-primary" disabled={loading}>
