@@ -1,0 +1,52 @@
+mutation CreateDemoData @auth(level: USER) @transaction {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      displayName: "demouser1",
+      email: "demouser1@example.com",
+      userType: "student",
+      createdAt: "2024-04-26T12:00:00Z"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      displayName: "demouser2",
+      email: "demouser2@example.com",
+      userType: "instructor",
+      createdAt: "2024-04-26T12:00:00Z"
+    }
+  ])
+  course_insertMany(data: [
+    {
+      id: "650e8400-e29b-41d4-a716-446655440002",
+      instructorId: "550e8400-e29b-41d4-a716-446655440001",
+      title: "Demo Course 1",
+      description: "Example course",
+      startDate: "2024-05-01",
+      endDate: "2024-08-01",
+      createdAt: "2024-04-26T12:00:00Z"
+    },
+    {
+      id: "650e8400-e29b-41d4-a716-446655440003",
+      instructorId: "550e8400-e29b-41d4-a716-446655440001",
+      title: "Demo Course 2",
+      description: "Another example course",
+      startDate: "2024-05-01",
+      endDate: "2024-08-01",
+      createdAt: "2024-04-26T12:00:00Z"
+    }
+  ])
+  enrollment_insertMany(data: [
+    {
+      studentId: "550e8400-e29b-41d4-a716-446655440000",
+      courseId: "650e8400-e29b-41d4-a716-446655440002",
+      enrollmentDate: "2024-04-27",
+      status: "active"
+    },
+    {
+      studentId: "550e8400-e29b-41d4-a716-446655440000",
+      courseId: "650e8400-e29b-41d4-a716-446655440003",
+      enrollmentDate: "2024-04-27",
+      status: "active"
+    }
+  ])
+}

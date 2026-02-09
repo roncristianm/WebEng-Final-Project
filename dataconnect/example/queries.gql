@@ -1,0 +1,29 @@
+mutation CreateNewUser($displayName: String!, $email: String!, $userType: String!) @auth(level: USER) {
+  user_insert(data: {displayName: $displayName, email: $email, userType: $userType, createdAt_expr: "request.time"}) {
+    id
+  }
+}
+
+query GetCoursesForInstructor($instructorId: UUID!) @auth(level: USER) {
+  courses(where: {instructorId: {eq: $instructorId}}) {
+    id
+    title
+    description
+  }
+}
+
+mutation CreateNewDiscussionPost($authorId: UUID!, $courseId: UUID!, $content: String!) @auth(level: USER) {
+  discussionPost_insert(data: {authorId: $authorId, courseId: $courseId, content: $content, createdAt_expr: "request.time"}) {
+    id
+  }
+}
+
+query GetAssignmentsForCourse($courseId: UUID!) @auth(level: USER) {
+  assignments(where: {courseId: {eq: $courseId}}) {
+    id
+    title
+    description
+    dueDate
+    maxPoints
+  }
+}
