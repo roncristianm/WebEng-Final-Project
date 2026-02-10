@@ -20,7 +20,6 @@ function Dashboard() {
       <div className="dashboard-header">
         <div className="student-greeting">
           <h1>Welcome, {userName}!</h1>
-          <p className="greeting-subtitle">Manage your classes and assignments</p>
         </div>
         <div className="action-buttons">
           <button className="join-class-btn" onClick={handleCreateClass}>
