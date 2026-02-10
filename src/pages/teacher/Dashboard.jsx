@@ -16,15 +16,18 @@ function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      {/* Welcome Section */}
-      <div className="welcome-section">
-        <h1>Welcome, {userName}!</h1>
+      {/* Top Section - Teacher Name & Action Buttons */}
+      <div className="dashboard-header">
+        <div className="student-greeting">
+          <h1>Welcome, {userName}!</h1>
+          <p className="greeting-subtitle">Manage your classes and assignments</p>
+        </div>
         <div className="action-buttons">
-          <button className="btn-create-class" onClick={handleCreateClass}>
-            + CREATE NEW CLASS
+          <button className="join-class-btn" onClick={handleCreateClass}>
+            + Create Class
           </button>
-          <button className="btn-create-assignment" onClick={handleCreateAssignment}>
-            + CREATE ASSIGNMENT
+          <button className="join-class-btn" onClick={handleCreateAssignment}>
+            + Create Assignment
           </button>
         </div>
       </div>
@@ -33,9 +36,6 @@ function Dashboard() {
       <div className="my-classes-section">
         <div className="section-header">
           <h2>MY CLASSES</h2>
-          <button className="btn-add-class" onClick={handleCreateClass}>
-            + Add Class
-          </button>
         </div>
         <div className="empty-classes">
           <p>No classes yet. Create your first class to get started!</p>
