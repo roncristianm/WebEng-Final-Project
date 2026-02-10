@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { joinClass, getStudentClasses } from '../../services/classService'
+import Notification from '../../components/Notification'
 import '../../styles/Dashboard.css'
 
 function Dashboard() {
@@ -12,6 +13,7 @@ function Dashboard() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
+  const [notification, setNotification] = useState(null)
 
   useEffect(() => {
     loadClasses()
@@ -44,9 +46,15 @@ function Dashboard() {
         setShowJoinModal(false)
         setClassCode('')
         await loadClasses() // Reload classes
-        alert(`Successfully joined ${result.className}!`)
+        setNotification({
+          message: `Successfully joined "${result.className}"!`,
+          type: 'success'
+        })
       } else {
-        alert(`Error: ${result.error}`)
+        setNotification({
+          message: `Failed to join class: ${result.error}`,
+          type: 'error'
+        })
       }
       setJoining(false)
     }
@@ -157,6 +165,15 @@ function Dashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
       )}
     </div>
   )

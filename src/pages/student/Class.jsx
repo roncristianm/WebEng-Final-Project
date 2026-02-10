@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { getStudentClasses, leaveClass } from '../../services/classService'
+import Notification from '../../components/Notification'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/Dashboard.css'
 
 function Class() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [notification, setNotification] = useState(null)
+  const [confirmDialog, setConfirmDialog] = useState(null)
 
   useEffect(() => {
     loadClasses()
@@ -25,17 +29,40 @@ function Class() {
     navigate(`/dashboard/class/${classId}`)
   }
 
+  const handleCopyCode = (e, classCode, className) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(classCode)
+    setNotification({
+      message: `Class code "${classCode}" copied to clipboard!`,
+      type: 'success'
+    })
+  }
+
   const handleLeaveClass = async (e, classId, className) => {
     e.stopPropagation()
-    if (window.confirm(`Are you sure you want to leave "${className}"?`)) {
-      const result = await leaveClass(classId, auth.currentUser.uid)
-      if (result.success) {
-        alert('Left class successfully')
-        loadClasses()
-      } else {
-        alert(`Error leaving class: ${result.error}`)
-      }
-    }
+    setConfirmDialog({
+      title: 'Leave Class',
+      message: `Are you sure you want to leave "${className}"? You will need a new class code to rejoin.`,
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        const result = await leaveClass(classId, auth.currentUser.uid)
+        if (result.success) {
+          setNotification({
+            message: `Successfully left "${className}"`,
+            type: 'success'
+          })
+          loadClasses()
+        } else {
+          setNotification({
+            message: `Failed to leave class: ${result.error}`,
+            type: 'error'
+          })
+        }
+      },
+      onCancel: () => setConfirmDialog(null),
+      confirmText: 'Leave',
+      type: 'danger'
+    })
   }
 
   return (
@@ -79,6 +106,13 @@ function Class() {
                   <div className="info-item">
                     <span className="info-icon">📝</span>
                     <span>Class Code: {classItem.classCode}</span>
+                    <button 
+                      className="btn-copy-code-inline"
+                      onClick={(e) => handleCopyCode(e, classItem.classCode, classItem.name)}
+                      title="Copy class code"
+                    >
+                      📋 Copy
+                    </button>
                   </div>
                 </div>
               </div>
@@ -98,6 +132,27 @@ function Class() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={confirmDialog.onCancel}
+          confirmText={confirmDialog.confirmText}
+          type={confirmDialog.type}
+        />
       )}
     </div>
   )

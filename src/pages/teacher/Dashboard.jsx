@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { createClass, getTeacherClasses } from '../../services/classService'
+import Notification from '../../components/Notification'
 import '../../styles/Dashboard.css'
 
 function Dashboard() {
@@ -12,6 +13,7 @@ function Dashboard() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [notification, setNotification] = useState(null)
 
   useEffect(() => {
     loadClasses()
@@ -47,9 +49,15 @@ function Dashboard() {
         setShowCreateModal(false)
         setClassName('')
         await loadClasses() // Reload classes
-        alert(`Class created successfully! Class code: ${result.classCode}`)
+        setNotification({
+          message: `Class "${className.trim()}" created successfully! Class code: ${result.classCode}`,
+          type: 'success'
+        })
       } else {
-        alert(`Error creating class: ${result.error}`)
+        setNotification({
+          message: `Failed to create class: ${result.error}`,
+          type: 'error'
+        })
       }
       setCreating(false)
     }
@@ -62,6 +70,15 @@ function Dashboard() {
 
   const handleClassClick = (classId) => {
     navigate(`/teacher-dashboard/class/${classId}`)
+  }
+
+  const handleCopyCode = (e, classCode, className) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(classCode)
+    setNotification({
+      message: `Class code "${classCode}" copied to clipboard!`,
+      type: 'success'
+    })
   }
 
   return (
@@ -101,7 +118,16 @@ function Dashboard() {
               >
                 <div className="class-card-header">
                   <h3>{classItem.name}</h3>
-                  <span className="class-code">Code: {classItem.classCode}</span>
+                  <div className="class-code-container">
+                    <span className="class-code">Code: {classItem.classCode}</span>
+                    <button 
+                      className="btn-copy-code"
+                      onClick={(e) => handleCopyCode(e, classItem.classCode, classItem.name)}
+                      title="Copy class code"
+                    >
+                      📋
+                    </button>
+                  </div>
                 </div>
                 <div className="class-card-body">
                   <div className="class-stat">
@@ -174,6 +200,15 @@ function Dashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
       )}
     </div>
   )
