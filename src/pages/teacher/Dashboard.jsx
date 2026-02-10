@@ -1,17 +1,67 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
+import { createClass, getTeacherClasses } from '../../services/classService'
 import '../../styles/Dashboard.css'
 
 function Dashboard() {
   const navigate = useNavigate()
   const userName = auth.currentUser?.displayName || 'Teacher'
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [className, setClassName] = useState('')
+  const [classes, setClasses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+
+  useEffect(() => {
+    loadClasses()
+  }, [])
+
+  const loadClasses = async () => {
+    if (auth.currentUser) {
+      const teacherClasses = await getTeacherClasses(auth.currentUser.uid)
+      setClasses(teacherClasses)
+      setLoading(false)
+    }
+  }
 
   const handleCreateClass = () => {
-    navigate('/teacher-dashboard/class')
+    setShowCreateModal(true)
   }
 
   const handleCreateAssignment = () => {
     navigate('/teacher-dashboard/assignment')
+  }
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault()
+    if (className.trim() && auth.currentUser) {
+      setCreating(true)
+      const result = await createClass(
+        className.trim(),
+        auth.currentUser.uid,
+        auth.currentUser.displayName || 'Teacher'
+      )
+      
+      if (result.success) {
+        setShowCreateModal(false)
+        setClassName('')
+        await loadClasses() // Reload classes
+        alert(`Class created successfully! Class code: ${result.classCode}`)
+      } else {
+        alert(`Error creating class: ${result.error}`)
+      }
+      setCreating(false)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setShowCreateModal(false)
+    setClassName('')
+  }
+
+  const handleClassClick = (classId) => {
+    navigate(`/teacher-dashboard/class/${classId}`)
   }
 
   return (
@@ -35,10 +85,38 @@ function Dashboard() {
       <div className="my-classes-section">
         <div className="section-header">
           <h2>MY CLASSES</h2>
+          <button className="btn-view-all" onClick={() => navigate('/teacher-dashboard/class')}>
+            View All
+          </button>
         </div>
-        <div className="empty-classes">
-          <p>No classes yet. Create your first class to get started!</p>
-        </div>
+        {loading ? (
+          <div className="loading-state">Loading classes...</div>
+        ) : classes.length > 0 ? (
+          <div className="classes-grid">
+            {classes.slice(0, 4).map((classItem) => (
+              <div 
+                key={classItem.id} 
+                className="class-card"
+                onClick={() => handleClassClick(classItem.id)}
+              >
+                <div className="class-card-header">
+                  <h3>{classItem.name}</h3>
+                  <span className="class-code">Code: {classItem.classCode}</span>
+                </div>
+                <div className="class-card-body">
+                  <div className="class-stat">
+                    <span className="stat-icon">👥</span>
+                    <span>{classItem.studentCount || 0} Students</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-classes">
+            <p>No classes yet. Create your first class to get started!</p>
+          </div>
+        )}
       </div>
 
       {/* Quick Stats Section */}
@@ -46,11 +124,11 @@ function Dashboard() {
         <h2>QUICK STATS</h2>
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-number">0</div>
+            <div className="stat-number">{classes.reduce((sum, c) => sum + (c.studentCount || 0), 0)}</div>
             <div className="stat-label">Total Students</div>
           </div>
           <div className="stat-card">
-            <div className="stat-number">0</div>
+            <div className="stat-number">{classes.length}</div>
             <div className="stat-label">Active Classes</div>
           </div>
           <div className="stat-card">
@@ -63,6 +141,40 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Create Class Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create New Class</h2>
+              <button className="modal-close" onClick={handleCloseModal}>&times;</button>
+            </div>
+            <form onSubmit={handleCreateSubmit}>
+              <div className="modal-body">
+                <label htmlFor="className">Class Name</label>
+                <input
+                  type="text"
+                  id="className"
+                  value={className}
+                  onChange={(e) => setClassName(e.target.value)}
+                  placeholder="Enter class name"
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-cancel" onClick={handleCloseModal} disabled={creating}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit" disabled={creating}>
+                  {creating ? 'Creating...' : 'Create Class'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
