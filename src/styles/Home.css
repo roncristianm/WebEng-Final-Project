@@ -26,8 +26,8 @@
 
 .nav-button {
   padding: 12px 32px;
-  background: #667eea;
-  color: white;
+  background: #0038A8;
+  color: #FFFFFF;
   text-decoration: none;
   border-radius: 6px;
   font-size: 18px;
@@ -37,7 +37,7 @@
 }
 
 .nav-button:hover {
-  background: #764ba2;
+  background: #002d7a;
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
