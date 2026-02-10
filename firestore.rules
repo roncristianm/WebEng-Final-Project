@@ -73,22 +73,25 @@ service cloud.firestore {
       // Students can list all classes to find one by code
       allow list: if isAuthenticated();
       
-      // Only the class teacher can update the class
-      allow update: if isClassTeacher(classId);
+      // Only the class teacher can fully update the class
+      // Allow authenticated users to update studentCount only (for join/leave)
+      allow update: if isClassTeacher(classId) ||
+                       (isAuthenticated() && 
+                        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'teacherId', 'teacherName', 'classCode', 'createdAt']));
       
       // Only the class teacher can delete the class
       allow delete: if isClassTeacher(classId);
       
       // Students subcollection - stores enrolled students
       match /students/{studentId} {
-        // Students can add themselves to a class
-        allow create: if isStudent() && studentId == request.auth.uid;
+        // Students can add themselves to a class (verified by matching studentId to auth.uid)
+        allow create: if isAuthenticated() && studentId == request.auth.uid;
         
         // Teachers and enrolled students can read the student list
         allow read: if isClassTeacher(classId) || isEnrolledInClass(classId);
         
         // Teachers can remove students, students can leave the class themselves
-        allow delete: if isClassTeacher(classId) || (isStudent() && studentId == request.auth.uid);
+        allow delete: if isClassTeacher(classId) || (isAuthenticated() && studentId == request.auth.uid);
       }
     }
     

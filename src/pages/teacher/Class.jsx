@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { getTeacherClasses, deleteClass } from '../../services/classService'
+import Notification from '../../components/Notification'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/Dashboard.css'
 
 function Class() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [notification, setNotification] = useState(null)
+  const [confirmDialog, setConfirmDialog] = useState(null)
 
   useEffect(() => {
     loadClasses()
@@ -25,17 +29,40 @@ function Class() {
     navigate(`/teacher-dashboard/class/${classId}`)
   }
 
+  const handleCopyCode = (e, classCode, className) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(classCode)
+    setNotification({
+      message: `Class code "${classCode}" copied to clipboard!`,
+      type: 'success'
+    })
+  }
+
   const handleDeleteClass = async (e, classId, className) => {
     e.stopPropagation()
-    if (window.confirm(`Are you sure you want to delete "${className}"? This action cannot be undone.`)) {
-      const result = await deleteClass(classId)
-      if (result.success) {
-        alert('Class deleted successfully')
-        loadClasses()
-      } else {
-        alert(`Error deleting class: ${result.error}`)
-      }
-    }
+    setConfirmDialog({
+      title: 'Delete Class',
+      message: `Are you sure you want to delete "${className}"? This action cannot be undone and all students will be removed from the class.`,
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        const result = await deleteClass(classId)
+        if (result.success) {
+          setNotification({
+            message: `Class "${className}" deleted successfully`,
+            type: 'success'
+          })
+          loadClasses()
+        } else {
+          setNotification({
+            message: `Failed to delete class: ${result.error}`,
+            type: 'error'
+          })
+        }
+      },
+      onCancel: () => setConfirmDialog(null),
+      confirmText: 'Delete',
+      type: 'danger'
+    })
   }
 
   return (
@@ -60,7 +87,16 @@ function Class() {
               <div className="class-card-header">
                 <div>
                   <h3>{classItem.name}</h3>
-                  <span className="class-code">Code: {classItem.classCode}</span>
+                  <div className="class-code-container">
+                    <span className="class-code">Code: {classItem.classCode}</span>
+                    <button 
+                      className="btn-copy-code"
+                      onClick={(e) => handleCopyCode(e, classItem.classCode, classItem.name)}
+                      title="Copy class code"
+                    >
+                      📋
+                    </button>
+                  </div>
                 </div>
                 <button 
                   className="btn-delete"
@@ -98,6 +134,27 @@ function Class() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={confirmDialog.onCancel}
+          confirmText={confirmDialog.confirmText}
+          type={confirmDialog.type}
+        />
       )}
     </div>
   )
