@@ -16,7 +16,6 @@ function Dashboard() {
       <div className="dashboard-header">
         <div className="student-greeting">
           <h1>Welcome, {userName}!</h1>
-          <p className="greeting-subtitle">Here's what's happening in your classes</p>
         </div>
         <button className="join-class-btn" onClick={handleJoinClass}>
           + Join Class
