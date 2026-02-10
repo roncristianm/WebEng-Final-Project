@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection - stores user profile information
+    match /users/{userId} {
+      // Allow users to read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to create their own profile during signup
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.keys().hasAll(['name', 'email', 'role', 'gender', 'createdAt'])
+                    && request.resource.data.role in ['student', 'teacher'];
+      
+      // Allow users to update their own profile (but not their role)
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role;
+      
+      // Prevent deletion of user profiles
+      allow delete: if false;
+    }
+    
+    // Add more rules for other collections as needed
+    // Example: Classes, Assignments, etc.
+    
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

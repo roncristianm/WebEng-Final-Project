@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { auth } from '../../config/firebase'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { auth, db } from '../../config/firebase'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
@@ -41,8 +42,25 @@ function Signup() {
         displayName: name
       })
       
+      // Store user data in Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        name: name,
+        email: email,
+        gender: gender,
+        role: role,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      })
+      
       console.log('User created successfully:', userCredential.user)
-      navigate('/dashboard')
+      
+      // Redirect based on role
+      if (role === 'student') {
+        navigate('/dashboard')
+      } else if (role === 'teacher') {
+        // Teacher dashboard not implemented yet, redirect to student dashboard for now
+        navigate('/dashboard')
+      }
     } catch (error) {
       console.error('Signup error:', error)
       switch (error.code) {
