@@ -3,26 +3,202 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is the owner
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Helper function to get user role from database
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Helper function to check if user is a teacher
+    function isTeacher() {
+      return isAuthenticated() && getUserRole() == 'teacher';
+    }
+    
+    // Helper function to check if user is a student
+    function isStudent() {
+      return isAuthenticated() && getUserRole() == 'student';
+    }
+    
+    // Helper function to check if user is enrolled in a class
+    function isEnrolledInClass(classId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid));
+    }
+    
+    // Helper function to check if user is the teacher of a class
+    function isClassTeacher(classId) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid;
+    }
+    
     // Users collection - stores user profile information
     match /users/{userId} {
       // Allow users to read their own profile
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Teachers can read student profiles in their classes
+      allow read: if isAuthenticated() && (isOwner(userId) || isTeacher());
       
       // Allow users to create their own profile during signup
-      allow create: if request.auth != null && request.auth.uid == userId
+      allow create: if isAuthenticated() && isOwner(userId)
                     && request.resource.data.keys().hasAll(['name', 'email', 'role', 'gender', 'createdAt'])
                     && request.resource.data.role in ['student', 'teacher'];
       
       // Allow users to update their own profile (but not their role)
-      allow update: if request.auth != null && request.auth.uid == userId
+      allow update: if isAuthenticated() && isOwner(userId)
                     && request.resource.data.role == resource.data.role;
       
       // Prevent deletion of user profiles
       allow delete: if false;
     }
     
-    // Add more rules for other collections as needed
-    // Example: Classes, Assignments, etc.
+    // Classes collection - stores class information
+    match /classes/{classId} {
+      // Teachers can create classes
+      allow create: if isTeacher() 
+                    && request.resource.data.teacherId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['name', 'teacherId', 'teacherName', 'classCode', 'createdAt']);
+      
+      // Teachers can read their own classes, students can read classes they're enrolled in
+      // Students can also list classes (needed for joining by code)
+      allow read: if isAuthenticated();
+      
+      // Students can list all classes to find one by code
+      allow list: if isAuthenticated();
+      
+      // Only the class teacher can fully update the class
+      // Allow authenticated users to update studentCount only (for join/leave)
+      allow update: if isClassTeacher(classId) ||
+                       (isAuthenticated() && 
+                        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'teacherId', 'teacherName', 'classCode', 'createdAt']));
+      
+      // Only the class teacher can delete the class
+      allow delete: if isClassTeacher(classId);
+      
+      // Students subcollection - stores enrolled students
+      match /students/{studentId} {
+        // Students can add themselves to a class (verified by matching studentId to auth.uid)
+        allow create: if isAuthenticated() && studentId == request.auth.uid;
+        
+        // Teachers and enrolled students can read the student list
+        allow read: if isClassTeacher(classId) || isEnrolledInClass(classId);
+        
+        // Teachers can remove students, students can leave the class themselves
+        allow delete: if isClassTeacher(classId) || (isAuthenticated() && studentId == request.auth.uid);
+      }
+    }
+    
+    // Assignments collection - stores assignment information
+    match /assignments/{assignmentId} {
+      // Teachers can create assignments
+      allow create: if isTeacher() 
+                    && request.resource.data.teacherId == request.auth.uid;
+      
+      // Teachers and enrolled students can read assignments
+      allow read: if isAuthenticated() && 
+                     (resource.data.teacherId == request.auth.uid || 
+                      isEnrolledInClass(resource.data.classId));
+      
+      // Only the assignment creator can update it
+      allow update: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      
+      // Only the assignment creator can delete it
+      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      
+      // Submissions subcollection - stores student submissions
+      match /submissions/{submissionId} {
+        // Students can create their own submissions
+        allow create: if isStudent() && submissionId == request.auth.uid;
+        
+        // Teachers and the submitting student can read submissions
+        allow read: if isAuthenticated() && 
+                       (get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid ||
+                        submissionId == request.auth.uid);
+        
+        // Students can update their own submissions if not yet graded
+        // Teachers can update to add grades
+        allow update: if (isStudent() && submissionId == request.auth.uid && !resource.data.keys().hasAny(['grade'])) ||
+                         (get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid);
+        
+        // Students can delete their own ungraded submissions
+        allow delete: if isStudent() && submissionId == request.auth.uid && !resource.data.keys().hasAny(['grade']);
+      }
+    }
+    
+    // Grades collection - stores grade information
+    match /grades/{gradeId} {
+      // Teachers can create grades
+      allow create: if isTeacher();
+      
+      // Teachers and the student can read grades
+      allow read: if isAuthenticated() && 
+                     (resource.data.teacherId == request.auth.uid || 
+                      resource.data.studentId == request.auth.uid);
+      
+      // Only the teacher can update grades
+      allow update: if isTeacher() && resource.data.teacherId == request.auth.uid;
+      
+      // Only the teacher can delete grades
+      allow delete: if isTeacher() && resource.data.teacherId == request.auth.uid;
+    }
+    
+    // Announcements collection - stores class announcements
+    match /announcements/{announcementId} {
+      // Teachers can create announcements
+      allow create: if isTeacher() && request.resource.data.teacherId == request.auth.uid;
+      
+      // Teachers and enrolled students can read announcements
+      allow read: if isAuthenticated() && 
+                     (resource.data.teacherId == request.auth.uid || 
+                      isEnrolledInClass(resource.data.classId));
+      
+      // Only the announcement creator can update it
+      allow update: if isTeacher() && resource.data.teacherId == request.auth.uid;
+      
+      // Only the announcement creator can delete it
+      allow delete: if isTeacher() && resource.data.teacherId == request.auth.uid;
+    }
+    
+    // Materials collection - stores class materials/resources
+    match /materials/{materialId} {
+      // Teachers can create materials
+      allow create: if isTeacher() && request.resource.data.teacherId == request.auth.uid;
+      
+      // Teachers and enrolled students can read materials
+      allow read: if isAuthenticated() && 
+                     (resource.data.teacherId == request.auth.uid || 
+                      isEnrolledInClass(resource.data.classId));
+      
+      // Only the material creator can update it
+      allow update: if isTeacher() && resource.data.teacherId == request.auth.uid;
+      
+      // Only the material creator can delete it
+      allow delete: if isTeacher() && resource.data.teacherId == request.auth.uid;
+    }
+    
+    // Calendar collection - stores calendar events
+    match /calendar/{eventId} {
+      // Teachers can create events
+      allow create: if isTeacher() && request.resource.data.teacherId == request.auth.uid;
+      
+      // Teachers and enrolled students can read events
+      allow read: if isAuthenticated() && 
+                     (resource.data.teacherId == request.auth.uid || 
+                      isEnrolledInClass(resource.data.classId));
+      
+      // Only the event creator can update it
+      allow update: if isTeacher() && resource.data.teacherId == request.auth.uid;
+      
+      // Only the event creator can delete it
+      allow delete: if isTeacher() && resource.data.teacherId == request.auth.uid;
+    }
     
     // Default deny all other access
     match /{document=**} {
