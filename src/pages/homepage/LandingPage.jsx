@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
 import { auth } from '../../config/firebase'
+import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
 
@@ -51,12 +52,14 @@ function LandingPage() {
     <div className="auth-container">
       <div className="auth-wrapper">
         <div className="auth-header">
-          <h1 className="brand-title">EduManage</h1>
-          <p className="brand-description">Your comprehensive education management platform</p>
+          <img src={bhsaLogo} alt="BHSA Logo" className="auth-logo" />
+          <div className="auth-text">
+            <h1 className="brand-title">Bataan High School For The Arts</h1>
+            <p className="brand-description">Bayan Ng Bayani, Bayani Ng Sining</p>
+          </div>
         </div>
         
         <div className="auth-card">
-          <h2 className="form-title">Welcome Back!</h2>
           
           {error && <div className="error-message">{error}</div>}
           

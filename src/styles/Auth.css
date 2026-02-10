@@ -5,37 +5,74 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
-  padding: 40px 20px;
+  background-image: url('../assets/bhsa wallpaper.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  padding: 20px 20px;
+  position: relative;
+}
+
+.auth-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(103, 106, 117, 0.75);
+  z-index: 1;
 }
 
 .auth-wrapper {
   width: 100%;
   max-width: 480px;
+  position: relative;
+  z-index: 2;
 }
 
 .auth-header {
   text-align: center;
   margin-bottom: 30px;
-  background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
+  background: #0038A8;
   padding: 32px 40px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 56, 168, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.auth-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.auth-text {
+  flex: 1;
+  text-align: left;
 }
 
 .brand-title {
-  color: #6d28d9;
-  font-size: 48px;
-  font-weight: 700;
+  color: #FFFFFF;
+  font-size: 21px;
+  font-weight: 300;
+  text-align: left;
   margin: 0 0 12px 0;
   letter-spacing: -0.5px;
+  font-family: 'Windsor EF Light', 'Cinzel', 'Playfair Display', Georgia, serif;
 }
 
 .brand-description {
-  color: #7c3aed;
-  font-size: 16px;
+  color: #FFFFFF;
+  font-size: 14px;
   margin: 0;
-  font-weight: 500;
+  text-align: left;
+  font-weight: 300;
+  font-family: 'Windsor EF Light', 'Cinzel', 'Playfair Display', Georgia, serif;
 }
 
 .auth-card {
@@ -83,7 +120,7 @@
 
 .tab-button.active {
   background: #ffffff;
-  color: #7c3aed;
+  color: #0038A8;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
@@ -122,8 +159,8 @@
 .form-group input[type="email"]:focus,
 .form-group input[type="password"]:focus {
   outline: none;
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: #0038A8;
+  box-shadow: 0 0 0 3px rgba(0, 56, 168, 0.1);
 }
 
 .form-group select {
@@ -148,8 +185,8 @@
 
 .form-group select:focus {
   outline: none;
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: #0038A8;
+  box-shadow: 0 0 0 3px rgba(0, 56, 168, 0.1);
 }
 
 .form-group select option {
@@ -167,7 +204,7 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #7c3aed;
+  accent-color: #0038A8;
 }
 
 .checkbox-group .checkbox-label {
@@ -197,14 +234,14 @@
 }
 
 .radio-label:hover {
-  color: #7c3aed;
+  color: #0038A8;
 }
 
 .radio-label input[type="radio"] {
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #7c3aed;
+  accent-color: #0038A8;
 }
 
 .radio-label span {
@@ -212,8 +249,8 @@
 }
 
 .btn-primary {
-  background: #7c3aed;
-  color: #ffffff;
+  background: #0038A8;
+  color: #FFFFFF;
   border: none;
   padding: 14px 24px;
   font-size: 16px;
@@ -222,13 +259,13 @@
   cursor: pointer;
   transition: all 0.2s ease;
   margin-top: 10px;
-  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 56, 168, 0.2);
   width: 100%;
 }
 
 .btn-primary:hover {
-  background: #6d28d9;
-  box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);
+  background: #002d7a;
+  box-shadow: 0 4px 8px rgba(0, 56, 168, 0.3);
 }
 
 .btn-primary:active {
@@ -271,14 +308,14 @@
 }
 
 .auth-footer a {
-  color: #7c3aed;
+  color: #0038A8;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
 }
 
 .auth-footer a:hover {
-  color: #6d28d9;
+  color: #002d7a;
   text-decoration: underline;
 }
 
@@ -286,6 +323,21 @@
 @media (max-width: 600px) {
   .auth-wrapper {
     max-width: 100%;
+  }
+
+  .auth-header {
+    flex-direction: column;
+    padding: 24px 28px;
+    gap: 16px;
+  }
+
+  .auth-logo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .auth-text {
+    text-align: center;
   }
 
   .brand-title {
