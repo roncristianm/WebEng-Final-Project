@@ -1,4 +1,7 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "site": "webeng-final-project-a2e02-e0fa5",
     "public": "dist",
