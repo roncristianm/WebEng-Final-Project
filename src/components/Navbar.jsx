@@ -25,7 +25,6 @@ function Navbar() {
         <img src={bhsaLogo} alt="BHSA Logo" className="sidebar-logo" />
         <div className="sidebar-text">
           <h2 className="sidebar-title">Bataan High School For The Arts</h2>
-          <p className="sidebar-subtitle">Student Portal</p>
         </div>
       </div>
 

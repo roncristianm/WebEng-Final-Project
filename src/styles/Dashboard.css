@@ -252,20 +252,13 @@
 
 .sidebar-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   text-align: left;
   color: white;
   letter-spacing: -0.5px;
 }
 
-.sidebar-subtitle {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  text-align: left;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 500;
-}
 
 .nav-menu {
   flex: 1;
