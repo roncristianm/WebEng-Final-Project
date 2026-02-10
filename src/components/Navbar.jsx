@@ -1,5 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import '../styles/Dashboard.css'
+import bhsaLogo from '../assets/bhsa-logo.png'
 
 function Navbar() {
   const navigate = useNavigate()
@@ -21,8 +22,11 @@ function Navbar() {
   return (
     <nav className="sidebar">
       <div className="sidebar-header">
-        <h2 className="sidebar-title">EduManage</h2>
-        <p className="sidebar-subtitle">Student Portal</p>
+        <img src={bhsaLogo} alt="BHSA Logo" className="sidebar-logo" />
+        <div className="sidebar-text">
+          <h2 className="sidebar-title">Bataan High School For The Arts</h2>
+          <p className="sidebar-subtitle">Student Portal</p>
+        </div>
       </div>
 
       <ul className="nav-menu">

@@ -48,8 +48,8 @@
 }
 
 .join-class-btn {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-  color: white;
+  background: #0038A8;
+  color: #FFFFFF;
   border: none;
   padding: 12px 24px;
   border-radius: 12px;
@@ -62,7 +62,8 @@
 
 .join-class-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
+  background: #002d7a;
 }
 
 /* Unified Grid Layout */
@@ -91,7 +92,7 @@
 .grid-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border-color: #7c3aed;
+  border-color: #0038A8;
 }
 
 /* Large Content Cards (Announcements, Assignments, Materials) */
@@ -150,7 +151,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #7c3aed, #6d28d9);
+  background: #0038A8;
   transform: scaleX(0);
   transition: transform 0.3s ease;
 }
@@ -214,8 +215,8 @@
 /* Sidebar Navigation */
 .sidebar {
   width: 260px;
-  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
-  color: white;
+  background: #0038A8;
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
@@ -232,12 +233,28 @@
 .sidebar-header {
   padding: 32px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sidebar-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.sidebar-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .sidebar-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 15px;
   font-weight: 700;
+  text-align: left;
   color: white;
   letter-spacing: -0.5px;
 }
@@ -245,6 +262,7 @@
 .sidebar-subtitle {
   margin: 8px 0 0 0;
   font-size: 14px;
+  text-align: left;
   color: rgba(255, 255, 255, 0.8);
   font-weight: 500;
 }
@@ -372,7 +390,7 @@
 .placeholder-card h3 {
   margin: 0 0 16px 0;
   font-size: 28px;
-  color: #7c3aed;
+  color: #0038A8;
   font-weight: 600;
 }
 
@@ -463,14 +481,22 @@
 
   .sidebar-header {
     padding: 20px 8px;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sidebar-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sidebar-text {
+    display: none;
   }
 
   .sidebar-title {
-    font-size: 18px;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
   }
 
   .sidebar-subtitle {
@@ -614,10 +640,20 @@
 
   .sidebar-header {
     padding: 16px 6px;
+    justify-content: center;
+  }
+
+  .sidebar-logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sidebar-text {
+    display: none;
   }
 
   .sidebar-title {
-    font-size: 16px;
+    display: none;
   }
 
   .nav-item {
@@ -754,10 +790,20 @@
 
   .sidebar-header {
     padding: 12px 4px;
+    justify-content: center;
+  }
+
+  .sidebar-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sidebar-text {
+    display: none;
   }
 
   .sidebar-title {
-    font-size: 14px;
+    display: none;
   }
 
   .nav-item {
