@@ -63,7 +63,7 @@
 .join-class-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
-  background: #002d7a;
+  background: #0038A8;
 }
 
 /* Unified Grid Layout */
@@ -407,6 +407,169 @@
   line-height: 1.6;
 }
 
+/* Teacher Dashboard Specific Styles */
+.welcome-section {
+  margin-bottom: 40px;
+}
+
+.welcome-section h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 24px 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-create-class {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.btn-create-class:hover {
+  background: #0038A8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
+}
+
+.btn-create-assignment {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.btn-create-assignment:hover {
+  background: #0038A8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
+}
+
+.my-classes-section {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.section-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-add-class {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 56, 168, 0.3);
+}
+
+.btn-add-class:hover {
+  background: #0038A8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.4);
+}
+
+.empty-classes {
+  text-align: center;
+  padding: 60px 20px;
+  color: #9ca3af;
+}
+
+.empty-classes p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.quick-stats-section {
+  margin-bottom: 40px;
+}
+
+.quick-stats-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 24px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+}
+
+.stat-card {
+  background: #0038A8;
+  border-radius: 16px;
+  padding: 40px 32px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 56, 168, 0.4);
+}
+
+.stat-number {
+  font-size: 56px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.95;
+}
+
 /* Responsive Design */
 
 /* Large Desktop (1400px and up) */
@@ -462,6 +625,19 @@
 
   .page-header h1 {
     font-size: 32px;
+  }
+
+  /* Teacher Dashboard Responsive */
+  .welcome-section h1 {
+    font-size: 28px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .my-classes-section {
+    padding: 28px;
   }
 }
 
@@ -622,6 +798,38 @@
 
   .placeholder-card p {
     font-size: 15px;
+  }
+
+  /* Teacher Dashboard Responsive */
+  .welcome-section h1 {
+    font-size: 24px;
+  }
+
+  .action-buttons {
+    gap: 12px;
+  }
+
+  .btn-create-class,
+  .btn-create-assignment {
+    padding: 12px 24px;
+    font-size: 13px;
+  }
+
+  .my-classes-section {
+    padding: 24px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 32px 24px;
+  }
+
+  .stat-number {
+    font-size: 48px;
   }
 }
 
@@ -934,6 +1142,63 @@
   .placeholder-card li {
     font-size: 13px;
     margin: 6px 0;
+  }
+
+  /* Teacher Dashboard Responsive */
+  .welcome-section h1 {
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-create-class,
+  .btn-create-assignment {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+
+  .my-classes-section {
+    padding: 20px 16px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .btn-add-class {
+    width: 100%;
+  }
+
+  .empty-classes {
+    padding: 40px 16px;
+  }
+
+  .empty-classes p {
+    font-size: 14px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 32px 24px;
+  }
+
+  .stat-number {
+    font-size: 48px;
+  }
+
+  .stat-label {
+    font-size: 15px;
   }
 }
 

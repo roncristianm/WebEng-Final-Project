@@ -28,7 +28,6 @@ function Dashboard() {
         {/* Announcements Card */}
         <div className="grid-card announcements">
           <div className="card-header">
-            <span className="card-icon">📢</span>
             <h2>Announcements</h2>
           </div>
           <div className="card-body">
@@ -39,7 +38,6 @@ function Dashboard() {
         {/* Assignments Card */}
         <div className="grid-card assignments">
           <div className="card-header">
-            <span className="card-icon">📝</span>
             <h2>Assignments</h2>
           </div>
           <div className="card-body">
@@ -50,38 +48,32 @@ function Dashboard() {
         {/* Materials Card */}
         <div className="grid-card materials">
           <div className="card-header">
-            <span className="card-icon">📚</span>
             <h2>Materials</h2>
           </div>
           <div className="card-body">
             <p className="empty-state">No materials yet</p>
           </div>
         </div>
+      </div>
 
-        {/* Pending */}
-        <div className="grid-card activity pending">
-          <div className="card-icon-large">⏳</div>
-          <h3>Pending</h3>
-          <p className="count">0</p>
+      {/* Classwork Status Section */}
+      <div className="quick-stats-section">
+        <h2></h2>
+        <h2>CLASSWORK STATUS</h2>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-number">0</div>
+            <div className="stat-label">Pending</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">0</div>
+            <div className="stat-label">Completed</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">0</div>
+            <div className="stat-label">Overdue</div>
+          </div>
         </div>
-
-        {/* Completed */}
-        <div className="grid-card activity completed">
-          <div className="card-icon-large">✅</div>
-          <h3>Completed</h3>
-          <p className="count">0</p>
-        </div>
-
-        {/* Overdue */}
-        <div className="grid-card activity overdue">
-          <div className="card-icon-large">⚠️</div>
-          <h3>Overdue</h3>
-          <p className="count">0</p>
-        </div>
-
-
-
-
       </div>
     </div>
   )
