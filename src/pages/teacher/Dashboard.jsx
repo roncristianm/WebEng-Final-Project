@@ -10,78 +10,59 @@ function Dashboard() {
     navigate('/teacher-dashboard/class')
   }
 
+  const handleCreateAssignment = () => {
+    navigate('/teacher-dashboard/assignment')
+  }
+
   return (
     <div className="dashboard-page">
-      {/* Top Section - Teacher Name & Create Class Button */}
-      <div className="dashboard-header">
-        <div className="student-greeting">
-          <h1>Welcome, {userName}!</h1>
-          <p className="greeting-subtitle">Here's what's happening in your classes</p>
+      {/* Welcome Section */}
+      <div className="welcome-section">
+        <h1>Welcome, {userName}!</h1>
+        <div className="action-buttons">
+          <button className="btn-create-class" onClick={handleCreateClass}>
+            + CREATE NEW CLASS
+          </button>
+          <button className="btn-create-assignment" onClick={handleCreateAssignment}>
+            + CREATE ASSIGNMENT
+          </button>
         </div>
-        <button className="join-class-btn" onClick={handleCreateClass}>
-          + Create Class
-        </button>
       </div>
 
-      {/* Grid Container */}
-      <div className="dashboard-grid">
-        {/* Announcements Card */}
-        <div className="grid-card announcements">
-          <div className="card-header">
-            <span className="card-icon">📢</span>
-            <h2>Announcements</h2>
+      {/* My Classes Section */}
+      <div className="my-classes-section">
+        <div className="section-header">
+          <h2>MY CLASSES</h2>
+          <button className="btn-add-class" onClick={handleCreateClass}>
+            + Add Class
+          </button>
+        </div>
+        <div className="empty-classes">
+          <p>No classes yet. Create your first class to get started!</p>
+        </div>
+      </div>
+
+      {/* Quick Stats Section */}
+      <div className="quick-stats-section">
+        <h2>QUICK STATS</h2>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-number">0</div>
+            <div className="stat-label">Total Students</div>
           </div>
-          <div className="card-body">
-            <p className="empty-state">No announcements yet</p>
+          <div className="stat-card">
+            <div className="stat-number">0</div>
+            <div className="stat-label">Active Classes</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">0</div>
+            <div className="stat-label">Pending Grades</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">0</div>
+            <div className="stat-label">Late Submissions</div>
           </div>
         </div>
-
-        {/* Assignments Card */}
-        <div className="grid-card assignments">
-          <div className="card-header">
-            <span className="card-icon">📝</span>
-            <h2>Assignments</h2>
-          </div>
-          <div className="card-body">
-            <p className="empty-state">No assignments yet</p>
-          </div>
-        </div>
-
-        {/* Materials Card */}
-        <div className="grid-card materials">
-          <div className="card-header">
-            <span className="card-icon">📚</span>
-            <h2>Materials</h2>
-          </div>
-          <div className="card-body">
-            <p className="empty-state">No materials yet</p>
-          </div>
-        </div>
-
-        {/* Pending */}
-        <div className="grid-card activity pending">
-          <div className="card-icon-large">⏳</div>
-          <h3>Pending</h3>
-          <p className="count">0</p>
-        </div>
-
-        {/* Completed */}
-        <div className="grid-card activity completed">
-          <div className="card-icon-large">✅</div>
-          <h3>Completed</h3>
-          <p className="count">0</p>
-        </div>
-
-        {/* Overdue */}
-        <div className="grid-card activity overdue">
-          <div className="card-icon-large">⚠️</div>
-          <h3>Overdue</h3>
-          <p className="count">0</p>
-        </div>
-
-
-
-
       </div>
     </div>
   )
