@@ -6,6 +6,10 @@ function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Determine if user is on teacher dashboard
+  const isTeacher = location.pathname.startsWith('/teacher-dashboard')
+  const basePath = isTeacher ? '/teacher-dashboard' : '/dashboard'
+
   const handleLogout = () => {
     // Add logout logic here
     console.log('Logging out...')
@@ -13,8 +17,8 @@ function Navbar() {
   }
 
   const isActive = (path) => {
-    if (path === '/dashboard') {
-      return location.pathname === '/dashboard'
+    if (path === basePath) {
+      return location.pathname === basePath
     }
     return location.pathname.startsWith(path)
   }
@@ -30,7 +34,7 @@ function Navbar() {
 
       <ul className="nav-menu">
         <li>
-          <Link to="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}>
+          <Link to={basePath} className={`nav-item ${isActive(basePath) ? 'active' : ''}`}>
             <span className="nav-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -41,7 +45,7 @@ function Navbar() {
           </Link>
         </li>
         <li>
-          <Link to="/dashboard/class" className={`nav-item ${isActive('/dashboard/class') ? 'active' : ''}`}>
+          <Link to={`${basePath}/class`} className={`nav-item ${isActive(`${basePath}/class`) ? 'active' : ''}`}>
             <span className="nav-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
@@ -52,7 +56,7 @@ function Navbar() {
           </Link>
         </li>
         <li>
-          <Link to="/dashboard/assignment" className={`nav-item ${isActive('/dashboard/assignment') ? 'active' : ''}`}>
+          <Link to={`${basePath}/assignment`} className={`nav-item ${isActive(`${basePath}/assignment`) ? 'active' : ''}`}>
             <span className="nav-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -66,7 +70,7 @@ function Navbar() {
           </Link>
         </li>
         <li>
-          <Link to="/dashboard/grade" className={`nav-item ${isActive('/dashboard/grade') ? 'active' : ''}`}>
+          <Link to={`${basePath}/grade`} className={`nav-item ${isActive(`${basePath}/grade`) ? 'active' : ''}`}>
             <span className="nav-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="20" x2="18" y2="10"/>
@@ -78,7 +82,7 @@ function Navbar() {
           </Link>
         </li>
         <li>
-          <Link to="/dashboard/calendar" className={`nav-item ${isActive('/dashboard/calendar') ? 'active' : ''}`}>
+          <Link to={`${basePath}/calendar`} className={`nav-item ${isActive(`${basePath}/calendar`) ? 'active' : ''}`}>
             <span className="nav-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
