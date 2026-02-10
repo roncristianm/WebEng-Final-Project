@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/homepage/LandingPage'
 import Signup from './pages/homepage/Signup'
+import ProtectedRoute from './components/ProtectedRoute'
 
 // Student imports
 import StudentDashboard from './pages/student/StudentDashboard'
@@ -28,7 +29,11 @@ function App() {
         <Route path="/login" element={<LandingPage />} />
         <Route path="/signup" element={<Signup />} />
         
-        <Route path="/dashboard" element={<StudentDashboard />}>
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <StudentDashboard />
+          </ProtectedRoute>
+        }>
           <Route index element={<StudentDashboardPage />} />
           <Route path="class" element={<StudentClass />} />
           <Route path="assignment" element={<StudentAssignment />} />
@@ -36,7 +41,11 @@ function App() {
           <Route path="calendar" element={<StudentCalendar />} />
         </Route>
 
-        <Route path="/teacher-dashboard" element={<TeacherDashboard />}>
+        <Route path="/teacher-dashboard" element={
+          <ProtectedRoute>
+            <TeacherDashboard />
+          </ProtectedRoute>
+        }>
           <Route index element={<TeacherDashboardPage />} />
           <Route path="class" element={<TeacherClass />} />
           <Route path="assignment" element={<TeacherAssignment />} />
