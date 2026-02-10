@@ -58,8 +58,7 @@ function Signup() {
       if (role === 'student') {
         navigate('/dashboard')
       } else if (role === 'teacher') {
-        // Teacher dashboard not implemented yet, redirect to student dashboard for now
-        navigate('/dashboard')
+        navigate('/teacher-dashboard')
       }
     } catch (error) {
       console.error('Signup error:', error)

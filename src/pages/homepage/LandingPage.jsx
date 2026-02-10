@@ -38,9 +38,7 @@ function LandingPage() {
         if (userData.role === 'student') {
           navigate('/dashboard')
         } else if (userData.role === 'teacher') {
-          // Teacher dashboard not created yet, redirect to student dashboard for now
-          navigate('/dashboard')
-          console.log('Teacher view not implemented yet, showing student dashboard')
+          navigate('/teacher-dashboard')
         }
       } else {
         // Fallback if user data doesn't exist
