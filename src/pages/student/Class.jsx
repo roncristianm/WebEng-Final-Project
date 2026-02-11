@@ -89,32 +89,8 @@ function Class() {
                   <h3>{classItem.name}</h3>
                   <span className="class-teacher">Teacher: {classItem.teacherName}</span>
                 </div>
-                <button 
-                  className="btn-leave"
-                  onClick={(e) => handleLeaveClass(e, classItem.id, classItem.name)}
-                  title="Leave class"
-                >
-                  🚪 Leave
-                </button>
               </div>
               <div className="class-card-body">
-                <div className="class-info">
-                  <div className="info-item">
-                    <span className="info-icon">👥</span>
-                    <span>{classItem.studentCount || 0} Students</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-icon">📝</span>
-                    <span>Class Code: {classItem.classCode}</span>
-                    <button 
-                      className="btn-copy-code-inline"
-                      onClick={(e) => handleCopyCode(e, classItem.classCode, classItem.name)}
-                      title="Copy class code"
-                    >
-                      📋 Copy
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           ))}

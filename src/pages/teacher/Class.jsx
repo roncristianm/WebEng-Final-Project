@@ -89,33 +89,11 @@ function Class() {
                   <h3>{classItem.name}</h3>
                   <div className="class-code-container">
                     <span className="class-code">Code: {classItem.classCode}</span>
-                    <button 
-                      className="btn-copy-code"
-                      onClick={(e) => handleCopyCode(e, classItem.classCode, classItem.name)}
-                      title="Copy class code"
-                    >
-                      📋
-                    </button>
                   </div>
                 </div>
-                <button 
-                  className="btn-delete"
-                  onClick={(e) => handleDeleteClass(e, classItem.id, classItem.name)}
-                  title="Delete class"
-                >
-                  🗑️
-                </button>
               </div>
               <div className="class-card-body">
                 <div className="class-info">
-                  <div className="info-item">
-                    <span className="info-icon">👥</span>
-                    <span>{classItem.studentCount || 0} Students</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-icon">📅</span>
-                    <span>Created {classItem.createdAt ? new Date(classItem.createdAt.seconds * 1000).toLocaleDateString() : 'Recently'}</span>
-                  </div>
                 </div>
               </div>
             </div>

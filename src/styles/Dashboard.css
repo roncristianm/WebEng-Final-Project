@@ -62,8 +62,8 @@
 
 .join-class-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
-  background: #0038A8;
+  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
+  background: #ffd100;
 }
 
 /* Unified Grid Layout */
@@ -91,8 +91,8 @@
 
 .grid-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border-color: #0038A8;
+  box-shadow: 0 8px 24px rgba(255, 209, 0, 0.3);
+  border-color: #ffd100;
 }
 
 /* Large Content Cards (Announcements, Assignments, Materials) */
@@ -298,8 +298,8 @@
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: rgba(255, 209, 0, 0.2);
+  color: #ffd100;
 }
 
 .nav-item.active {
@@ -450,9 +450,9 @@
 }
 
 .btn-create-class:hover {
-  background: #0038A8;
+  background: #ffd100;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
+  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
 }
 
 .btn-create-assignment {
@@ -471,9 +471,9 @@
 }
 
 .btn-create-assignment:hover {
-  background: #0038A8;
+  background: #ffd100;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
+  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
 }
 
 .my-classes-section {
@@ -516,9 +516,9 @@
 }
 
 .btn-add-class:hover {
-  background: #0038A8;
+  background: #ffd100;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.4);
+  box-shadow: 0 4px 12px rgba(255, 209, 0, 0.4);
 }
 
 .empty-classes {
@@ -564,7 +564,8 @@
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 56, 168, 0.4);
+  box-shadow: 0 8px 24px rgba(255, 209, 0, 0.4);
+  background: #ffd100;
 }
 
 .stat-number {
@@ -1394,9 +1395,9 @@
 }
 
 .btn-submit:hover {
-  background: #002d87;
+  background: #ffd100;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
+  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
 }
 
 .btn-submit:active {
@@ -1445,29 +1446,35 @@
   background: white;
   border-radius: 12px;
   padding: 24px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #0038A8;
   transition: all 0.3s ease;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .class-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 56, 168, 0.15);
-  border-color: #0038A8;
+  box-shadow: 0 8px 24px rgba(255, 209, 0, 0.3);
+  border-color: #ffd100;
+  background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%);
 }
 
 .class-card-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   margin-bottom: 16px;
+  flex: 1;
 }
 
 .class-card-header h3 {
-  margin: 0;
+  margin: 0 0 12px 0;
   font-size: 20px;
   color: #1f2937;
   font-weight: 700;
+  width: 100%;
 }
 
 .class-code {
@@ -1504,8 +1511,8 @@
 }
 
 .btn-copy-code:hover {
-  background: #0038A8;
-  color: white;
+  background: #ffd100;
+  color: #0038A8;
   transform: scale(1.1);
 }
 
@@ -1525,19 +1532,22 @@
 }
 
 .btn-copy-code-inline:hover {
-  background: #002d87;
+  background: #ffd100;
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 56, 168, 0.3);
+  box-shadow: 0 2px 6px rgba(255, 209, 0, 0.4);
 }
 
 .class-card-body {
   margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .class-stat {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   color: #6b7280;
   font-size: 14px;
 }
@@ -1563,8 +1573,8 @@
 }
 
 .mini-class-item:hover {
-  background: #eff6ff;
-  border-color: #0038A8;
+  background: #fffef5;
+  border-color: #ffd100;
   transform: translateX(4px);
 }
 
@@ -1594,7 +1604,7 @@
 }
 
 .view-all-btn:hover {
-  background: #002d87;
+  background: #ffd100;
 }
 
 /* Classes Page - Full Grid */
@@ -1609,25 +1619,30 @@
   background: white;
   border-radius: 16px;
   padding: 28px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #0038A8;
   transition: all 0.3s ease;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
 }
 
 .class-card-large:hover {
   transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(0, 56, 168, 0.2);
-  border-color: #0038A8;
+  box-shadow: 0 12px 32px rgba(255, 209, 0, 0.3);
+  border-color: #ffd100;
+  background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%);
 }
 
 .class-card-large .class-card-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 2px solid #f3f4f6;
+  width: 100%;
 }
 
 .class-card-large .class-card-header h3 {
@@ -1641,7 +1656,8 @@
   display: block;
   font-size: 14px;
   color: #6b7280;
-  margin-top: 4px;
+  margin-top: 8px;
+  width: 100%;
 }
 
 .class-info {
@@ -1694,7 +1710,7 @@
 }
 
 .btn-view-all:hover {
-  background: #0038A8;
+  background: #ffd100;
   color: white;
 }
 
@@ -1757,9 +1773,9 @@
 }
 
 .btn-create-first:hover {
-  background: #002d87;
+  background: #ffd100;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 56, 168, 0.4);
+  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
 }
 
 /* My Classes Section */
