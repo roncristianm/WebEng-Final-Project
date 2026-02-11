@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
+import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../context/NotificationContext'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
@@ -16,6 +18,44 @@ function Signup() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { currentUser } = useAuth()
+  const { showNotification } = useNotification()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            if (userData.role === 'teacher') {
+              navigate('/teacher-dashboard', { replace: true })
+            } else {
+              navigate('/dashboard', { replace: true })
+            }
+          } else {
+            navigate('/dashboard', { replace: true })
+          }
+        } catch (error) {
+          console.error('Error checking user role:', error)
+        }
+      }
+    }
+    checkUserRole()
+  }, [currentUser, navigate])
+
+  // Prevent back button to signup page after authentication
+  useEffect(() => {
+    const preventBackToSignup = () => {
+      window.history.pushState(null, '', window.location.href)
+    }
+    
+    window.addEventListener('popstate', preventBackToSignup)
+    preventBackToSignup()
+    
+    return () => window.removeEventListener('popstate', preventBackToSignup)
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -54,12 +94,20 @@ function Signup() {
       
       console.log('User created successfully:', userCredential.user)
       
-      // Redirect based on role
-      if (role === 'student') {
-        navigate('/dashboard')
-      } else if (role === 'teacher') {
-        navigate('/teacher-dashboard')
-      }
+      // Show notification immediately
+      showNotification('Signup successful!', 'success')
+      
+      // Clear history to prevent back button to signup page
+      window.history.pushState(null, '', window.location.href)
+      
+      // Wait for notification to be visible before redirecting
+      setTimeout(() => {
+        if (role === 'student') {
+          window.location.href = '/dashboard'
+        } else if (role === 'teacher') {
+          window.location.href = '/teacher-dashboard'
+        }
+      }, 1500)
     } catch (error) {
       console.error('Signup error:', error)
       switch (error.code) {
