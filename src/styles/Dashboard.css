@@ -56,14 +56,11 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
 
 .join-class-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
-  background: #ffd100;
+  opacity: 0.9;
 }
 
 /* Unified Grid Layout */
@@ -83,16 +80,13 @@
   padding: 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 2px solid #e5e7eb;
-  transition: all 0.3s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
 }
 
 .grid-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(255, 209, 0, 0.3);
-  border-color: #ffd100;
+  opacity: 0.95;
 }
 
 /* Large Content Cards (Announcements, Assignments, Materials) */
@@ -156,10 +150,6 @@
   transition: transform 0.3s ease;
 }
 
-.grid-card.activity:hover::before {
-  transform: scaleX(1);
-}
-
 .card-icon-large {
   font-size: 48px;
   margin-bottom: 16px;
@@ -179,37 +169,6 @@
   font-size: 36px;
   color: #1f2937;
   font-weight: 700;
-}
-
-/* Activity Card Color Coding */
-.grid-card.activity.pending:hover {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-}
-
-.grid-card.activity.completed:hover {
-  border-color: #10b981;
-  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
-}
-
-.grid-card.activity.overdue:hover {
-  border-color: #ef4444;
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-}
-
-.grid-card.activity.posted:hover {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-}
-
-.grid-card.activity.quizzes:hover {
-  border-color: #8b5cf6;
-  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-}
-
-.grid-card.activity.performance:hover {
-  border-color: #ec4899;
-  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
 }
 
 /* Sidebar Navigation */
@@ -289,17 +248,11 @@
   text-decoration: none;
   font-size: 16px;
   font-weight: 500;
-  transition: all 0.2s ease;
   border: none;
   background: transparent;
   width: 100%;
   cursor: pointer;
   text-align: left;
-}
-
-.nav-item:hover {
-  background: rgba(255, 209, 0, 0.2);
-  color: #ffd100;
 }
 
 .nav-item.active {
@@ -331,11 +284,6 @@
 .logout-btn {
   color: rgba(255, 255, 255, 0.9);
   font-family: inherit;
-}
-
-.logout-btn:hover {
-  background: rgba(220, 38, 38, 0.2);
-  color: #fecaca;
 }
 
 /* Dashboard Content */
@@ -443,16 +391,13 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
 }
 
 .btn-create-class:hover {
-  background: #ffd100;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
+  opacity: 0.9;
 }
 
 .btn-create-assignment {
@@ -464,16 +409,13 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
 }
 
 .btn-create-assignment:hover {
-  background: #ffd100;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
+  opacity: 0.9;
 }
 
 .my-classes-section {
@@ -511,14 +453,11 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
   box-shadow: 0 2px 6px rgba(0, 56, 168, 0.3);
 }
 
 .btn-add-class:hover {
-  background: #ffd100;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 209, 0, 0.4);
+  opacity: 0.9;
 }
 
 .empty-classes {
@@ -558,14 +497,11 @@
   text-align: center;
   color: white;
   box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
-  transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(255, 209, 0, 0.4);
-  background: #ffd100;
+  opacity: 0.95;
 }
 
 .stat-number {
@@ -1312,14 +1248,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  transition: all 0.2s ease;
   padding: 0;
   line-height: 1;
 }
 
 .modal-close:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  opacity: 0.7;
 }
 
 .modal-body {
@@ -1372,13 +1306,10 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .btn-cancel:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-  color: #1f2937;
+  opacity: 0.8;
 }
 
 .btn-submit {
@@ -1390,14 +1321,11 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
 }
 
 .btn-submit:hover {
-  background: #ffd100;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
+  opacity: 0.9;
 }
 
 .btn-submit:active {
@@ -1446,18 +1374,14 @@
   background: white;
   border-radius: 12px;
   padding: 24px;
-  border: 2px solid #0038A8;
-  transition: all 0.3s ease;
+  border: 1.5px solid #0038A8;
   cursor: pointer;
   display: flex;
   flex-direction: column;
 }
 
 .class-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(255, 209, 0, 0.3);
-  border-color: #ffd100;
-  background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%);
+  opacity: 0.95;
 }
 
 .class-card-header {
@@ -1504,16 +1428,13 @@
   border-radius: 6px;
   font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .btn-copy-code:hover {
-  background: #ffd100;
-  color: #0038A8;
-  transform: scale(1.1);
+  opacity: 0.8;
 }
 
 .btn-copy-code-inline {
@@ -1525,16 +1446,13 @@
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   margin-left: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .btn-copy-code-inline:hover {
-  background: #ffd100;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(255, 209, 0, 0.4);
+  opacity: 0.9;
 }
 
 .class-card-body {
@@ -1569,13 +1487,10 @@
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .mini-class-item:hover {
-  background: #fffef5;
-  border-color: #ffd100;
-  transform: translateX(4px);
+  opacity: 0.9;
 }
 
 .mini-class-name {
@@ -1600,11 +1515,10 @@
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  transition: all 0.2s ease;
 }
 
 .view-all-btn:hover {
-  background: #ffd100;
+  opacity: 0.9;
 }
 
 /* Classes Page - Full Grid */
@@ -1619,19 +1533,15 @@
   background: white;
   border-radius: 16px;
   padding: 28px;
-  border: 2px solid #0038A8;
-  transition: all 0.3s ease;
-  cursor: pointer;
+  border: 1.5px solid #0038A8;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
 }
 
 .class-card-large:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(255, 209, 0, 0.3);
-  border-color: #ffd100;
-  background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%);
+  opacity: 0.95;
 }
 
 .class-card-large .class-card-header {
@@ -1688,13 +1598,11 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .btn-delete:hover,
 .btn-leave:hover {
-  background: #fecaca;
-  transform: scale(1.05);
+  opacity: 0.8;
 }
 
 .btn-view-all {
@@ -1706,12 +1614,10 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .btn-view-all:hover {
-  background: #ffd100;
-  color: white;
+  opacity: 0.8;
 }
 
 /* Loading and Empty States */
@@ -1768,14 +1674,11 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
 }
 
 .btn-create-first:hover {
-  background: #ffd100;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 209, 0, 0.4);
+  opacity: 0.9;
 }
 
 /* My Classes Section */

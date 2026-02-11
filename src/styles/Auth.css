@@ -111,11 +111,7 @@
   font-weight: 600;
   color: #6b7280;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
 
-.tab-button:hover {
-  color: #374151;
 }
 
 .tab-button.active {
@@ -230,11 +226,10 @@
   color: #374151;
   font-size: 15px;
   font-weight: 500;
-  transition: color 0.2s ease;
 }
 
 .radio-label:hover {
-  color: #0038A8;
+  opacity: 0.8;
 }
 
 .radio-label input[type="radio"] {
@@ -257,15 +252,13 @@
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
   margin-top: 10px;
   box-shadow: 0 2px 4px rgba(0, 56, 168, 0.2);
   width: 100%;
 }
 
 .btn-primary:hover {
-  background: #002d7a;
-  box-shadow: 0 4px 8px rgba(0, 56, 168, 0.3);
+  opacity: 0.9;
 }
 
 .btn-primary:active {
@@ -275,11 +268,6 @@
 .btn-primary:disabled {
   background: #9ca3af;
   cursor: not-allowed;
-  box-shadow: none;
-}
-
-.btn-primary:disabled:hover {
-  background: #9ca3af;
   box-shadow: none;
 }
 
@@ -311,12 +299,11 @@
   color: #0038A8;
   text-decoration: none;
   font-weight: 600;
-  transition: color 0.2s ease;
+  cursor: pointer;
 }
 
 .auth-footer a:hover {
-  color: #002d7a;
-  text-decoration: underline;
+  opacity: 0.8;
 }
 
 /* Responsive Design */

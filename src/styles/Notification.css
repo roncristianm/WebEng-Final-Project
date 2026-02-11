@@ -70,15 +70,13 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  transition: all 0.2s ease;
   flex-shrink: 0;
   line-height: 1;
   padding: 0;
 }
 
 .notification-close:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  opacity: 0.7;
 }
 
 /* Success Notification */
