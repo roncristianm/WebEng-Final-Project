@@ -66,7 +66,7 @@ function Dashboard() {
   }
 
   const handleClassClick = (classId) => {
-    navigate(`/dashboard/class/${classId}`)
+    navigate('/dashboard/class')
   }
 
   return (
@@ -112,6 +112,44 @@ function Dashboard() {
             <p className="empty-state">No materials yet</p>
           </div>
         </div>
+      </div>
+
+      {/* My Classes Section */}
+      <div className="my-classes-section">
+        <div className="section-header">
+          <h2>MY CLASSES</h2>
+          <button className="btn-view-all" onClick={() => navigate('/dashboard/class')}>
+            View All
+          </button>
+        </div>
+        {loading ? (
+          <div className="loading-state">Loading classes...</div>
+        ) : classes.length > 0 ? (
+          <div className="classes-grid">
+            {classes.slice(0, 4).map((classItem) => (
+              <div 
+                key={classItem.id} 
+                className="class-card"
+                onClick={() => handleClassClick(classItem.id)}
+              >
+                <div className="class-card-header">
+                  <h3>{classItem.name}</h3>
+                  <span className="class-teacher">Teacher: {classItem.teacherName}</span>
+                </div>
+                <div className="class-card-body">
+                  <div className="class-stat">
+                    <span className="stat-icon">👥</span>
+                    <span>{classItem.studentCount || 0} Students</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-classes">
+            <p>No classes yet. Join your first class to get started!</p>
+          </div>
+        )}
       </div>
 
       {/* Classwork Status Section */}
