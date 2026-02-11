@@ -1,4 +1,6 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useAuth } from './context/AuthContext'
 import LandingPage from './pages/homepage/LandingPage'
 import Signup from './pages/homepage/Signup'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -22,6 +24,45 @@ import TeacherCalendar from './pages/teacher/Calendar'
 import './styles/App.css'
 
 function App() {
+  const { currentUser, loading } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Monitor navigation and validate authentication state
+  useEffect(() => {
+    if (loading) return
+
+    const protectedRoutes = ['/dashboard', '/teacher-dashboard']
+    const authRoutes = ['/login', '/signup', '/']
+    
+    const isProtectedRoute = protectedRoutes.some(route => 
+      location.pathname.startsWith(route)
+    )
+    const isAuthRoute = authRoutes.includes(location.pathname)
+
+    // If on protected route without auth, redirect to login
+    if (isProtectedRoute && !currentUser) {
+      navigate('/login', { replace: true })
+    }
+    // If on auth route with valid session, redirect to dashboard
+    else if (isAuthRoute && currentUser) {
+      // Prevent accessing login/signup when already authenticated
+      navigate('/dashboard', { replace: true })
+    }
+  }, [currentUser, loading, location.pathname, navigate])
+
+  // Prevent browser back button from accessing protected pages after logout
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!currentUser && (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/teacher-dashboard'))) {
+        navigate('/login', { replace: true })
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [currentUser, location.pathname, navigate])
+
   return (
     <div className="App">
       <Routes>
