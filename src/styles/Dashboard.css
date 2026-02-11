@@ -259,6 +259,15 @@
   letter-spacing: -0.5px;
 }
 
+.sidebar-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.3px;
+}
+
 
 .nav-menu {
   flex: 1;
