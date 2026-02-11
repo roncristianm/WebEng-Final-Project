@@ -138,7 +138,6 @@ function Dashboard() {
                 </div>
                 <div className="class-card-body">
                   <div className="class-stat">
-                    <span className="stat-icon">👥</span>
                     <span>{classItem.studentCount || 0} Students</span>
                   </div>
                 </div>

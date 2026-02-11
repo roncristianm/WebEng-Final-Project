@@ -120,18 +120,10 @@ function Dashboard() {
                   <h3>{classItem.name}</h3>
                   <div className="class-code-container">
                     <span className="class-code">Code: {classItem.classCode}</span>
-                    <button 
-                      className="btn-copy-code"
-                      onClick={(e) => handleCopyCode(e, classItem.classCode, classItem.name)}
-                      title="Copy class code"
-                    >
-                      📋
-                    </button>
                   </div>
                 </div>
                 <div className="class-card-body">
                   <div className="class-stat">
-                    <span className="stat-icon">👥</span>
                     <span>{classItem.studentCount || 0} Students</span>
                   </div>
                 </div>
