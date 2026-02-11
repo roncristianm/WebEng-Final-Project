@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
+import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../context/NotificationContext'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
@@ -14,6 +16,44 @@ function LandingPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { currentUser } = useAuth()
+  const { showNotification } = useNotification()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            if (userData.role === 'teacher') {
+              navigate('/teacher-dashboard', { replace: true })
+            } else {
+              navigate('/dashboard', { replace: true })
+            }
+          } else {
+            navigate('/dashboard', { replace: true })
+          }
+        } catch (error) {
+          console.error('Error checking user role:', error)
+        }
+      }
+    }
+    checkUserRole()
+  }, [currentUser, navigate])
+
+  // Prevent back button to login page after authentication
+  useEffect(() => {
+    const preventBackToLogin = () => {
+      window.history.pushState(null, '', window.location.href)
+    }
+    
+    window.addEventListener('popstate', preventBackToLogin)
+    preventBackToLogin()
+    
+    return () => window.removeEventListener('popstate', preventBackToLogin)
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -34,15 +74,27 @@ function LandingPage() {
       if (userDoc.exists()) {
         const userData = userDoc.data()
         
-        // Redirect based on role
-        if (userData.role === 'student') {
-          navigate('/dashboard')
-        } else if (userData.role === 'teacher') {
-          navigate('/teacher-dashboard')
-        }
+        // Show notification immediately
+        showNotification('Login successful!', 'success')
+        
+        // Clear history to prevent back button to login page
+        window.history.pushState(null, '', window.location.href)
+        
+        // Wait for notification to be visible before redirecting
+        setTimeout(() => {
+          if (userData.role === 'student') {
+            window.location.href = '/dashboard'
+          } else if (userData.role === 'teacher') {
+            window.location.href = '/teacher-dashboard'
+          }
+        }, 1500)
       } else {
         // Fallback if user data doesn't exist
-        navigate('/dashboard')
+        showNotification('Login successful!', 'success')
+        window.history.pushState(null, '', window.location.href)
+        setTimeout(() => {
+          window.location.href = '/dashboard'
+        }, 1500)
       }
     } catch (error) {
       console.error('Login error:', error)

@@ -18,6 +18,8 @@ function Notification({ message, type = 'success', onClose, duration = 3000 }) {
         return '✕'
       case 'info':
         return 'ℹ'
+      case 'warning':
+        return '⚠'
       default:
         return '✓'
     }
