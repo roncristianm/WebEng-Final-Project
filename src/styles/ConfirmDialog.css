@@ -88,14 +88,11 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   font-family: inherit;
 }
 
 .btn-confirm-cancel:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
-  color: #374151;
+  opacity: 0.8;
 }
 
 .btn-confirm-action {
@@ -105,7 +102,6 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   font-family: inherit;
   color: white;
 }
@@ -116,9 +112,7 @@
 }
 
 .btn-confirm-danger:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  opacity: 0.9;
 }
 
 .btn-confirm-info {
@@ -127,9 +121,7 @@
 }
 
 .btn-confirm-info:hover {
-  background: #002d8a;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.4);
+  opacity: 0.9;
 }
 
 /* Responsive Design */
