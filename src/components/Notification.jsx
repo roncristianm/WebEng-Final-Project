@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import '../styles/Notification.css'
 
-function Notification({ message, type = 'success', onClose, duration = 3000 }) {
+function Notification({ message, type = 'success', onClose, duration = 3000, position = 'bottom' }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose()
@@ -26,7 +26,7 @@ function Notification({ message, type = 'success', onClose, duration = 3000 }) {
   }
 
   return (
-    <div className={`notification notification-${type}`}>
+    <div className={`notification notification-${type} notification-${position}`}>
       <div className="notification-icon">
         {getIcon()}
       </div>
