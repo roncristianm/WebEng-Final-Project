@@ -28,6 +28,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
   flex-wrap: wrap;
+  gap: 24px;
 }
 
 .student-greeting h1 {
@@ -47,20 +48,55 @@
   font-size: 16px;
 }
 
+.header-status-cards {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.status-card {
+  background: #0038A8;
+  color: white;
+  border-radius: 12px;
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 155px;
+  box-shadow: 0 2px 8px rgba(0, 56, 168, 0.2);
+  height: 50px;
+}
+
+.status-number {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-label {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.95;
+  white-space: nowrap;
+}
+
 .join-class-btn {
   background: #0038A8;
   color: #FFFFFF;
   border: none;
-  padding: 12px 24px;
+  padding: 16px 24px;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+  transition: all 0.3s ease;
 }
 
 .join-class-btn:hover {
   opacity: 0.9;
+  transform: translateY(-2px);
 }
 
 /* Unified Grid Layout */
@@ -471,6 +507,30 @@
   font-size: 15px;
 }
 
+/* Announcements Section */
+.announcements-section {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.announcements-content {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.announcements-content .empty-state {
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 15px;
+}
+
 .quick-stats-section {
   margin-bottom: 40px;
 }
@@ -560,6 +620,25 @@
 
   .student-greeting h1 {
     font-size: 28px;
+  }
+
+  .header-status-cards {
+    gap: 12px;
+  }
+
+  .status-card {
+    padding: 10px 24px;
+    min-width: 130px;
+    height: 44px;
+    gap: 10px;
+  }
+
+  .status-number {
+    font-size: 22px;
+  }
+
+  .status-label {
+    font-size: 13px;
   }
 
   .grid-card {
@@ -670,6 +749,32 @@
 
   .student-greeting h1 {
     font-size: 24px;
+  }
+
+  .header-status-cards {
+    width: 100%;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .status-card {
+    padding: 10px 20px;
+    min-width: 120px;
+    height: 42px;
+    gap: 8px;
+  }
+
+  .status-number {
+    font-size: 20px;
+  }
+
+  .status-label {
+    font-size: 12px;
+  }
+
+  .join-class-btn {
+    width: 100%;
+    max-width: 300px;
   }
 
   .greeting-subtitle {
@@ -845,6 +950,25 @@
     margin-bottom: 6px;
   }
 
+  .header-status-cards {
+    gap: 8px;
+  }
+
+  .status-card {
+    padding: 8px 16px;
+    min-width: 110px;
+    height: 40px;
+    gap: 6px;
+  }
+
+  .status-number {
+    font-size: 18px;
+  }
+
+  .status-label {
+    font-size: 11px;
+  }
+
   .greeting-subtitle {
     font-size: 13px;
   }
@@ -993,6 +1117,26 @@
   .student-greeting h1 {
     font-size: 20px;
     margin-bottom: 4px;
+  }
+
+  .header-status-cards {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .status-card {
+    padding: 8px 14px;
+    min-width: 100px;
+    height: 38px;
+    gap: 6px;
+  }
+
+  .status-number {
+    font-size: 16px;
+  }
+
+  .status-label {
+    font-size: 10px;
   }
 
   .greeting-subtitle {
@@ -1679,6 +1823,36 @@
 
 .btn-create-first:hover {
   opacity: 0.9;
+}
+
+.empty-state-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-state-large svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state-large p {
+  margin: 0;
+  font-size: 16px;
+  font-style: italic;
+}
+
+.announcements-list {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  min-height: 300px;
 }
 
 /* My Classes Section */
