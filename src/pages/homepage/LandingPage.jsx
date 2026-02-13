@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../context/NotificationContext'
+import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
@@ -119,6 +120,15 @@ function LandingPage() {
 
   return (
     <div className="auth-container">
+      {error && (
+        <Notification 
+          message={error}
+          type="error"
+          onClose={() => setError('')}
+          position="top"
+          duration={5000}
+        />
+      )}
       <div className="auth-wrapper">
         <div className="auth-header">
           <img src={bhsaLogo} alt="BHSA Logo" className="auth-logo" />
@@ -129,9 +139,6 @@ function LandingPage() {
         </div>
         
         <div className="auth-card">
-          
-          {error && <div className="error-message">{error}</div>}
-          
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
               <label htmlFor="email">Email</label>
