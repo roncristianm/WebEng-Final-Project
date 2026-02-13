@@ -12,6 +12,7 @@ import StudentClass from './pages/student/Class'
 import StudentAssignment from './pages/student/Assignment'
 import StudentGrade from './pages/student/Grade'
 import StudentCalendar from './pages/student/Calendar'
+import StudentAnnouncements from './pages/student/Announcements'
 
 // Teacher imports
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
@@ -77,6 +78,7 @@ function App() {
         }>
           <Route index element={<StudentDashboardPage />} />
           <Route path="class" element={<StudentClass />} />
+          <Route path="announcements" element={<StudentAnnouncements />} />
           <Route path="assignment" element={<StudentAssignment />} />
           <Route path="grade" element={<StudentGrade />} />
           <Route path="calendar" element={<StudentCalendar />} />

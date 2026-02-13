@@ -71,46 +71,42 @@ function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      {/* Top Section - Student Name & Join Class Button */}
+
+      {/* Top Section - Student Name & Status Cards & Join Button */}
       <div className="dashboard-header">
         <div className="student-greeting">
           <h1>Welcome, {userName}!</h1>
         </div>
-        <button className="join-class-btn" onClick={handleJoinClass}>
-          + Join Class
-        </button>
+        <div className="header-status-cards">
+          <div className="status-card">
+            <span className="status-number">0</span>
+            <span className="status-label">Pending</span>
+          </div>
+          <div className="status-card">
+            <span className="status-number">0</span>
+            <span className="status-label">Completed</span>
+          </div>
+          <div className="status-card">
+            <span className="status-number">0</span>
+            <span className="status-label">Overdue</span>
+          </div>
+          <button className="join-class-btn" onClick={handleJoinClass}>
+            + Join Class
+          </button>
+        </div>
+
       </div>
 
-      {/* Grid Container */}
-      <div className="dashboard-grid">
-        {/* Announcements Card */}
-        <div className="grid-card announcements">
-          <div className="card-header">
-            <h2>Announcements</h2>
-          </div>
-          <div className="card-body">
-            <p className="empty-state">No announcements yet</p>
-          </div>
+      {/* Announcements Section */}
+      <div className="announcements-section">
+        <div className="section-header">
+          <h2>ANNOUNCEMENTS</h2>
+          <button className="btn-view-all" onClick={() => navigate('/dashboard/announcements')}>
+            View All
+          </button>
         </div>
-
-        {/* Assignments Card */}
-        <div className="grid-card assignments">
-          <div className="card-header">
-            <h2>Assignments</h2>
-          </div>
-          <div className="card-body">
-            <p className="empty-state">No assignments yet</p>
-          </div>
-        </div>
-
-        {/* Materials Card */}
-        <div className="grid-card materials">
-          <div className="card-header">
-            <h2>Materials</h2>
-          </div>
-          <div className="card-body">
-            <p className="empty-state">No materials yet</p>
-          </div>
+        <div className="announcements-content">
+          <p className="empty-state">No announcements yet</p>
         </div>
       </div>
 
@@ -149,25 +145,6 @@ function Dashboard() {
             <p>No classes yet. Join your first class to get started!</p>
           </div>
         )}
-      </div>
-
-      {/* Classwork Status Section */}
-      <div className="quick-stats-section">
-        <h2>CLASSWORK STATUS</h2>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-number">0</div>
-            <div className="stat-label">Pending</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">0</div>
-            <div className="stat-label">Completed</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">0</div>
-            <div className="stat-label">Overdue</div>
-          </div>
-        </div>
       </div>
 
       {/* Join Class Modal */}
