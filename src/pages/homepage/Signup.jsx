@@ -5,6 +5,7 @@ import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../context/NotificationContext'
+import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
@@ -130,6 +131,15 @@ function Signup() {
 
   return (
     <div className="auth-container">
+      {error && (
+        <Notification 
+          message={error}
+          type="error"
+          onClose={() => setError('')}
+          position="top"
+          duration={5000}
+        />
+      )}
       <div className="auth-wrapper">
         <div className="auth-header">
           <img src={bhsaLogo} alt="BHSA Logo" className="auth-logo" />
@@ -141,9 +151,6 @@ function Signup() {
         
         <div className="auth-card">
           <h2 className="form-title">Create Your Account</h2>
-          
-          {error && <div className="error-message">{error}</div>}
-          
           <form onSubmit={handleSubmit} className="auth-form">
 
             <div className="form-group">
