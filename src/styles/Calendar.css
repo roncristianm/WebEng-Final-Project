@@ -1,0 +1,540 @@
+/* Calendar Container */
+.calendar-container {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  max-width: 100%;
+}
+
+/* Calendar Header */
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* List Mode Toggle (Schedule / Due Dates) */
+.list-mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-btn {
+  background: white;
+  border: 2px solid #d1d5db;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-btn.active {
+  background: #0038A8;
+  color: white;
+  border-color: #0038A8;
+}
+
+.mode-btn:hover:not(.active) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-btn {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background: #f3f4f6;
+  border-color: #0038A8;
+  color: #0038A8;
+}
+
+.calendar-month {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  min-width: 200px;
+  text-align: center;
+}
+
+/* View Toggle */
+.view-toggle {
+  display: flex;
+  gap: 0;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn.active {
+  background: #0038A8;
+  color: white;
+}
+
+.toggle-btn:hover:not(.active) {
+  background: #e5e7eb;
+}
+
+/* Calendar Grid */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #e5e7eb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.calendar-day-header {
+  background: #f9fafb;
+  padding: 16px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.calendar-day {
+  background: white;
+  min-height: 120px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.calendar-day:hover:not(.empty) {
+  background: #f9fafb;
+}
+
+.calendar-day.empty {
+  background: #fafafa;
+}
+
+.calendar-day.today {
+  background: #eff6ff;
+}
+
+.calendar-day.today .day-number {
+  background: #0038A8;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 80px;
+}
+
+/* Event Items */
+.event-item {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.event-item:hover {
+  opacity: 0.8;
+}
+
+/* Event Types - Using website theme colors */
+.event-item.assignment {
+  background: #dbeafe;
+  color: #0038A8;
+  border-left-color: #0038A8;
+}
+
+.event-item.quiz {
+  background: #fce7f3;
+  color: #be185d;
+  border-left-color: #be185d;
+}
+
+.event-item.project {
+  background: #dcfce7;
+  color: #166534;
+  border-left-color: #166534;
+}
+
+.event-item.class {
+  background: #e0e7ff;
+  color: #3730a3;
+  border-left-color: #3730a3;
+}
+
+.event-item.meeting {
+  background: #fef3c7;
+  color: #92400e;
+  border-left-color: #92400e;
+}
+
+.event-item.deadline {
+  background: #fee2e2;
+  color: #991b1b;
+  border-left-color: #991b1b;
+}
+
+/* Day View Placeholder */
+.day-view {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.day-view .empty-state {
+  color: #9ca3af;
+  font-size: 16px;
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 1023px) {
+  .calendar-container {
+    padding: 24px;
+  }
+
+  .calendar-month {
+    font-size: 20px;
+    min-width: 180px;
+  }
+
+  .calendar-day {
+    min-height: 100px;
+  }
+
+  .day-events {
+    max-height: 60px;
+  }
+
+  .event-item {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}
+
+@media (max-width: 767px) {
+  .calendar-container {
+    padding: 16px;
+  }
+
+  .calendar-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .calendar-nav {
+    justify-content: center;
+  }
+
+  .calendar-month {
+    font-size: 18px;
+  }
+
+  .calendar-day {
+    min-height: 80px;
+  }
+
+  .calendar-day-header {
+    padding: 12px 4px;
+    font-size: 12px;
+  }
+
+  .day-number {
+    font-size: 12px;
+  }
+
+  .day-events {
+    max-height: 50px;
+  }
+
+  .event-item {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+}
+
+@media (max-width: 599px) {
+  .calendar-grid {
+    gap: 0;
+  }
+
+  .calendar-day {
+    min-height: 70px;
+    padding: 6px;
+  }
+
+  .calendar-day-header {
+    padding: 10px 2px;
+    font-size: 11px;
+  }
+
+  .view-toggle {
+    width: 100%;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    padding: 10px 16px;
+  }
+}
+
+@media (max-width: 479px) {
+  .calendar-day {
+    min-height: 60px;
+    padding: 4px;
+  }
+
+  .calendar-day-header {
+    padding: 8px 2px;
+    font-size: 10px;
+  }
+
+  .day-number {
+    font-size: 11px;
+  }
+
+  .event-item {
+    font-size: 8px;
+    padding: 2px 3px;
+  }
+
+  .nav-btn {
+    padding: 6px 10px;
+  }
+
+  .calendar-month {
+    font-size: 16px;
+    min-width: 150px;
+  }
+}
+
+/* Due Dates List View */
+.due-dates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.date-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.due-date-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.due-date-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.due-date-card.assignment {
+  border-left: 4px solid #0038A8;
+}
+
+.due-date-card.quiz {
+  border-left: 4px solid #be185d;
+}
+
+.due-date-card.project {
+  border-left: 4px solid #166534;
+}
+
+.due-date-card.class {
+  border-left: 4px solid #3730a3;
+}
+
+.due-date-card.meeting {
+  border-left: 4px solid #92400e;
+}
+
+.due-date-card.deadline {
+  border-left: 4px solid #991b1b;
+}
+
+.event-icon {
+  color: #6b7280;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.due-date-card.assignment .event-icon {
+  color: #0038A8;
+}
+
+.due-date-card.quiz .event-icon {
+  color: #be185d;
+}
+
+.due-date-card.project .event-icon {
+  color: #166534;
+}
+
+.due-date-card.class .event-icon {
+  color: #3730a3;
+}
+
+.due-date-card.meeting .event-icon {
+  color: #92400e;
+}
+
+.due-date-card.deadline .event-icon {
+  color: #991b1b;
+}
+
+.event-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.event-meta {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.event-class {
+  margin: 0;
+  font-size: 13px;
+  color: #0038A8;
+  font-weight: 500;
+}
+
+/* Responsive for Due Dates List */
+@media (max-width: 767px) {
+  .list-mode-toggle {
+    width: 100%;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 12px 16px;
+  }
+
+  .due-date-card {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .event-title {
+    font-size: 15px;
+  }
+
+  .event-meta,
+  .event-class {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 599px) {
+  .due-date-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .event-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .event-title {
+    font-size: 14px;
+  }
+
+  .event-meta,
+  .event-class {
+    font-size: 11px;
+  }
+
+  .date-header {
+    font-size: 13px;
+  }
+}
