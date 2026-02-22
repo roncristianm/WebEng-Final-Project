@@ -83,12 +83,16 @@ function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      {/* Top Section - Teacher Name & Action Buttons */}
+      {/* Top Section - Teacher Name & Stats & Action Buttons */}
       <div className="dashboard-header">
         <div className="student-greeting">
           <h1>Welcome, {userName}!</h1>
         </div>
-        <div className="action-buttons">
+        <div className="header-status-cards">
+          <div className="status-card">
+            <span className="status-number">{classes.length}</span>
+            <span className="status-label">Active Classes</span>
+          </div>
           <button className="join-class-btn" onClick={handleCreateClass}>
             + Create Class
           </button>
@@ -135,29 +139,6 @@ function Dashboard() {
             <p>No classes yet. Create your first class to get started!</p>
           </div>
         )}
-      </div>
-
-      {/* Quick Stats Section */}
-      <div className="quick-stats-section">
-        <h2>QUICK STATS</h2>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-number">{classes.reduce((sum, c) => sum + (c.studentCount || 0), 0)}</div>
-            <div className="stat-label">Total Students</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{classes.length}</div>
-            <div className="stat-label">Active Classes</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">0</div>
-            <div className="stat-label">Pending Grades</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">0</div>
-            <div className="stat-label">Late Submissions</div>
-          </div>
-        </div>
       </div>
 
       {/* Create Class Modal */}
