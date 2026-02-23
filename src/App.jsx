@@ -21,6 +21,7 @@ import TeacherClass from './pages/teacher/Class'
 import TeacherAssignment from './pages/teacher/Assignment'
 import TeacherGrade from './pages/teacher/Grade'
 import TeacherCalendar from './pages/teacher/Calendar'
+import TeacherAnnouncements from './pages/teacher/Announcements'
 
 import './styles/App.css'
 
@@ -91,6 +92,7 @@ function App() {
         }>
           <Route index element={<TeacherDashboardPage />} />
           <Route path="class" element={<TeacherClass />} />
+          <Route path="announcements" element={<TeacherAnnouncements />} />
           <Route path="assignment" element={<TeacherAssignment />} />
           <Route path="grade" element={<TeacherGrade />} />
           <Route path="calendar" element={<TeacherCalendar />} />
