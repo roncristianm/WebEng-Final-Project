@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { joinClass, getStudentClasses } from '../../services/classService'
 import Notification from '../../components/Notification'
-import '../../styles/student/Dashboard.css'
+import '../../styles/Dashboard.css'
 
 function Dashboard() {
   const navigate = useNavigate()

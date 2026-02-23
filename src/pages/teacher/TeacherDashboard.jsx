@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
-import '../../styles/teacher/Dashboard.css'
+import '../../styles/Dashboard.css'
 
 function TeacherDashboard() {
   return (
