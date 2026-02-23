@@ -1,3 +1,35 @@
+/* =================================================================
+   DASHBOARD.CSS - Usage Guide
+   =================================================================
+   
+   This stylesheet is used by both Student and Teacher Dashboards.
+   
+   STUDENT DASHBOARD (src/pages/student/Dashboard.jsx):
+   - Uses all SHARED sections
+   - Announcements Section (displays announcements)
+   - .class-teacher (displays teacher name in class cards)
+   
+   TEACHER DASHBOARD (src/pages/teacher/Dashboard.jsx):
+   - Uses all SHARED sections
+   - Teacher-specific button styles (.btn-create-class, .btn-create-assignment)
+   - .class-code and .class-code-container (displays class codes)
+   
+   SHARED SECTIONS (used by both):
+   - Dashboard Layout (.dashboard-container, .dashboard-content, .dashboard-page)
+   - Header Section (.dashboard-header, .student-greeting, .header-status-cards, etc.)
+   - Status Cards (.status-card, .status-number, .status-label)
+   - Button Styles (.join-class-btn used for various actions)
+   - My Classes Section (.my-classes-section, .classes-grid, .class-card, etc.)
+   - Modal Styles (.modal-overlay, .modal-content, .modal-header, etc.)
+   - Loading & Empty States (.loading-state, .empty-classes, .empty-state)
+   - Responsive Design (all media queries)
+   
+   ================================================================= */
+
+/* =================================================================
+   SHARED: Used by both Student & Teacher Dashboards
+   ================================================================= */
+
 /* Dashboard Layout */
 .dashboard-container {
   display: flex;
@@ -16,6 +48,9 @@
   max-width: 100%;
 }
 
+/* =================================================================
+   SHARED: Header Section
+   ================================================================= */
 /* Top Section - Header with Student Name and Join Button */
 .dashboard-header {
   display: flex;
@@ -100,6 +135,9 @@
   transform: translateY(-2px);
 }
 
+/* =================================================================
+   SHARED: Grid Layouts (may be used by other pages)
+   ================================================================= */
 /* Unified Grid Layout */
 .dashboard-grid {
   display: grid;
@@ -208,6 +246,9 @@
   font-weight: 700;
 }
 
+/* =================================================================
+   SHARED: Sidebar Navigation (via Navbar component)
+   ================================================================= */
 /* Sidebar Navigation */
 .sidebar {
   width: 260px;
@@ -323,6 +364,9 @@
   font-family: inherit;
 }
 
+/* =================================================================
+   SHARED: Main Content Area
+   ================================================================= */
 /* Dashboard Content */
 .dashboard-content {
   flex: 1;
@@ -402,6 +446,9 @@
   line-height: 1.6;
 }
 
+/* =================================================================
+   TEACHER ONLY: Teacher Dashboard Specific Styles
+   ================================================================= */
 /* Teacher Dashboard Specific Styles */
 .welcome-section {
   margin-bottom: 40px;
@@ -456,6 +503,11 @@
   opacity: 0.9;
 }
 
+/* =================================================================
+   SHARED: My Classes Section
+   Used by both Student Dashboard (shows joined classes)
+   and Teacher Dashboard (shows created classes)
+   ================================================================= */
 .my-classes-section {
   background: white;
   border-radius: 12px;
@@ -509,6 +561,9 @@
   font-size: 15px;
 }
 
+/* =================================================================
+   STUDENT ONLY: Announcements Section
+   ================================================================= */
 /* Announcements Section */
 .announcements-section {
   background: white;
@@ -533,6 +588,9 @@
   font-size: 15px;
 }
 
+/* =================================================================
+   SHARED/OPTIONAL: Quick Stats Section
+   ================================================================= */
 .quick-stats-section {
   margin-bottom: 40px;
 }
@@ -579,6 +637,9 @@
   opacity: 0.95;
 }
 
+/* =================================================================
+   SHARED: Responsive Design
+   ================================================================= */
 /* Responsive Design */
 
 /* Large Desktop (1400px and up) */
@@ -1325,6 +1386,10 @@
   }
 }
 
+/* =================================================================
+   SHARED: Modal Styles
+   Used by both Student (Join Class) and Teacher (Create Class)
+   ================================================================= */
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -1511,6 +1576,11 @@
   }
 }
 
+/* =================================================================
+   SHARED: Class Cards Styles
+   Student Dashboard: displays joined classes
+   Teacher Dashboard: displays created classes with class codes
+   ================================================================= */
 /* Class Cards Styles */
 .classes-grid {
   display: grid;
@@ -1550,6 +1620,7 @@
   width: 100%;
 }
 
+/* TEACHER ONLY: Class code display */
 .class-code {
   display: inline-block;
   margin-top: 8px;
@@ -1623,6 +1694,9 @@
   font-size: 18px;
 }
 
+/* =================================================================
+   SHARED/OPTIONAL: Mini Classes List (for dashboard grid card)
+   ================================================================= */
 /* Mini Classes List (for dashboard grid card) */
 .mini-classes-list {
   display: flex;
@@ -1670,6 +1744,9 @@
   opacity: 0.9;
 }
 
+/* =================================================================
+   SHARED/OPTIONAL: Classes Page - Full Grid
+   ================================================================= */
 /* Classes Page - Full Grid */
 .classes-grid-full {
   display: grid;
@@ -1711,6 +1788,7 @@
   font-weight: 700;
 }
 
+/* STUDENT ONLY: Teacher name display */
 .class-teacher {
   display: block;
   font-size: 14px;
@@ -1754,6 +1832,9 @@
   opacity: 0.8;
 }
 
+/* =================================================================
+   SHARED: View All Button
+   ================================================================= */
 .btn-view-all {
   background: transparent;
   color: #0038A8;
@@ -1769,6 +1850,9 @@
   opacity: 0.8;
 }
 
+/* =================================================================
+   SHARED: Loading and Empty States
+   ================================================================= */
 /* Loading and Empty States */
 .loading-state {
   text-align: center;
@@ -1860,6 +1944,9 @@
   min-height: 300px;
 }
 
+/* =================================================================
+   SHARED: Additional My Classes Section Styles
+   ================================================================= */
 /* My Classes Section */
 .my-classes-section {
   margin-bottom: 32px;
@@ -1894,6 +1981,9 @@
   font-size: 16px;
 }
 
+/* =================================================================
+   SHARED: Action Buttons Group
+   ================================================================= */
 /* Action Buttons Group */
 .action-buttons {
   display: flex;
@@ -1901,6 +1991,9 @@
   flex-wrap: wrap;
 }
 
+/* =================================================================
+   SHARED: Responsive adjustments for class cards
+   ================================================================= */
 /* Responsive adjustments for class cards */
 @media (max-width: 1200px) {
   .classes-grid {
