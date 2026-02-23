@@ -10,6 +10,8 @@ function Dashboard() {
   const userName = auth.currentUser?.displayName || 'Teacher'
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [className, setClassName] = useState('')
+  const [grade, setGrade] = useState('')
+  const [section, setSection] = useState('')
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -37,10 +39,12 @@ function Dashboard() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault()
-    if (className.trim() && auth.currentUser) {
+    if (className.trim() && grade.trim() && section.trim() && auth.currentUser) {
       setCreating(true)
       const result = await createClass(
         className.trim(),
+        grade.trim(),
+        section.trim(),
         auth.currentUser.uid,
         auth.currentUser.displayName || 'Teacher'
       )
@@ -48,6 +52,8 @@ function Dashboard() {
       if (result.success) {
         setShowCreateModal(false)
         setClassName('')
+        setGrade('')
+        setSection('')
         await loadClasses() // Reload classes
         setNotification({
           message: `Class "${className.trim()}" created successfully! Class code: ${result.classCode}`,
@@ -66,6 +72,8 @@ function Dashboard() {
   const handleCloseModal = () => {
     setShowCreateModal(false)
     setClassName('')
+    setGrade('')
+    setSection('')
   }
 
   const handleClassClick = (classId) => {
@@ -158,8 +166,26 @@ function Dashboard() {
                   id="className"
                   value={className}
                   onChange={(e) => setClassName(e.target.value)}
-                  placeholder="Enter class name"
+                  placeholder="Enter class name (e.g., ST. CELESTINE (STEM))"
                   autoFocus
+                  required
+                />
+                <label htmlFor="grade">Grade</label>
+                <input
+                  type="text"
+                  id="grade"
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  placeholder="Enter grade (e.g., 12)"
+                  required
+                />
+                <label htmlFor="section">Section</label>
+                <input
+                  type="text"
+                  id="section"
+                  value={section}
+                  onChange={(e) => setSection(e.target.value)}
+                  placeholder="Enter section"
                   required
                 />
               </div>

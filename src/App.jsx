@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import StudentDashboard from './pages/student/StudentDashboard'
 import StudentDashboardPage from './pages/student/Dashboard'
 import StudentClass from './pages/student/Class'
+import StudentClassDetail from './pages/student/ClassDetail'
 import StudentAssignment from './pages/student/Assignment'
 import StudentGrade from './pages/student/Grade'
 import StudentCalendar from './pages/student/Calendar'
@@ -18,6 +19,7 @@ import StudentAnnouncements from './pages/student/Announcements'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import TeacherDashboardPage from './pages/teacher/Dashboard'
 import TeacherClass from './pages/teacher/Class'
+import TeacherClassDetail from './pages/teacher/ClassDetail'
 import TeacherAssignment from './pages/teacher/Assignment'
 import TeacherGrade from './pages/teacher/Grade'
 import TeacherCalendar from './pages/teacher/Calendar'
@@ -79,6 +81,7 @@ function App() {
         }>
           <Route index element={<StudentDashboardPage />} />
           <Route path="class" element={<StudentClass />} />
+          <Route path="class/:classId" element={<StudentClassDetail />} />
           <Route path="announcements" element={<StudentAnnouncements />} />
           <Route path="assignment" element={<StudentAssignment />} />
           <Route path="grade" element={<StudentGrade />} />
@@ -92,6 +95,7 @@ function App() {
         }>
           <Route index element={<TeacherDashboardPage />} />
           <Route path="class" element={<TeacherClass />} />
+          <Route path="class/:classId" element={<TeacherClassDetail />} />
           <Route path="announcements" element={<TeacherAnnouncements />} />
           <Route path="assignment" element={<TeacherAssignment />} />
           <Route path="grade" element={<TeacherGrade />} />
