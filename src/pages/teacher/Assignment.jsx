@@ -445,8 +445,12 @@ function Assignment() {
             <div className="modal-body">
               <div className="assignment-detail-info">
                 <div className="info-row">
-                  <span className="info-label">Deadline:</span>
-                  <span>{formatDeadline(selectedAssignment.deadline)}</span>
+                  <span className="info-label">Deadline Date:</span>
+                  <span>{formatDate(selectedAssignment.deadline)}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Deadline Time:</span>
+                  <span>{formatTime(selectedAssignment.deadline)}</span>
                 </div>
               </div>
 
