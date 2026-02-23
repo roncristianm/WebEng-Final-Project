@@ -3,7 +3,7 @@ import { auth } from '../../config/firebase'
 import { getStudentClasses } from '../../services/classService'
 import { getStudentAssignments, submitAssignment } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
-import '../../styles/Dashboard.css'
+import '../../styles/Assignment.css'
 
 function Assignment() {
   const [assignments, setAssignments] = useState([])

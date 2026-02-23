@@ -26,8 +26,9 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #0038A8;
   flex-wrap: wrap;
+  gap: 24px;
 }
 
 .student-greeting h1 {
@@ -47,20 +48,56 @@
   font-size: 16px;
 }
 
+.header-status-cards {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.status-card {
+  background: #0038A8;
+  color: white;
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+  transition: all 0.3s ease;
+}
+
+.status-number {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-label {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.95;
+  white-space: nowrap;
+  text-align: center;
+}
+
 .join-class-btn {
   background: #0038A8;
   color: #FFFFFF;
   border: none;
-  padding: 12px 24px;
+  padding: 16px 24px;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+  transition: all 0.3s ease;
 }
 
 .join-class-btn:hover {
   opacity: 0.9;
+  transform: translateY(-2px);
 }
 
 /* Unified Grid Layout */
@@ -332,6 +369,7 @@
   padding: 48px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  border: 1.5px solid #0038A8;
   text-align: center;
   max-width: 600px;
   width: 100%;
@@ -425,7 +463,7 @@
   margin-top: 40px;
   margin-bottom: 40px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #0038A8;
 }
 
 .section-header {
@@ -468,6 +506,30 @@
 
 .empty-classes p {
   margin: 0;
+  font-size: 15px;
+}
+
+/* Announcements Section */
+.announcements-section {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid #0038A8;
+}
+
+.announcements-content {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.announcements-content .empty-state {
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
   font-size: 15px;
 }
 
@@ -560,6 +622,24 @@
 
   .student-greeting h1 {
     font-size: 28px;
+  }
+
+  .header-status-cards {
+    gap: 12px;
+  }
+
+  .status-card {
+    padding: 10px 24px;
+    gap: 10px;
+  }
+
+  .status-number {
+    font-size: 22px;
+  }
+
+  .status-label {
+    font-size: 15px;
+    font-weight: 500;
   }
 
   .grid-card {
@@ -670,6 +750,33 @@
 
   .student-greeting h1 {
     font-size: 24px;
+  }
+
+  .header-status-cards {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .status-card {
+    padding: 14px 20px;
+    width: 100%;
+    max-width: 300px;
+    gap: 8px;
+  }
+
+  .status-number {
+    font-size: 20px;
+  }
+
+  .status-label {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .join-class-btn {
+    width: 100%;
+    max-width: 300px;
   }
 
   .greeting-subtitle {
@@ -845,6 +952,27 @@
     margin-bottom: 6px;
   }
 
+  .header-status-cards {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .status-card {
+    padding: 12px 16px;
+    width: 100%;
+    max-width: 300px;
+    gap: 6px;
+  }
+
+  .status-number {
+    font-size: 18px;
+  }
+
+  .status-label {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
   .greeting-subtitle {
     font-size: 13px;
   }
@@ -993,6 +1121,27 @@
   .student-greeting h1 {
     font-size: 20px;
     margin-bottom: 4px;
+  }
+
+  .header-status-cards {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .status-card {
+    padding: 11px 14px;
+    width: 100%;
+    max-width: 300px;
+    gap: 6px;
+  }
+
+  .status-number {
+    font-size: 16px;
+  }
+
+  .status-label {
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .greeting-subtitle {
@@ -1681,6 +1830,36 @@
   opacity: 0.9;
 }
 
+.empty-state-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-state-large svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state-large p {
+  margin: 0;
+  font-size: 16px;
+  font-style: italic;
+}
+
+.announcements-list {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid #0038A8;
+  min-height: 300px;
+}
+
 /* My Classes Section */
 .my-classes-section {
   margin-bottom: 32px;
@@ -1750,351 +1929,6 @@
   
   .action-buttons .join-class-btn {
     flex: 1;
-  }
-}
-
-/* Assignment Styles */
-.assignments-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
-  margin-top: 24px;
-}
-
-.assignment-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e5e7eb;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.assignment-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-}
-
-.assignment-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.assignment-card-header h3 {
-  margin: 0 0 8px 0;
-  font-size: 1.25rem;
-  color: #1f2937;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.assignment-type {
-  display: inline-block;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 4px 0;
-}
-
-.btn-delete-assignment {
-  background: none;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-delete-assignment:hover {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.assignment-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.assignment-class {
-  color: #6b7280;
-  font-size: 0.95rem;
-  margin: 0;
-  font-weight: 500;
-}
-
-.assignment-dates {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.assignment-date {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #4b5563;
-  font-size: 0.9rem;
-}
-
-.assignment-date svg {
-  flex-shrink: 0;
-}
-
-.assignment-stats {
-  display: flex;
-  gap: 16px;
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.85rem;
-  gap: 2px;
-}
-
-.stat-item strong {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-/* Assignment Detail Modal */
-.modal-large {
-  max-width: 800px;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-.assignment-detail-info {
-  background: #f9fafb;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 24px;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 0.95rem;
-}
-
-.info-label {
-  font-weight: 600;
-  color: #4b5563;
-}
-
-.students-progress-section {
-  margin-top: 24px;
-}
-
-.students-progress-section h3 {
-  margin: 0 0 16px 0;
-  font-size: 1.1rem;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.students-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 400px;
-  overflow-y: auto;
-  padding: 4px;
-}
-
-.student-progress-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  transition: background 0.2s ease;
-}
-
-.student-progress-item:hover {
-  background: #f9fafb;
-}
-
-.student-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-}
-
-.student-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-
-.student-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.student-name {
-  font-weight: 600;
-  color: #1f2937;
-  font-size: 0.95rem;
-}
-
-.student-email {
-  color: #6b7280;
-  font-size: 0.85rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.submission-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.submission-time {
-  color: #6b7280;
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-
-.no-students {
-  text-align: center;
-  color: #6b7280;
-  padding: 32px;
-  font-style: italic;
-}
-
-/* Modal Footer */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.btn-cancel {
-  padding: 10px 24px;
-  border: 1px solid #d1d5db;
-  background: white;
-  color: #374151;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-cancel:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
-}
-
-.btn-submit {
-  padding: 10px 24px;
-  border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-submit:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-/* Form Styles */
-.modal-body label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.modal-body input,
-.modal-body select,
-.modal-body textarea {
-  padding: 10px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.modal-body input:focus,
-.modal-body select:focus,
-.modal-body textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.modal-body textarea {
-  min-height: 100px;
-  resize: vertical;
-}
-
-/* Responsive Adjustments for Assignments */
-@media (max-width: 768px) {
-  .assignments-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .assignment-stats {
-    flex-wrap: wrap;
-  }
-
-  .modal-large {
-    max-width: 95%;
-  }
-
-  .student-progress-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .submission-info {
-    align-items: flex-start;
-    width: 100%;
-  }
-
-  .student-email {
-    white-space: normal;
   }
 }
 
