@@ -43,18 +43,23 @@ service cloud.firestore {
     
     match /assignments/{assignmentId} {
       allow create: if isAuthenticated() 
-                    && request.resource.data.teacherId == request.auth.uid;
+                    && request.resource.data.teacherId == request.auth.uid
+                    && request.resource.data.type in ['Written Works', 'Performance Task', 'Quarterly Assessment'];
       allow read: if isAuthenticated();
       allow update: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
       
       match /submissions/{submissionId} {
-        allow create: if isAuthenticated() && submissionId == request.auth.uid;
+        allow create: if isAuthenticated() && 
+                         (submissionId == request.auth.uid || 
+                          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid);
         allow read: if isAuthenticated();
         allow update: if isAuthenticated() && 
                          (submissionId == request.auth.uid || 
                           get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid);
-        allow delete: if isAuthenticated() && submissionId == request.auth.uid;
+        allow delete: if isAuthenticated() && 
+                         (submissionId == request.auth.uid || 
+                          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid);
       }
     }
     
