@@ -3,7 +3,7 @@ import { auth } from '../../config/firebase'
 import { getStudentClasses } from '../../services/classService'
 import { getStudentAssignments, submitAssignment } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
-import '../../styles/student/Assignment.css'
+import '../../styles/Assignment.css'
 
 function Assignment() {
   const [assignments, setAssignments] = useState([])
@@ -120,7 +120,7 @@ function Assignment() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="page-container">
       <div className="page-header">
         <h1>Assignments</h1>
         <p className="page-subtitle">Track and submit your assignments</p>

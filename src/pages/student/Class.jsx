@@ -4,7 +4,7 @@ import { auth } from '../../config/firebase'
 import { getStudentClasses, leaveClass } from '../../services/classService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/student/Dashboard.css'
+import '../../styles/Dashboard.css'
 
 function Class() {
   const navigate = useNavigate()
@@ -66,7 +66,7 @@ function Class() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="page-container">
       <div className="page-header">
         <h1>My Classes</h1>
         <p className="page-subtitle">View and manage your enrolled classes</p>

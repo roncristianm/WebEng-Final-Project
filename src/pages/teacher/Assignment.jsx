@@ -9,7 +9,7 @@ import {
 } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/teacher/Assignment.css'
+import '../../styles/Assignment.css'
 
 function Assignment() {
   const getCurrentDate = () => {
@@ -224,12 +224,9 @@ function Assignment() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="page-container">
       <div className="page-header">
-        <div>
-          <h1>Assignments</h1>
-          <p className="page-subtitle">Create and manage student assignments</p>
-        </div>
+        <h1>Assignments</h1>
         <button className="btn-create-assignment" onClick={handleOpenModal}>
           + Create Assignment
         </button>
