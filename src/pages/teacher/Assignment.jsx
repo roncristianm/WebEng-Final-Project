@@ -9,7 +9,7 @@ import {
 } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/Dashboard.css'
+import '../../styles/Assignment.css'
 
 function Assignment() {
   const getCurrentDate = () => {
