@@ -1,6 +1,7 @@
 /* Notification Styles */
 .notification {
   position: fixed;
+  bottom: 32px;
   left: 50%;
   transform: translateX(-50%);
   min-width: 320px;
@@ -13,35 +14,13 @@
   align-items: center;
   gap: 12px;
   z-index: 10000;
-  border-left: 4px solid;
-}
-
-/* Bottom positioned notification */
-.notification-bottom {
-  bottom: 32px;
   animation: slideUp 0.3s ease-out, fadeIn 0.3s ease-out;
-}
-
-/* Top positioned notification */
-.notification-top {
-  top: 32px;
-  animation: slideDown 0.3s ease-out, fadeIn 0.3s ease-out;
+  border-left: 4px solid;
 }
 
 @keyframes slideUp {
   from {
     transform: translate(-50%, 100%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, 0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideDown {
-  from {
-    transform: translate(-50%, -100%);
     opacity: 0;
   }
   to {
@@ -145,6 +124,7 @@
 /* Responsive */
 @media (max-width: 768px) {
   .notification {
+    bottom: 16px;
     right: 16px;
     left: 16px;
     min-width: auto;
@@ -152,28 +132,9 @@
     transform: translateX(0);
   }
   
-  .notification-bottom {
-    bottom: 16px;
-  }
-  
-  .notification-top {
-    top: 16px;
-  }
-  
   @keyframes slideUp {
     from {
       transform: translateY(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes slideDown {
-    from {
-      transform: translateY(-100%);
       opacity: 0;
     }
     to {
