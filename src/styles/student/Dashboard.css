@@ -1045,6 +1045,10 @@
     grid-template-columns: 1fr;
     gap: 12px;
   }
+
+  .class-card-large {
+    padding: 18px;
+  }
 }
 
 /* Mobile Portrait (below 480px) */
