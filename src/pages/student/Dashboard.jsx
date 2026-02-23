@@ -66,7 +66,7 @@ function Dashboard() {
   }
 
   const handleClassClick = (classId) => {
-    navigate('/dashboard/class')
+    navigate(`/dashboard/class/${classId}`)
   }
 
   return (

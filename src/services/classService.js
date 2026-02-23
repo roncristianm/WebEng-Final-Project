@@ -38,7 +38,7 @@ const classCodeExists = async (code) => {
 /**
  * Create a new class (Teacher)
  */
-export const createClass = async (className, teacherId, teacherName) => {
+export const createClass = async (className, grade, section, teacherId, teacherName) => {
   try {
     // Generate unique class code
     let classCode = generateClassCode()
@@ -49,6 +49,8 @@ export const createClass = async (className, teacherId, teacherName) => {
     const classRef = doc(collection(db, 'classes'))
     await setDoc(classRef, {
       name: className,
+      grade: grade,
+      section: section,
       teacherId: teacherId,
       teacherName: teacherName,
       classCode: classCode,
