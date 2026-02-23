@@ -79,7 +79,7 @@ function Dashboard() {
         </div>
         <div className="header-status-cards">
           <div className="status-card">
-            <span className="status-number">0</span>
+            <span className="status-number">1</span>
             <span className="status-label">Pending</span>
           </div>
           <div className="status-card">

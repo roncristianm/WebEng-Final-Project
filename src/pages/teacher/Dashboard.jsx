@@ -91,7 +91,7 @@ function Dashboard() {
         <div className="header-status-cards">
           <div className="status-card">
             <span className="status-number">{classes.length}</span>
-            <span className="status-label">Active Classes</span>
+            <span className="status-label">Classes</span>
           </div>
           <button className="join-class-btn" onClick={handleCreateClass}>
             + Create Class
