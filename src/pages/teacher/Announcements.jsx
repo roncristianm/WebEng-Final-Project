@@ -1,10 +1,11 @@
-import '../../styles/Dashboard.css'
+import '../../styles/teacher/Dashboard.css'
 
 function Announcements() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
         <h1>Announcements</h1>
+        <p className="page-subtitle">Manage and create class announcements</p>
       </div>
       
       <div className="announcements-list">

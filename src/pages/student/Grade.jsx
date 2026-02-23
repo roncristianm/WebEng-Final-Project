@@ -1,8 +1,8 @@
-import '../../styles/Dashboard.css'
+import '../../styles/student/Dashboard.css'
 
 function Grade() {
   return (
-    <div className="page-container">
+    <div className="dashboard-page">
       <div className="page-header">
         <h1>Grades</h1>
         <p className="page-subtitle">View your academic performance</p>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import '../../styles/Dashboard.css'
-import '../../styles/Calendar.css'
+import '../../styles/teacher/Dashboard.css'
+import '../../styles/teacher/Calendar.css'
 
 function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
