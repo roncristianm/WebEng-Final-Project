@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { joinClass, getStudentClasses } from '../../services/classService'
+import { getStudentAssignments } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
 import '../../styles/Dashboard.css'
 
@@ -11,6 +12,9 @@ function Dashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [classCode, setClassCode] = useState('')
   const [classes, setClasses] = useState([])
+  const [pendingCount, setPendingCount] = useState(0)
+  const [completedCount, setCompletedCount] = useState(0)
+  const [overdueCount, setOverdueCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
   const [notification, setNotification] = useState(null)
@@ -23,6 +27,33 @@ function Dashboard() {
     if (auth.currentUser) {
       const studentClasses = await getStudentClasses(auth.currentUser.uid)
       setClasses(studentClasses)
+      
+      // Calculate stats
+      const classIds = studentClasses.map(cls => cls.id)
+      const studentAssignments = await getStudentAssignments(auth.currentUser.uid, classIds)
+      
+      const now = new Date()
+      const pending = studentAssignments.filter(a => {
+        if (!a.submission || a.submission.status === 'not_submitted') {
+          const deadline = new Date(a.deadline)
+          return deadline > now
+        }
+        return false
+      }).length
+      
+      const completed = studentAssignments.filter(a => a.submission?.status === 'done').length
+      const overdue = studentAssignments.filter(a => {
+        if (a.submission?.status === 'not_submitted') {
+          const deadline = new Date(a.deadline)
+          return deadline < now
+        }
+        return a.submission?.status === 'late'
+      }).length
+      
+      setPendingCount(pending)
+      setCompletedCount(completed)
+      setOverdueCount(overdue)
+      
       setLoading(false)
     }
   }
@@ -78,15 +109,15 @@ function Dashboard() {
         </div>
         <div className="header-status-cards">
           <div className="status-card">
-            <span className="status-number">1</span>
+            <span className="status-number">{pendingCount}</span>
             <span className="status-label">Pending</span>
           </div>
           <div className="status-card">
-            <span className="status-number">0</span>
+            <span className="status-number">{completedCount}</span>
             <span className="status-label">Completed</span>
           </div>
           <div className="status-card">
-            <span className="status-number">0</span>
+            <span className="status-number">{overdueCount}</span>
             <span className="status-label">Overdue</span>
           </div>
           <button className="join-class-btn" onClick={handleJoinClass}>
