@@ -86,8 +86,8 @@ function Calendar() {
     const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
     setSelectedDate(clickedDate)
     
-    // Prefill deadline with clicked date
-    const dateStr = clickedDate.toISOString().split('T')[0]
+    // Prefill deadline with clicked date (local timezone fix)
+    const dateStr = clickedDate.toLocaleDateString('en-CA')
     const timeStr = new Date().toTimeString().slice(0, 5)
     setFormData(prev => ({
       ...prev,
@@ -255,7 +255,7 @@ function Calendar() {
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="modal-content create-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create for {selectedDate?.toLocaleDateString()}</h2>
+              <h3 style={{ textAlign: 'center', margin: 0, flex: 1 }}>Create for {selectedDate?.toLocaleDateString()}</h3>
               <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
             </div>
             <form onSubmit={handleCreateSubmit}>
