@@ -40,6 +40,7 @@ function Assignment() {
     description: '',
     classId: '',
     type: 'Written Works',
+    possibleScore: 100,
     deadlineDate: getCurrentDate(),
     deadlineTime: getCurrentTime()
   })
@@ -68,7 +69,7 @@ function Assignment() {
   const handleCreateAssignment = async (e) => {
     e.preventDefault()
     
-    if (!formData.title || !formData.description || !formData.classId || !formData.deadlineDate || !formData.deadlineTime) {
+    if (!formData.title || !formData.description || !formData.classId || !formData.possibleScore || !formData.deadlineDate || !formData.deadlineTime) {
       setNotification({ message: 'Please fill in all fields', type: 'error' })
       return
     }
@@ -86,6 +87,7 @@ function Assignment() {
       teacherId: auth.currentUser.uid,
       teacherName: auth.currentUser.displayName,
       type: formData.type,
+      possibleScore: formData.possibleScore,
       deadline: deadline
     })
 
@@ -97,6 +99,7 @@ function Assignment() {
         description: '',
         classId: '',
         type: 'Written Works',
+        possibleScore: 100,
         deadlineDate: getCurrentDate(),
         deadlineTime: getCurrentTime()
       })
@@ -112,6 +115,7 @@ function Assignment() {
       description: '',
       classId: '',
       type: 'Written Works',
+      possibleScore: 100,
       deadlineDate: getCurrentDate(),
       deadlineTime: getCurrentTime()
     })
@@ -388,8 +392,22 @@ function Assignment() {
                   >
                     <option value="Written Works">Written Works</option>
                     <option value="Performance Task">Performance Task</option>
-                    <option value="Quarterly Assessment">Quarterly Assessment</option>
+                  <option value="Quarterly Assessment">Quarterly Assessment</option>
                   </select>
+                </label>
+
+                <label>
+                  Possible Score *
+                  <input
+                    type="number"
+                    name="possibleScore"
+                    value={formData.possibleScore}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="1000"
+                    placeholder="100"
+                    required
+                  />
                 </label>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -488,6 +506,11 @@ function Assignment() {
                           <div className="submission-status">
                             {getStatusBadge(submission.status)}
                           </div>
+                          {submission.selfGrade !== undefined && (
+                            <div className="student-grade" style={{ fontWeight: 'bold', color: '#059669', marginLeft: '8px' }}>
+                              Self: {submission.selfGrade}/{selectedAssignment.possibleScore}
+                            </div>
+                          )}
                           <div className="submission-time">
                             {formatDateTime(submission.submittedAt)}
                           </div>

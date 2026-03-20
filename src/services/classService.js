@@ -254,3 +254,17 @@ export const deleteClass = async (classId) => {
     return { success: false, error: error.message }
   }
 }
+
+/**
+ * Update class document with a Google Sheet ID (teacher-provided)
+ */
+export const updateClassSheetId = async (classId, sheetId) => {
+  try {
+    const classRef = doc(db, 'classes', classId)
+    await updateDoc(classRef, { sheetId })
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating class sheetId:', error)
+    return { success: false, error: error.message }
+  }
+}

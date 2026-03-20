@@ -12,6 +12,7 @@ function Assignment() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedAssignment, setSelectedAssignment] = useState(null)
   const [activeTab, setActiveTab] = useState('upcoming')
+  const [studentScore, setStudentScore] = useState('')
 
   useEffect(() => {
     loadAssignments()
@@ -76,8 +77,9 @@ function Assignment() {
     }
   }
 
-  const handleSubmit = async (assignmentId, deadline) => {
-    const result = await submitAssignment(assignmentId, auth.currentUser.uid, deadline)
+  const handleSubmit = async (assignmentId, deadline, score) => {
+    const selfGrade = score ? parseFloat(score) : null
+    const result = await submitAssignment(assignmentId, auth.currentUser.uid, deadline, selfGrade)
     
     if (result.success) {
       setNotification({ 
@@ -91,10 +93,11 @@ function Assignment() {
       if (selectedAssignment && selectedAssignment.id === assignmentId) {
         const updatedAssignment = { 
           ...selectedAssignment, 
-          submission: { ...selectedAssignment.submission, status: result.status, submittedAt: new Date() }
+          submission: { ...selectedAssignment.submission, status: result.status, submittedAt: new Date(), selfGrade }
         }
         setSelectedAssignment(updatedAssignment)
       }
+      setStudentScore('')
     } else {
       setNotification({ message: `Error: ${result.error}`, type: 'error' })
     }
@@ -342,15 +345,30 @@ function Assignment() {
               </div>
 
               {selectedAssignment.submission?.status === 'not_submitted' && (
-                <div style={{ marginTop: '24px', textAlign: 'right' }}>
-                  <button
-                    className="btn-submit"
-                    onClick={() => {
-                      handleSubmit(selectedAssignment.id, selectedAssignment.deadline)
-                    }}
-                  >
-                    Submit Assignment
-                  </button>
+                <div style={{ marginTop: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '12px', textAlign: 'left' }}>
+                    Self-assessed Score (out of {selectedAssignment.possibleScore || 100})
+                    <input
+                      type="number"
+                      value={studentScore}
+                      onChange={(e) => setStudentScore(e.target.value)}
+                      min="0"
+                      max={selectedAssignment.possibleScore || 100}
+                      step="0.5"
+                      style={{ width: '100%', padding: '10px', marginTop: '4px' }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <div style={{ textAlign: 'right' }}>
+                    <button
+                      className="btn-submit"
+                      onClick={() => {
+                        handleSubmit(selectedAssignment.id, selectedAssignment.deadline, studentScore)
+                      }}
+                    >
+                      Submit Assignment
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -41,24 +41,66 @@ service cloud.firestore {
     }
     
     match /assignments/{assignmentId} {
-      allow create: if isAuthenticated() 
+      // Helper: check if requestor is the teacher for this assignment
+      function isTeacher() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid;
+      }
+
+      // Create: only the teacher may create assignments. Require possibleScore > 0.
+      allow create: if request.auth != null
                     && request.resource.data.teacherId == request.auth.uid
-                    && request.resource.data.type in ['Written Works', 'Performance Task', 'Quarterly Assessment'];
-      allow read: if isAuthenticated();
-      allow update: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
-      
+                    && request.resource.data.type in ['Written Works', 'Performance Task', 'Quarterly Assessment']
+                    && request.resource.data.keys().hasAny(['possibleScore'])
+                    && request.resource.data.possibleScore is int
+                    && request.resource.data.possibleScore > 0;
+
+      allow read: if request.auth != null;
+      // Only teacher may update or delete assignment documents
+      allow update: if request.auth != null && isTeacher();
+      allow delete: if request.auth != null && isTeacher();
+
       match /submissions/{submissionId} {
-        allow create: if isAuthenticated() && 
-                         (submissionId == request.auth.uid || 
-                          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid);
-        allow read: if isAuthenticated();
-        allow update: if isAuthenticated() && 
-                         (submissionId == request.auth.uid || 
-                          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid);
-        allow delete: if isAuthenticated() && 
-                         (submissionId == request.auth.uid || 
-                          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid);
+        // Helper to read assignment's possibleScore
+        function assignmentPossibleScore() {
+          return get(/databases/$(database)/documents/assignments/$(assignmentId)).data.possibleScore;
+        }
+
+        // Create: student may create their own submission (or teacher may create for student)
+        allow create: if request.auth != null
+                      && (
+                        submissionId == request.auth.uid
+                        || get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid
+                      )
+                      && request.resource.data.keys().hasAll(['studentId','studentName','studentEmail','status','submittedAt'])
+                      && request.resource.data.studentId == submissionId;
+
+        allow read: if request.auth != null;
+
+        // Update rules:
+        // - Teacher may update any submission fields (grade, feedback, official status)
+        // - Student may only update limited fields: status, submittedAt, optional selfGrade
+        //   and if provided, selfGrade must be a number between 0 and assignmentPossibleScore()
+        allow update: if request.auth != null && (
+                         isTeacher()
+                         || (
+                           submissionId == request.auth.uid
+                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','submittedAt','selfGrade'])
+                           && (
+                             !request.resource.data.keys().hasAny(['selfGrade'])
+                             || (
+                               request.resource.data.selfGrade is number
+                               && request.resource.data.selfGrade >= 0
+                               && request.resource.data.selfGrade <= assignmentPossibleScore()
+                             )
+                           )
+                         )
+                       );
+
+        // Delete: only teacher or the student themselves
+        allow delete: if request.auth != null && (
+                         isTeacher() || submissionId == request.auth.uid
+                       );
       }
     }
     

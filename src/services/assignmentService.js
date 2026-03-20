@@ -27,6 +27,7 @@ export const createAssignmentSingle = async (assignmentData) => {
       teacherName,
       type,
       deadline,
+      possibleScore,
       createdAt // optional clicked date
     } = assignmentData
 
@@ -40,6 +41,7 @@ export const createAssignmentSingle = async (assignmentData) => {
       teacherName,
       type,
       deadline,
+      possibleScore,
       createdAt: createdAt || serverTimestamp()
     })
 
@@ -228,7 +230,7 @@ export const deleteAssignment = async (assignmentId) => {
 /**
  * Submit an assignment (Student)
  */
-export const submitAssignment = async (assignmentId, studentId, deadline) => {
+export const submitAssignment = async (assignmentId, studentId, deadline, selfGrade = null) => {
   try {
     const submissionRef = doc(db, 'assignments', assignmentId, 'submissions', studentId)
     const now = new Date()
@@ -238,7 +240,8 @@ export const submitAssignment = async (assignmentId, studentId, deadline) => {
     
     await updateDoc(submissionRef, {
       status,
-      submittedAt: serverTimestamp()
+      submittedAt: serverTimestamp(),
+      selfGrade
     })
     
     return { success: true, status }
@@ -289,5 +292,61 @@ export const getStudentAssignments = async (studentId, classIds) => {
   } catch (error) {
     console.error('Error fetching student assignments:', error)
     return []
+  }
+}
+
+/**
+ * Export class assignments/submissions to Google Sheets via backend
+ */
+export const exportClassGradesToSheet = async (classId, sheetId) => {
+  try {
+    const q = query(
+      collection(db, 'assignments'),
+      where('classId', '==', classId)
+    )
+    const snapshot = await getDocs(q)
+    const assignments = []
+    for (const docSnap of snapshot.docs) {
+      const a = { id: docSnap.id, ...docSnap.data() }
+      const subsRef = collection(db, 'assignments', docSnap.id, 'submissions')
+      const subsSnap = await getDocs(subsRef)
+      a.submissions = subsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      assignments.push(a)
+    }
+
+    // Prepare rows and send to backend in a single request (backend can be extended for batching)
+    const rows = []
+    for (const a of assignments) {
+      for (const s of (a.submissions || [])) {
+        rows.push([
+          s.studentId || '',
+          s.studentName || '',
+          a.id || '',
+          a.title || '',
+          s.grade != null ? String(s.grade) : '',
+          s.submittedAt ? (s.submittedAt.seconds ? new Date(s.submittedAt.seconds * 1000).toISOString() : String(s.submittedAt)) : ''
+        ])
+      }
+    }
+
+    if (rows.length === 0) return { success: true, message: 'No rows to export' }
+
+    const apiUrl = import.meta.env.VITE_SHEETS_API_URL || 'http://localhost:4000'
+    // Only send first row as a demo; backend can be updated to accept multiple rows
+    const resp = await fetch(`${apiUrl}/append-grade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId, range: 'Sheet1!A:F', values: rows[0] })
+    })
+
+    if (!resp.ok) {
+      const body = await resp.text()
+      throw new Error(`Sheets backend error: ${body}`)
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error exporting grades to sheet:', error)
+    return { success: false, error: error.message }
   }
 }
