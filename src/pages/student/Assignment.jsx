@@ -174,7 +174,7 @@ function Assignment() {
       case 'upcoming':
         return 'No Upcoming Assignments'
       case 'past-due':
-        return 'No Past Due Assignments'
+        return 'No Overdue Assignments'
       case 'completed':
         return 'No Completed Assignments'
       default:
@@ -200,7 +200,7 @@ function Assignment() {
           className={`tab-btn ${activeTab === 'past-due' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('past-due')}
         >
-          Past Due ({tabCounts.pastDue})
+          Overdue ({tabCounts.pastDue})
         </button>
         <button
           className={`tab-btn ${activeTab === 'completed' ? 'tab-btn--active' : ''}`}
