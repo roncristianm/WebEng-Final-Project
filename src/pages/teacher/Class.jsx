@@ -86,7 +86,9 @@ function Class() {
             >
               <div className="class-card-header" style={{ position: 'relative' }}>
                 <div>
-                  <h3>{classItem.name}</h3>
+                  <h3 className="class-title">{classItem.name}</h3>
+                  <p className="class-teacher">Teacher: {classItem.teacherName || auth.currentUser.displayName}</p>
+                  <p className="class-students">Students: {classItem.studentCount || 0}</p>
                   <div className="class-code-container">
                     <span className="class-code">Code: {classItem.classCode}</span>
                   </div>

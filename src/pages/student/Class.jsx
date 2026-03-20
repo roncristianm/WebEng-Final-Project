@@ -86,8 +86,9 @@ function Class() {
             >
               <div className="class-card-header">
                 <div>
-                  <h3>{classItem.name}</h3>
-                  <span className="class-teacher">Teacher: {classItem.teacherName}</span>
+                  <h3 className="class-title">{classItem.name}</h3>
+                  <p className="class-teacher">Teacher: {classItem.teacherName}</p>
+                  <p className="class-students">Students: {classItem.studentCount || 0}</p>
                 </div>
               </div>
               <div className="class-card-body">

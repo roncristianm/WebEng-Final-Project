@@ -1892,12 +1892,20 @@
 }
 
 /* STUDENT ONLY: Teacher name display */
-.class-teacher {
+.class-teacher,
+.class-students {
   display: block;
   font-size: 14px;
   color: #6b7280;
   margin-top: 8px;
   width: 100%;
+}
+
+.class-title {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  color: #1f2937;
+  font-weight: 700;
 }
 
 .class-info {
