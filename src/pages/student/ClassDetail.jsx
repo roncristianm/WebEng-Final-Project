@@ -6,6 +6,7 @@ import { getClassAssignments } from '../../services/assignmentService'
 import { getClassAnnouncements } from '../../services/announcementService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import { getClassMaterials } from '../../services/materialService'
 import '../../styles/Dashboard.css'
 
 function ClassDetail() {
@@ -19,6 +20,7 @@ function ClassDetail() {
   const [activeTab, setActiveTab] = useState('announcements')
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [materials, setMaterials] = useState([])
 
   useEffect(() => {
     loadClassData()
@@ -30,11 +32,13 @@ function ClassDetail() {
       const classAssignments = await getClassAssignments(classId)
       const classAnnouncements = await getClassAnnouncements(classId)
       const classStudents = await getClassStudents(classId)
+      const classMaterials = await getClassMaterials(classId)
       
       setClassData(classInfo)
       setAssignments(classAssignments)
       setAnnouncements(classAnnouncements)
       setStudents(classStudents)
+      setMaterials(classMaterials)
       setLoading(false)
     } catch (error) {
       console.error('Error loading class data:', error)
@@ -204,12 +208,6 @@ function ClassDetail() {
             Materials
           </button>
           <button 
-            className={`class-tab ${activeTab === 'activities' ? 'active' : ''}`}
-            onClick={() => setActiveTab('activities')}
-          >
-            Activities
-          </button>
-          <button 
             className={`class-tab ${activeTab === 'people' ? 'active' : ''}`}
             onClick={() => setActiveTab('people')}
           >
@@ -222,77 +220,41 @@ function ClassDetail() {
       <div className="class-content-wrapper">
         {/* Left Content */}
         <div className="class-main-content">
-          {activeTab === 'announcements' && (
-            <div className="content-section">
-              <h2 className="section-title">Announcements</h2>
-              {announcements.length > 0 ? (
-                announcements.map(announcement => (
-                  <div key={announcement.id} className="activity-card">
-                    <div className="activity-header">
-                      <div className="activity-icon announcement-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <div className="activity-info">
-                        <h3 className="activity-title">{announcement.title}</h3>
-                        <p className="activity-meta">{classData.teacherName} • {formatDateTime(announcement.createdAt)}</p>
-                      </div>
-                    </div>
-                    {announcement.content && (
-                      <p className="activity-description">{announcement.content}</p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="empty-section">
-                  <p>No announcements yet</p>
-                </div>
-              )}
-            </div>
-          )}
 
-          {activeTab === 'activities' && (
-            <div className="content-section">
-              <h2 className="section-title">Classwork</h2>
-              {assignments.length > 0 ? (
-                assignments.map(assignment => (
-                  <div key={assignment.id} className="activity-card">
-                    <div className="activity-header">
-                      <div className="activity-icon assignment-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                      </div>
-                      <div className="activity-info">
-                        <h3 className="activity-title">{assignment.title}</h3>
-                        <p className="activity-meta">{classData.teacherName} • {formatDateTime(assignment.createdAt)}</p>
-                        {assignment.deadline && (
-                          <p className={`activity-deadline ${isDeadlinePassed(assignment.deadline) ? 'overdue' : ''}`}>
-                            Due: {formatDate(assignment.deadline)} | {formatTime(assignment.deadline)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {assignment.description && (
-                      <p className="activity-description">{assignment.description}</p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="empty-section">
-                  <p>No classwork yet</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'materials' && (
+{activeTab === 'materials' && (
             <div className="content-section">
               <h2 className="section-title">Materials</h2>
-              <div className="empty-section">
-                <p>No materials yet</p>
-              </div>
+              {materials.length > 0 ? (
+                materials.map((material) => (
+                  <div key={material.id} className="activity-card">
+                    <div className="activity-header">
+                      <div className="activity-icon material-icon" style={{color: '#8B4513'}}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                          <circle cx="12" cy="9" r="2"/>
+                          <path d="M12 17H9.5a1.5 1.5 0 0 0 0 3H12"/>
+                        </svg>
+                      </div>
+                      <div className="activity-info">
+                        <h3 className="activity-title">{material.filename}</h3>
+                        <p className="activity-meta">{material.teacherName} • {formatDateTime(material.createdAt)}</p>
+                      </div>
+                    </div>
+                    {material.description && (
+                      <p className="activity-description">{material.description}</p>
+                    )}
+                    <div className="material-file-info">
+                      <a href={material.fileUrl} target="_blank" rel="noopener noreferrer" className="material-download-link">
+                        📥 Download ({(material.fileSize / 1024).toFixed(1)} KB)
+                      </a>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-section">
+                  <p>No materials yet</p>
+                </div>
+              )}
             </div>
           )}
 

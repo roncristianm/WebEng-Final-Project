@@ -5,13 +5,13 @@ import { getStorage } from 'firebase/storage'
 import { getAnalytics } from 'firebase/analytics'
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA_e_UWIhlezt3gIOyW_3M5cIrElWPZEqc",
-  authDomain: "nexxus-d7a9f.firebaseapp.com",
-  projectId: "nexxus-d7a9f",
-  storageBucket: "nexxus-d7a9f.firebasestorage.app",
-  messagingSenderId: "1099447410281",
-  appId: "1:1099447410281:web:b07681c809e830d5dd0cf8",
-  measurementId: "G-7CYD6E15RT"
+  apiKey: "REDACTED",
+  authDomain: "nexxus-65975.firebaseapp.com",
+  projectId: "nexxus-65975",
+  storageBucket: "nexxus-65975.firebasestorage.app",
+  messagingSenderId: "421245750303",
+  appId: "1:421245750303:web:4b99e5f9877880112cd92a",
+  measurementId: "G-H60CE88R72"
 }
 
 // Initialize Firebase
