@@ -10,6 +10,8 @@ import Notification from '../../components/Notification'
 import '../../styles/ClassDetail.css'
 
 function TeacherClassDetail() {
+      const [showOverdueOnly, setShowOverdueOnly] = useState(false)
+    const [studentStatuses, setStudentStatuses] = useState({})
   const { classId } = useParams()
   const navigate = useNavigate()
   const [classData, setClassData] = useState(null)
@@ -51,6 +53,15 @@ function TeacherClassDetail() {
       setAnnouncements(classAnnouncements)
       setStudents(classStudents)
       setMaterials(classMaterials)
+      // Fetch completed/overdue for each student
+      const { getStudentAssignmentStatus } = await import('../../services/studentAssignmentStatus')
+      const statuses = {}
+      await Promise.all(
+        classStudents.map(async (student) => {
+          statuses[student.id] = await getStudentAssignmentStatus(classId, student.id)
+        })
+      )
+      setStudentStatuses(statuses)
       setLoading(false)
     } catch (error) {
       console.error('Error loading class data:', error)
@@ -270,7 +281,7 @@ function TeacherClassDetail() {
             className={`class-tab ${activeTab === 'people' ? 'active' : ''}`}
             onClick={() => setActiveTab('people')}
           >
-            People
+            Members
           </button>
         </div>
 
@@ -391,7 +402,16 @@ function TeacherClassDetail() {
 
           {activeTab === 'people' && (
             <div className="content-section">
-              <h2>People ({students.length + 1})</h2>
+              <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                <h2 style={{marginBottom:0}}>Members ({students.length + 1})</h2>
+                <button
+                  className={showOverdueOnly ? 'overdue-toggle-btn active' : 'overdue-toggle-btn'}
+                  style={{marginLeft:'8px',padding:'6px 16px',borderRadius:'8px',border:'1.5px solid #dc2626',background:showOverdueOnly ? '#dc2626' : 'white',color:showOverdueOnly ? 'white' : '#dc2626',fontWeight:600,cursor:'pointer'}}
+                  onClick={() => setShowOverdueOnly(v => !v)}
+                >
+                  Overdue
+                </button>
+              </div>
               <div style={{marginBottom: '18px'}}>
                 <h3 style={{color: '#4f46e5', marginBottom: '8px'}}>Teacher</h3>
                 <div className="teacher-card">
@@ -400,11 +420,19 @@ function TeacherClassDetail() {
               </div>
               <div>
                 <h3 style={{color: '#4f46e5', marginBottom: '8px'}}>Students</h3>
-                {students.length > 0 ? students.map(student => (
-                  <div key={student.id} className="student-card">
-                    {student.name}
-                  </div>
-                )) : <div className="empty-state">No students yet</div>}
+                {students.length > 0 ? [...students]
+                  .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                  .filter(student => !showOverdueOnly || (studentStatuses[student.id]?.overdue ?? 0) > 0)
+                  .map(student => (
+                    <div key={student.id} className="student-card">
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <span>{student.name}</span>
+                        <span className="student-assignment-status">
+                          Completed: {studentStatuses[student.id]?.completed ?? 0} Overdue: {studentStatuses[student.id]?.overdue ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  )) : <div className="empty-state">No students yet</div>}
               </div>
             </div>
           )}

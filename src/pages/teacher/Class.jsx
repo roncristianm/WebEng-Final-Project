@@ -9,6 +9,7 @@ import '../../styles/Dashboard.css'
 function Class() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState([])
+  const [overdueCounts, setOverdueCounts] = useState({})
   const [loading, setLoading] = useState(true)
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
@@ -21,6 +22,15 @@ function Class() {
     if (auth.currentUser) {
       const teacherClasses = await getTeacherClasses(auth.currentUser.uid)
       setClasses(teacherClasses)
+      // Fetch overdue counts for each class
+      const { getOverdueCount } = await import('../../services/overdueService')
+      const counts = {}
+      await Promise.all(
+        teacherClasses.map(async (c) => {
+          counts[c.id] = await getOverdueCount(c.id)
+        })
+      )
+      setOverdueCounts(counts)
       setLoading(false)
     }
   }
@@ -87,10 +97,12 @@ function Class() {
               <div className="class-card-header" style={{ position: 'relative' }}>
                 <div>
                   <h3 className="class-title">{classItem.name}</h3>
+                  <p className="class-grade-section">
+                    Grade: {classItem.grade || 'N/A'} | Section: {classItem.section || 'N/A'}
+                  </p>
                   <p className="class-teacher">Teacher: {classItem.teacherName || auth.currentUser.displayName}</p>
                   <p className="class-students">Students: {classItem.studentCount || 0}</p>
                   <div className="class-code-container">
-                    <span className="class-code">Code: {classItem.classCode}</span>
                   </div>
                 </div>
                 <button
@@ -106,6 +118,10 @@ function Class() {
               </div>
               <div className="class-card-body">
                 <div className="class-info">
+                </div>
+                {/* Overdue counter at bottom */}
+                <div className="class-overdue-counter">
+                  Overdue: {overdueCounts[classItem.id] ?? 0}
                 </div>
               </div>
             </div>

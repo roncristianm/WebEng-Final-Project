@@ -229,7 +229,7 @@ const formatDateTime = (timestamp) => {
             className={`class-tab ${activeTab === 'people' ? 'active' : ''}`}
             onClick={() => setActiveTab('people')}
           >
-            People
+            Members
           </button>
         </div>
       </div>
@@ -348,7 +348,7 @@ const formatDateTime = (timestamp) => {
 
 {activeTab === 'people' && (
             <div className="content-section">
-              <h2>People ({students.length + 1})</h2>
+              <h2>Members ({students.length + 1})</h2>
               <div style={{marginBottom: '18px'}}>
                 <h3 style={{color: '#4f46e5', marginBottom: '8px'}}>Teacher</h3>
                 <div className="teacher-card">

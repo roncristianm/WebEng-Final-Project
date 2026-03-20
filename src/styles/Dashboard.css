@@ -1,3 +1,17 @@
+.class-overdue-counter {
+  margin-top: 24px;
+  font-size: 16px;
+  color: #dc2626;
+  font-weight: 600;
+  text-align: center;
+}
+/* Grade and Section under class title */
+.class-grade-section {
+  font-size: 20px;
+  color: #0038A8;
+  font-weight: 500;
+  margin: 4px 0 8px 0;
+}
 /* =================================================================
    DASHBOARD.CSS - Usage Guide
    =================================================================
@@ -1895,17 +1909,17 @@
 .class-teacher,
 .class-students {
   display: block;
-  font-size: 14px;
+  font-size: 18px;
   color: #6b7280;
   margin-top: 8px;
   width: 100%;
 }
 
 .class-title {
-  margin: 0 0 8px 0;
+  margin: 10px 0 8px 0;
   font-size: 22px;
   color: #1f2937;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .class-info {
