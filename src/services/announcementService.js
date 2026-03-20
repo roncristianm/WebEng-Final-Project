@@ -13,9 +13,9 @@ import {
 import { db } from '../config/firebase'
 
 /**
- * Create a new announcement (Teacher)
+ * Create a new announcement for SINGLE class (internal/backward compat)
  */
-export const createAnnouncement = async (announcementData) => {
+export const createAnnouncementSingle = async (announcementData) => {
   try {
     const {
       title,
@@ -23,7 +23,8 @@ export const createAnnouncement = async (announcementData) => {
       classId,
       className,
       teacherId,
-      teacherName
+      teacherName,
+      createdAt // optional clicked date
     } = announcementData
 
     const announcementRef = doc(collection(db, 'announcements'))
@@ -34,12 +35,37 @@ export const createAnnouncement = async (announcementData) => {
       className,
       teacherId,
       teacherName,
-      createdAt: serverTimestamp()
+      createdAt: createdAt || serverTimestamp()
     })
 
     return { success: true, announcementId: announcementRef.id }
   } catch (error) {
     console.error('Error creating announcement:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Create announcement for MULTIPLE classes (calendar feature)
+ */
+export const createAnnouncementMulti = async (classIds, commonData) => {
+  try {
+    const results = []
+    for (const classId of classIds) {
+      // Get class name
+      const classDoc = await getDoc(doc(db, 'classes', classId))
+      if (!classDoc.exists()) continue
+
+      const result = await createAnnouncementSingle({
+        ...commonData,
+        classId,
+        className: classDoc.data().name
+      })
+      results.push(result)
+    }
+    return { success: results.every(r => r.success), results }
+  } catch (error) {
+    console.error('Error creating multi-class announcement:', error)
     return { success: false, error: error.message }
   }
 }

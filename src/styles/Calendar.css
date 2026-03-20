@@ -199,342 +199,412 @@
   opacity: 0.8;
 }
 
-/* Event Types - Using website theme colors */
 .event-item.assignment {
   background: #dbeafe;
   color: #0038A8;
   border-left-color: #0038A8;
 }
 
-.event-item.quiz {
-  background: #fce7f3;
-  color: #be185d;
-  border-left-color: #be185d;
+.event-item.announcement {
+  background: #d1fae5;
+  color: #065f46;
+  border-left-color: #10b981;
 }
 
-.event-item.project {
-  background: #dcfce7;
-  color: #166534;
-  border-left-color: #166534;
+/* Clickable days */
+.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.event-item.class {
-  background: #e0e7ff;
-  color: #3730a3;
-  border-left-color: #3730a3;
+.clickable:hover {
+  background: #eff6ff !important;
+  border: 2px solid #0038A8;
 }
 
-.event-item.meeting {
-  background: #fef3c7;
-  color: #92400e;
-  border-left-color: #92400e;
-}
-
-.event-item.deadline {
-  background: #fee2e2;
-  color: #991b1b;
-  border-left-color: #991b1b;
-}
-
-/* Day View Placeholder */
-.day-view {
-  padding: 60px 20px;
+.more-events {
+  font-size: 10px;
+  color: #6b7280;
   text-align: center;
+  background: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-top: 2px;
 }
 
-.day-view .empty-state {
-  color: #9ca3af;
-  font-size: 16px;
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
   font-style: italic;
 }
 
-/* Responsive Design */
-@media (max-width: 1023px) {
-  .calendar-container {
-    padding: 24px;
-  }
-
-  .calendar-month {
-    font-size: 20px;
-    min-width: 180px;
-  }
-
-  .calendar-day {
-    min-height: 100px;
-  }
-
-  .day-events {
-    max-height: 60px;
-  }
-
-  .event-item {
-    font-size: 10px;
-    padding: 3px 6px;
-  }
-}
-
-@media (max-width: 767px) {
-  .calendar-container {
-    padding: 16px;
-  }
-
-  .calendar-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .calendar-nav {
-    justify-content: center;
-  }
-
-  .calendar-month {
-    font-size: 18px;
-  }
-
-  .calendar-day {
-    min-height: 80px;
-  }
-
-  .calendar-day-header {
-    padding: 12px 4px;
-    font-size: 12px;
-  }
-
-  .day-number {
-    font-size: 12px;
-  }
-
-  .day-events {
-    max-height: 50px;
-  }
-
-  .event-item {
-    font-size: 9px;
-    padding: 2px 4px;
-  }
-}
-
-@media (max-width: 599px) {
-  .calendar-grid {
-    gap: 0;
-  }
-
-  .calendar-day {
-    min-height: 70px;
-    padding: 6px;
-  }
-
-  .calendar-day-header {
-    padding: 10px 2px;
-    font-size: 11px;
-  }
-
-  .view-toggle {
-    width: 100%;
-  }
-
-  .toggle-btn {
-    flex: 1;
-    padding: 10px 16px;
-  }
-}
-
-@media (max-width: 479px) {
-  .calendar-day {
-    min-height: 60px;
-    padding: 4px;
-  }
-
-  .calendar-day-header {
-    padding: 8px 2px;
-    font-size: 10px;
-  }
-
-  .day-number {
-    font-size: 11px;
-  }
-
-  .event-item {
-    font-size: 8px;
-    padding: 2px 3px;
-  }
-
-  .nav-btn {
-    padding: 6px 10px;
-  }
-
-  .calendar-month {
-    font-size: 16px;
-    min-width: 150px;
-  }
-}
-
-/* Due Dates List View */
-.due-dates-list {
+/* Create Modal - Uses global modal styles, add specific */
+/* Create Modal */
+.create-modal {
+  max-width: 600px;
+  width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
 }
 
-.date-group {
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 24px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: center;
+  flex: 1;
+}
+
+/* Type tabs */
+.type-tabs {
+  display: flex;
+  gap: 0;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: #0038A8;
+  color: white;
+}
+
+.tab-btn:hover:not(.active) {
+  background: #e5e7eb;
+}
+
+/* Class checkboxes */
+.class-checkboxes {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fafbfc;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px 4px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+
+.checkbox-label:hover {
+  background: white;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: #0038A8;
+  margin: 0;
+}
+
+/* Better classes selection */
+.classes-selection {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.date-header {
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-  padding: 8px 0;
-  border-bottom: 1px solid #e5e7eb;
+.selected-classes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 2px solid #10b98120;
+  border-radius: 12px;
+  min-height: 44px;
+  transition: all 0.3s ease;
 }
 
-.due-date-card {
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
+.selected-classes:not(:empty) {
+  border-color: #10b98140;
+}
+
+.class-chip {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  backdrop-filter: blur(10px);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chip-remove {
+  background: rgba(255,255,255,0.25);
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  color: white;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chip-remove:hover {
+  background: rgba(255,255,255,0.4);
+  transform: scale(1.1);
+}
+
+.available-classes {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.available-classes:hover {
+  border-color: #d1d5db;
+}
+
+.checkbox-label.compact {
+  padding: 10px 8px;
+  font-size: 13px;
+  gap: 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.checkbox-label.compact:hover {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.checkbox-label.compact input[type='checkbox']:checked + span {
+  font-weight: 600;
+  color: #10b981;
+}
+
+.class-option.clean {
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+.class-option.clean:hover {
+  background: rgba(16, 184, 129, 0.08);
+  border-color: rgba(16, 184, 129, 0.2);
+}
+
+.class-option.clean {
+  display: flex;
   align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
-.due-date-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.class-option.clean:hover {
+  background: rgba(16, 184, 129, 0.06);
 }
 
-.due-date-card.assignment {
-  border-left: 4px solid #0038A8;
-}
-
-.due-date-card.quiz {
-  border-left: 4px solid #be185d;
-}
-
-.due-date-card.project {
-  border-left: 4px solid #166534;
-}
-
-.due-date-card.class {
-  border-left: 4px solid #3730a3;
-}
-
-.due-date-card.meeting {
-  border-left: 4px solid #92400e;
-}
-
-.due-date-card.deadline {
-  border-left: 4px solid #991b1b;
-}
-
-.event-icon {
-  color: #6b7280;
+.class-option.clean input[type='checkbox'] {
+  order: -1;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin: 2px 8px 0 0;
+  width: 16px;
+  height: 16px;
+  accent-color: #10b981;
 }
 
-.due-date-card.assignment .event-icon {
-  color: #0038A8;
-}
-
-.due-date-card.quiz .event-icon {
-  color: #be185d;
-}
-
-.due-date-card.project .event-icon {
-  color: #166534;
-}
-
-.due-date-card.class .event-icon {
-  color: #3730a3;
-}
-
-.due-date-card.meeting .event-icon {
-  color: #92400e;
-}
-
-.due-date-card.deadline .event-icon {
-  color: #991b1b;
-}
-
-.event-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.event-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.event-meta {
-  margin: 0;
-  font-size: 13px;
-  color: #6b7280;
-}
-
-.event-class {
-  margin: 0;
-  font-size: 13px;
-  color: #0038A8;
+.class-name {
   font-weight: 500;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
-/* Responsive for Due Dates List */
-@media (max-width: 767px) {
-  .list-mode-toggle {
-    width: 100%;
-  }
+.class-option.clean input:checked + .class-name {
+  color: #059669;
+  font-weight: 600;
+}
 
-  .mode-btn {
-    flex: 1;
-    padding: 12px 16px;
-  }
 
-  .due-date-card {
-    padding: 16px;
-    gap: 12px;
-  }
+.class-name {
+  font-weight: 500;
+  font-size: 14px;
+  display: block;
+  flex: 1;
+}
 
-  .event-title {
-    font-size: 15px;
-  }
+.class-meta {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+  opacity: 0.9;
+}
 
-  .event-meta,
-  .event-class {
+.class-option.clean input[type='checkbox']:checked ~ .class-name {
+  color: #059669;
+  font-weight: 600;
+}
+
+
+.class-name {
+  font-weight: 500;
+  font-size: 14px;
+  display: block;
+}
+
+.class-meta {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+
+/* No classes */
+.classes-selection:empty::after {
+  content: 'No classes available - create some first!';
+  display: block;
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 40px;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .selected-classes {
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .class-chip {
+    padding: 6px 10px;
     font-size: 12px;
   }
-}
-
-@media (max-width: 599px) {
-  .due-date-card {
-    padding: 14px;
-    gap: 10px;
-  }
-
-  .event-icon svg {
+  
+  .chip-remove {
     width: 20px;
     height: 20px;
-  }
-
-  .event-title {
     font-size: 14px;
   }
-
-  .event-meta,
-  .event-class {
-    font-size: 11px;
-  }
-
-  .date-header {
-    font-size: 13px;
+  
+  .available-classes {
+    max-height: 140px;
   }
 }
+
+
+/* Responsive */
+@media (max-width: 768px) {
+  .calendar-container {
+    padding: 24px;
+  }
+  
+  .calendar-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .calendar-nav {
+    order: 3;
+    width: 100%;
+  }
+  
+  .calendar-month {
+    font-size: 20px;
+  }
+  
+  .list-mode-toggle, .view-toggle {
+    order: 2;
+  }
+  
+  .calendar-day {
+    min-height: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-container {
+    padding: 16px;
+  }
+  
+  .calendar-day {
+    min-height: 80px;
+    padding: 6px;
+  }
+  
+  .day-events {
+    max-height: 50px;
+  }
+  
+  .type-tabs {
+    margin-bottom: 16px;
+  }
+  
+  .checkbox-label {
+    font-size: 13px;
+  }
+  
+  .class-checkboxes {
+    max-height: 150px;
+  }
+}
+

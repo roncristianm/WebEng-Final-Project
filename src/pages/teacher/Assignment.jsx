@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { auth } from '../../config/firebase'
 import { getTeacherClasses } from '../../services/classService'
 import { 
-  createAssignment, 
+  createAssignmentSingle as createAssignment, 
   getTeacherAssignments, 
   deleteAssignment,
   getAssignmentById 
