@@ -7,7 +7,7 @@ import { getClassAnnouncements } from '../../services/announcementService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { getClassMaterials } from '../../services/materialService'
-import '../../styles/Dashboard.css'
+import '../../styles/ClassDetail.css'
 
 function ClassDetail() {
   const { classId } = useParams()
@@ -46,7 +46,7 @@ function ClassDetail() {
     }
   }
 
-  const formatDateTime = (timestamp) => {
+const formatDateTime = (timestamp) => {
     if (!timestamp) return ''
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
     const options = { 
@@ -57,6 +57,12 @@ function ClassDetail() {
       minute: '2-digit'
     }
     return date.toLocaleDateString('en-US', options)
+  }
+
+  // Linkify text
+  const linkify = (text) => {
+    const urlRegex = /https?:\/\/[^\s<>"']+/gi
+    return text ? text.replace(urlRegex, '<a href="$1" target="_blank" class="material-link">$1</a>') : ''
   }
 
   const formatDate = (timestamp) => {
@@ -220,41 +226,52 @@ function ClassDetail() {
       <div className="class-content-wrapper">
         {/* Left Content */}
         <div className="class-main-content">
-
-{activeTab === 'materials' && (
+          {activeTab === 'announcements' && (
             <div className="content-section">
-              <h2 className="section-title">Materials</h2>
-              {materials.length > 0 ? (
-                materials.map((material) => (
-                  <div key={material.id} className="activity-card">
-                    <div className="activity-header">
-                      <div className="activity-icon material-icon" style={{color: '#8B4513'}}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                          <circle cx="12" cy="9" r="2"/>
-                          <path d="M12 17H9.5a1.5 1.5 0 0 0 0 3H12"/>
-                        </svg>
-                      </div>
-                      <div className="activity-info">
-                        <h3 className="activity-title">{material.filename}</h3>
-                        <p className="activity-meta">{material.teacherName} • {formatDateTime(material.createdAt)}</p>
-                      </div>
+              <h2>Announcements ({announcements.length})</h2>
+              {announcements.length > 0 ? announcements.map(ann => (
+                <div key={ann.id} className="activity-card">
+                  <div className="activity-header">
+                    <div className="activity-icon">
+                      📢
                     </div>
-                    {material.description && (
-                      <p className="activity-description">{material.description}</p>
-                    )}
-                    <div className="material-file-info">
-                      <a href={material.fileUrl} target="_blank" rel="noopener noreferrer" className="material-download-link">
-                        📥 Download ({(material.fileSize / 1024).toFixed(1)} KB)
-                      </a>
+                    <div>
+                      <h3>{ann.title}</h3>
+                      <p>{ann.content}</p>
+                      <small>By {ann.teacherName} • {formatDateTime(ann.createdAt)}</small>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="empty-section">
-                  <p>No materials yet</p>
                 </div>
-              )}
+              )) : <div className="empty-state">No announcements yet</div>}
+            </div>
+          )}
+
+          {activeTab === 'materials' && (
+            <div className="content-section">
+              <h2>Materials ({materials.length})</h2>
+              {materials.length > 0 ? materials.map(material => (
+                <div key={material.id} className="activity-card">
+                  <div className="activity-header">
+                    <div className="activity-icon">
+                      📚
+                    </div>
+                    <div>
+                      <h3 dangerouslySetInnerHTML={{ __html: linkify(material.description) }} />
+                      <small>By {material.teacherName} • {formatDateTime(material.createdAt)}</small>
+                    </div>
+                  </div>
+                  {material.files && material.files.length > 0 && (
+                    <div>
+                      <h4>Files ({material.files.length})</h4>
+                      {material.files.map((file, index) => (
+                        <a key={index} href={file.url} target="_blank" className="file-download">
+                          📄 {file.filename}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )) : <div className="empty-state">No materials yet</div>}
             </div>
           )}
 
