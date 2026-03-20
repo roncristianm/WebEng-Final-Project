@@ -18,7 +18,7 @@ function TeacherClassDetail() {
   const [students, setStudents] = useState([])
   const [materials, setMaterials] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('announcements')
+  const [activeTab, setActiveTab] = useState('general')
   const [notification, setNotification] = useState(null)
   const [showPostModal, setShowPostModal] = useState(false)
   const [postType, setPostType] = useState('announcements')
@@ -203,41 +203,97 @@ function TeacherClassDetail() {
           >
             Post
           </button>
-          <div className="class-tabs">
-            <button 
-              className={`class-tab ${activeTab === 'announcements' ? 'active' : ''}`}
-              onClick={() => setActiveTab('announcements')}
-            >
-              Announcements
-            </button>
-            <button 
-              className={`class-tab ${activeTab === 'materials' ? 'active' : ''}`}
-              onClick={() => setActiveTab('materials')}
-            >
-              Materials
-            </button>
-            <button 
-              className={`class-tab ${activeTab === 'people' ? 'active' : ''}`}
-              onClick={() => setActiveTab('people')}
-            >
-              People
-            </button>
-          </div>
+
+        <div className="class-tabs">
+          <button 
+            className={`class-tab ${activeTab === 'general' ? 'active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            General
+          </button>
+          <button 
+            className={`class-tab ${activeTab === 'assignments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('assignments')}
+          >
+            Assignments
+          </button>
+          <button 
+            className={`class-tab ${activeTab === 'announcements' ? 'active' : ''}`}
+            onClick={() => setActiveTab('announcements')}
+          >
+            Announcements
+          </button>
+          <button 
+            className={`class-tab ${activeTab === 'materials' ? 'active' : ''}`}
+            onClick={() => setActiveTab('materials')}
+          >
+            Materials
+          </button>
+          <button 
+            className={`class-tab ${activeTab === 'people' ? 'active' : ''}`}
+            onClick={() => setActiveTab('people')}
+          >
+            People
+          </button>
+        </div>
+
         </div>
       </div>
 
       {/* Main Content */}
       <div className="class-content-wrapper">
         <div className="class-main-content">
+          {activeTab === 'general' && (
+            <div className="content-section">
+              <h2>General</h2>
+              {(() => {
+                const allItems = [
+                  ...announcements.map(ann => ({
+                    ...ann,
+                    itemType: 'announcement',
+                    title: ann.title,
+                    content: ann.content,
+                    date: ann.createdAt
+                  })),
+                  ...materials.map(mat => ({
+                    ...mat,
+                    itemType: 'material',
+                    title: mat.description,
+                    content: '',
+                    date: mat.createdAt
+                  })),
+                  ...assignments.map(ass => ({
+                    ...ass,
+                    itemType: 'assignment',
+                    title: ass.title,
+                    content: ass.description,
+                    date: ass.deadline || ass.createdAt
+                  }))
+                ].filter(item => item.date)
+                  .sort((a, b) => (b.date.toMillis ? b.date.toMillis() : new Date(b.date).getTime()) - (a.date.toMillis ? a.date.toMillis() : new Date(a.date).getTime()));
+                return allItems.length > 0 ? allItems.map(item => (
+                  <div key={item.id} className="activity-card">
+                    <div className="activity-header">
+                      <div className="activity-icon"></div>
+                      <div>
+                        <h3>{item.title}</h3>
+                        <p>{item.content}</p>
+                        <small>{formatDateTime(item.date)}</small>
+                      </div>
+                    </div>
+                  </div>
+                )) : <div className="empty-state">No items yet</div>;
+              })()}
+            </div>
+          )}
+
           {activeTab === 'announcements' && (
             <div className="content-section">
-              <h2>Announcements ({announcements.length})</h2>
+              <h2>Announcements</h2>
               {announcements.length > 0 ? announcements.map(ann => (
                 <div key={ann.id} className="activity-card">
                   <div className="activity-header">
-                    <div className="activity-icon">
-                      📢
-                    </div>
+                    <div className="activity-icon"></div>
                     <div>
                       <h3>{ann.title}</h3>
                       <p>{ann.content}</p>
@@ -248,16 +304,31 @@ function TeacherClassDetail() {
               )) : <div className="empty-state">No announcements yet</div>}
             </div>
           )}
+          {activeTab === 'assignments' && (
+            <div className="content-section">
+              <h2>Assignments</h2>
+              {assignments.length > 0 ? assignments.map(ass => (
+                <div key={ass.id} className="activity-card">
+                  <div className="activity-header">
+                    <div className="activity-icon"></div>
+                    <div>
+                      <h3>{ass.title}</h3>
+                      <p>{ass.description}</p>
+                      <small>{formatDateTime(ass.deadline || ass.createdAt)}</small>
+                    </div>
+                  </div>
+                </div>
+              )) : <div className="empty-state">No assignments yet</div>}
+            </div>
+          )}
 
           {activeTab === 'materials' && (
             <div className="content-section">
-              <h2>Materials ({materials.length})</h2>
+              <h2>Materials</h2>
               {materials.length > 0 ? materials.map(material => (
                 <div key={material.id} className="activity-card">
                   <div className="activity-header">
-                    <div className="activity-icon">
-                      📚
-                    </div>
+                    <div className="activity-icon"></div>
                     <div>
                       <h3 dangerouslySetInnerHTML={{ __html: linkify(material.description) }} />
                       <small>By {material.teacherName} • {formatDateTime(material.createdAt)}</small>

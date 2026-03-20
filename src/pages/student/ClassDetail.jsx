@@ -17,7 +17,7 @@ function ClassDetail() {
   const [announcements, setAnnouncements] = useState([])
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('announcements')
+  const [activeTab, setActiveTab] = useState('general')
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [materials, setMaterials] = useState([])
@@ -202,6 +202,18 @@ const formatDateTime = (timestamp) => {
       <div className="class-tabs-container">
         <div className="class-tabs">
           <button 
+            className={`class-tab ${activeTab === 'general' ? 'active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            General
+          </button>
+          <button 
+            className={`class-tab ${activeTab === 'assignments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('assignments')}
+          >
+            Assignments
+          </button>
+          <button 
             className={`class-tab ${activeTab === 'announcements' ? 'active' : ''}`}
             onClick={() => setActiveTab('announcements')}
           >
@@ -226,81 +238,130 @@ const formatDateTime = (timestamp) => {
       <div className="class-content-wrapper">
         {/* Left Content */}
         <div className="class-main-content">
-          {activeTab === 'announcements' && (
+          {activeTab === 'general' && (
             <div className="content-section">
-              <h2>Announcements ({announcements.length})</h2>
-              {announcements.length > 0 ? announcements.map(ann => (
-                <div key={ann.id} className="activity-card">
-                  <div className="activity-header">
-                    <div className="activity-icon">
-                      📢
+              <h2>General</h2>
+              {(() => {
+                const allItems = [
+                  ...announcements.map(ann => ({...ann, itemType: 'announcement', date: ann.createdAt})),
+                  ...materials.map(mat => ({...mat, itemType: 'material', date: mat.createdAt})),
+                  ...assignments.map(ass => ({...ass, itemType: 'assignment', date: ass.createdAt || ass.deadline}))
+                ].filter(item => item.date)
+                 .sort((a, b) => (b.date.toMillis ? b.date.toMillis() : new Date(b.date).getTime()) - (a.date.toMillis ? a.date.toMillis() : new Date(a.date).getTime()));
+                return allItems.length > 0 ? allItems.map(item => (
+                  <div key={item.id} className="activity-card">
+                    <div className="activity-header">
+                      <div>
+                        <h3>{item.title || item.description}</h3>
+                        <p>{item.content || item.description || 'No description'}</p>
+                        {item.itemType === 'assignment' && item.deadline && (
+                          <small>Due {formatDate(item.deadline)} • {item.type || 'Assignment'}</small>
+                        )}
+                        <small>
+                          {item.teacherName ? `By ${item.teacherName}` : ''}
+                          {item.teacherName && item.date ? ' • ' : ''} 
+                          {formatDateTime(item.date)}
+                        </small>
+                        {item.itemType === 'material' && item.files && item.files.length > 0 && (
+                          <div>
+                            <h4>Files ({item.files.length})</h4>
+                            {item.files.map((file, index) => (
+                              <a key={index} href={file.url} target="_blank" className="file-download">
+                                📄 {file.filename}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  </div>
+                )) : <div className="empty-state">No announcements, materials, or assignments yet</div>
+              })()}
+            </div>
+          )}
+          {activeTab === 'assignments' && (
+            <div className="content-section">
+              <h2>Assignments</h2>
+              {assignments.length > 0 ? assignments.map(assignment => (
+                <div key={assignment.id} className="activity-card">
+                  <div className="activity-header">
                     <div>
-                      <h3>{ann.title}</h3>
-                      <p>{ann.content}</p>
-                      <small>By {ann.teacherName} • {formatDateTime(ann.createdAt)}</small>
+                      <h3>{assignment.title}</h3>
+                      <p>{assignment.description || 'No description provided'}</p>
+                      <small>By {assignment.teacherName} • Due {formatDate(assignment.deadline)} • {assignment.type}</small>
                     </div>
                   </div>
                 </div>
-              )) : <div className="empty-state">No announcements yet</div>}
+              )) : <div className="empty-state">No assignments yet</div>}
+            </div>
+          )}
+          {activeTab === 'announcements' && (
+            <div className="content-section">
+              <h2>Announcements</h2>
+              {announcements.length > 0 ? (
+                announcements.map(ann => (
+                  <div key={ann.id} className="activity-card">
+                    <div className="activity-header">
+                      <div>
+                        <h3>{ann.title}</h3>
+                        <p>{ann.content}</p>
+                        <small>By {ann.teacherName} • {formatDateTime(ann.createdAt)}</small>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">No announcements yet</div>
+              )}
             </div>
           )}
 
           {activeTab === 'materials' && (
             <div className="content-section">
-              <h2>Materials ({materials.length})</h2>
-              {materials.length > 0 ? materials.map(material => (
-                <div key={material.id} className="activity-card">
-                  <div className="activity-header">
-                    <div className="activity-icon">
-                      📚
+              <h2>Materials</h2>
+              {materials.length > 0 ? (
+                materials.map(material => (
+                  <div key={material.id} className="activity-card">
+                    <div className="activity-header">
+                      <div>
+                        <h3 dangerouslySetInnerHTML={{ __html: linkify(material.description) }} />
+                        <small>By {material.teacherName} • {formatDateTime(material.createdAt)}</small>
+                      </div>
                     </div>
-                    <div>
-                      <h3 dangerouslySetInnerHTML={{ __html: linkify(material.description) }} />
-                      <small>By {material.teacherName} • {formatDateTime(material.createdAt)}</small>
-                    </div>
+                    {material.files && material.files.length > 0 && (
+                      <div>
+                        <h4>Files ({material.files.length})</h4>
+                        {material.files.map((file, index) => (
+                          <a key={index} href={file.url} target="_blank" className="file-download">
+                            📄 {file.filename}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {material.files && material.files.length > 0 && (
-                    <div>
-                      <h4>Files ({material.files.length})</h4>
-                      {material.files.map((file, index) => (
-                        <a key={index} href={file.url} target="_blank" className="file-download">
-                          📄 {file.filename}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )) : <div className="empty-state">No materials yet</div>}
+                ))
+              ) : (
+                <div className="empty-state">No materials yet</div>
+              )}
             </div>
           )}
 
-          {activeTab === 'people' && (
+{activeTab === 'people' && (
             <div className="content-section">
-              <div className="people-section">
-                {/* Teacher Section */}
-                <div className="people-category">
-                  <h3 className="people-category-header">Teacher</h3>
-                  <div className="people-card">
-                    <p className="people-name">{classData.teacherName}</p>
+              <h2>People ({students.length + 1})</h2>
+              <div style={{marginBottom: '18px'}}>
+                <h3 style={{color: '#4f46e5', marginBottom: '8px'}}>Teacher</h3>
+                <div className="teacher-card">
+                  <strong>{classData.teacherName}</strong> (Teacher)
+                </div>
+              </div>
+              <div>
+                <h3 style={{color: '#4f46e5', marginBottom: '8px'}}>Students</h3>
+                {students.length > 0 ? students.map(student => (
+                  <div key={student.id} className="student-card">
+                    {student.name}
                   </div>
-                </div>
-
-                {/* Student Section */}
-                <div className="people-category">
-                  <h3 className="people-category-header">Student</h3>
-                  {students.length > 0 ? (
-                    students.map((student) => (
-                      <div key={student.id} className="people-card">
-                        <p className="people-name">{student.name}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="empty-section">
-                      <p>No students enrolled yet</p>
-                    </div>
-                  )}
-                </div>
+                )) : <div className="empty-state">No students yet</div>}
               </div>
             </div>
           )}
