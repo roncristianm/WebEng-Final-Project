@@ -108,7 +108,8 @@
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
-  border-left: 4px solid #0038A8;
+  border: 1.5px solid #0038A8;
+  border-left-width: 4px;
 }
 
 .assignment-card:hover {
@@ -231,8 +232,9 @@
   text-align: center;
   padding: 48px;
   background: white;
-  border-radius: 16px;
+  border: 1.5px solid #0038A8;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
   max-width: 400px;
 }
 

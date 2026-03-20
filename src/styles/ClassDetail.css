@@ -150,12 +150,18 @@
 }
 
 .activity-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: white;
+  border: 1.5px solid #0038A8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border-radius: 12px;
   padding: 25px;
   margin-bottom: 20px;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+}
+
+.activity-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .activity-card:hover {
@@ -368,13 +374,18 @@
 }
 
 .student-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: white;
+  border: 1.5px solid #0038A8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   padding: 12px 20px;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  margin-bottom: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+}
+
+.student-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .student-card:hover {
