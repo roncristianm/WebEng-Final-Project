@@ -23,15 +23,21 @@ function Calendar() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null)
   const [createType, setCreateType] = useState('assignment') // 'assignment' | 'announcement'
-  const [selectedClasses, setSelectedClasses] = useState([])
   const [formData, setFormData] = useState({
     title: '',
     content: '', // announcement
     description: '', // assignment
+    classId: '',
     type: 'Written Works', // assignment
     deadlineDate: '',
     deadlineTime: ''
   })
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
   const [creating, setCreating] = useState(false)
   const [notification, setNotification] = useState(null)
 
@@ -92,18 +98,10 @@ function Calendar() {
     setShowCreateModal(true)
   }
 
-  const toggleClassSelect = (classId) => {
-    setSelectedClasses(prev => 
-      prev.includes(classId)
-        ? prev.filter(id => id !== classId)
-        : [...prev, classId]
-    )
-  }
-
   const handleCreateSubmit = async (e) => {
     e.preventDefault()
-    if (selectedClasses.length === 0) {
-      setNotification({ message: 'Select at least one class', type: 'error' })
+    if (!formData.classId) {
+      setNotification({ message: 'Please select a class', type: 'error' })
       return
     }
 
@@ -111,23 +109,26 @@ function Calendar() {
     try {
       let result
       const clickedDateStr = selectedDate.toISOString()
+      const selectedClass = teacherClasses.find(c => c.id === formData.classId)
       const commonData = {
         title: formData.title,
+        classId: formData.classId,
+        className: selectedClass?.name || 'Unknown Class',
         teacherId: currentUser.uid,
         teacherName: currentUser.displayName || 'Teacher',
-        createdAt: clickedDateStr
+        date: clickedDateStr
       }
 
       if (createType === 'assignment') {
         const deadline = `${formData.deadlineDate}T${formData.deadlineTime}`
-        result = await createAssignmentMulti(selectedClasses, {
+        result = await createAssignmentMulti([formData.classId], {
           ...commonData,
           description: formData.description,
           type: formData.type,
           deadline
         })
       } else {
-        result = await createAnnouncementMulti(selectedClasses, {
+        result = await createAnnouncementMulti([formData.classId], {
           ...commonData,
           content: formData.content
         })
@@ -153,11 +154,11 @@ function Calendar() {
       title: '',
       content: '',
       description: '',
+      classId: '',
       type: 'Written Works',
       deadlineDate: '',
       deadlineTime: ''
     })
-    setSelectedClasses([])
     setCreateType('assignment')
   }
 
@@ -325,54 +326,26 @@ function Calendar() {
                   </label>
                 )}
 
-                {/* Classes Selection - Better UX */}
-                <label>Classes * ({selectedClasses.length} selected)</label>
-                <div className="classes-selection">
-                  {/* Selected Classes - Chips */}
-                  <div className="selected-classes">
-                    {selectedClasses.map(classId => {
-                      const cls = teacherClasses.find(c => c.id === classId)
-                      return cls ? (
-                        <div key={classId} className="class-chip">
-                          {cls.name}
-                          <button 
-                            type="button"
-                            className="chip-remove"
-                            onClick={() => toggleClassSelect(classId)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ) : null
-                    })}
-                  </div>
-                  
-                  {/* Available Classes */}
-                  <div className="available-classes">
-{teacherClasses
-                      .filter(cls => !selectedClasses.includes(cls.id))
-                      .map(cls => (
-<label key={cls.id} className="class-option clean">
-                          <input
-                            type="checkbox"
-                            value={cls.id}
-                            onChange={e => toggleClassSelect(e.target.value)}
-                          />
-                          <span className="class-name">{cls.name}</span>
-                          {cls.grade || cls.section ? (
-                            <span className="class-meta">{cls.grade}{cls.section}</span>
-                          ) : null}
-                        </label>
-                      ))}
-
-                  </div>
-                </div>
+                <label>Class *
+                    <select
+                    name="classId"
+                    value={formData.classId}
+                    onChange={handleInputChange}
+                    required
+                    style={{cursor: 'pointer'}}
+                  >
+                    <option value="" disabled>Select a class</option>
+{teacherClasses.map(cls => (
+                      <option key={cls.id} value={cls.id}>{cls.name}</option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit" disabled={creating || selectedClasses.length === 0}>
+                <button type="submit" className="btn-submit" disabled={creating || !formData.classId || !formData.title}>
                   {creating ? 'Creating...' : `Create ${createType}`}
                 </button>
               </div>
