@@ -19,7 +19,7 @@ export const getTeacherEvents = async (teacherId) => {
     const assignmentEvents = assignments.map(assignment => ({
       id: assignment.id,
       title: `${assignment.title} (${assignment.className})`,
-      date: new Date(assignment.createdAt), // Use created date for display
+      date: assignment.createdAt.toDate ? assignment.createdAt.toDate() : new Date(assignment.createdAt), // Use created date for display
       type: 'assignment',
       className: assignment.className,
       details: assignment
@@ -28,7 +28,7 @@ export const getTeacherEvents = async (teacherId) => {
     const announcementEvents = announcements.map(announcement => ({
       id: announcement.id,
       title: `${announcement.title} (${announcement.className})`,
-      date: announcement.createdAt?.toDate ? announcement.createdAt.toDate() : new Date(),
+      date: announcement.createdAt.toDate ? announcement.createdAt.toDate() : new Date(announcement.createdAt),
       type: 'announcement',
       className: announcement.className,
       details: announcement

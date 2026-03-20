@@ -110,19 +110,20 @@ function Calendar() {
       let result
       const clickedDateStr = selectedDate.toISOString()
       const selectedClass = teacherClasses.find(c => c.id === formData.classId)
-      const commonData = {
+        const commonData = {
         title: formData.title,
         classId: formData.classId,
         className: selectedClass?.name || 'Unknown Class',
         teacherId: currentUser.uid,
         teacherName: currentUser.displayName || 'Teacher',
-        date: clickedDateStr
+        createdAt: clickedDateStr
       }
 
       if (createType === 'assignment') {
         const deadline = `${formData.deadlineDate}T${formData.deadlineTime}`
         result = await createAssignmentMulti([formData.classId], {
           ...commonData,
+          createdAt: clickedDateStr,
           description: formData.description,
           type: formData.type,
           deadline
