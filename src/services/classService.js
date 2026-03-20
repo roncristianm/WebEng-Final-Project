@@ -38,7 +38,7 @@ const classCodeExists = async (code) => {
 /**
  * Create a new class (Teacher)
  */
-export const createClass = async (className, grade, section, teacherId, teacherName) => {
+export const createClass = async (className, grade, section, teacherId, teacherName, sheetId = '') => {
   try {
     // Generate unique class code
     let classCode = generateClassCode()
@@ -54,6 +54,7 @@ export const createClass = async (className, grade, section, teacherId, teacherN
       teacherId: teacherId,
       teacherName: teacherName,
       classCode: classCode,
+      sheetId: sheetId,
       createdAt: serverTimestamp(),
       studentCount: 0
     })
@@ -78,7 +79,7 @@ export const getTeacherClasses = async (teacherId) => {
       classes.push({ id: doc.id, ...doc.data() })
     })
     
-    return classes
+    return classes.sort((a, b) => a.name.localeCompare(b.name))
   } catch (error) {
     console.error('Error fetching teacher classes:', error)
     return []
@@ -126,6 +127,26 @@ export const joinClass = async (classCode, studentId, studentName, studentEmail)
     
     console.log('Student added successfully')
 
+    // Auto-populate Google Sheet with student row if sheetId exists
+    if (classData.sheetId) {
+      try {
+        const rows = [[studentId, studentName, '', '', '', '']]
+        const apiUrl = import.meta.env.VITE_SHEETS_API_URL || 'http://localhost:4000'
+        await fetch(`${apiUrl}/append-grade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            sheetId: classData.sheetId, 
+            range: 'Sheet1!A:F', 
+            values: rows 
+          })
+        })
+        console.log('Student row added to Google Sheet')
+      } catch (sheetError) {
+        console.error('Failed to add student to sheet (non-critical):', sheetError)
+      }
+    }
+
     // Update student count using increment
     try {
       console.log('Updating student count...')
@@ -136,6 +157,24 @@ export const joinClass = async (classCode, studentId, studentName, studentEmail)
     } catch (countError) {
       console.error('Error updating count (non-critical):', countError)
       // Don't fail the join if count update fails
+    }
+
+    // If class has a linked Google Sheet ID, notify backend to add student to header
+    try {
+      const classData = classDoc.data()
+      const sheetId = classData && classData.sheetId
+      if (sheetId) {
+        // call sheets backend to add student name as header column
+        const apiUrl = (typeof window !== 'undefined' && import.meta.env && import.meta.env.VITE_SHEETS_API_URL) ? import.meta.env.VITE_SHEETS_API_URL : 'http://localhost:4000'
+        // fire-and-forget; do not fail the join if this call fails
+        fetch(`${apiUrl}/add-student-column`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheetId, studentName })
+        }).then(r => r.json()).then((j) => console.log('sheets add-student-column response', j)).catch(e => console.warn('sheets add-student-column failed', e))
+      }
+    } catch (sheetErr) {
+      console.warn('Error calling sheets backend (non-critical):', sheetErr)
     }
 
     return { success: true, classId, className: classData.name }
