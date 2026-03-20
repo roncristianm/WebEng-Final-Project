@@ -14,9 +14,9 @@ import {
 import { db } from '../config/firebase'
 
 /**
- * Create a new assignment (Teacher)
+ * Create assignment for SINGLE class (internal/backward compat)
  */
-export const createAssignment = async (assignmentData) => {
+export const createAssignmentSingle = async (assignmentData) => {
   try {
     const {
       title,
@@ -26,7 +26,8 @@ export const createAssignment = async (assignmentData) => {
       teacherId,
       teacherName,
       type,
-      deadline
+      deadline,
+      createdAt // optional clicked date
     } = assignmentData
 
     const assignmentRef = doc(collection(db, 'assignments'))
@@ -39,7 +40,7 @@ export const createAssignment = async (assignmentData) => {
       teacherName,
       type,
       deadline,
-      createdAt: serverTimestamp()
+      createdAt: createdAt || serverTimestamp()
     })
 
     // Get all students in the class and create submission records
@@ -63,6 +64,34 @@ export const createAssignment = async (assignmentData) => {
     return { success: true, assignmentId: assignmentRef.id }
   } catch (error) {
     console.error('Error creating assignment:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Create assignment for MULTIPLE classes (calendar feature)
+ */
+export const createAssignmentMulti = async (classIds, commonData) => {
+  try {
+    const results = []
+    for (const classId of classIds) {
+      // Get class name
+      const classDoc = await getDoc(doc(db, 'classes', classId))
+      if (!classDoc.exists()) {
+        results.push({ success: false, classId, error: 'Class not found' })
+        continue
+      }
+
+      const result = await createAssignmentSingle({
+        ...commonData,
+        classId,
+        className: classDoc.data().name
+      })
+      results.push(result)
+    }
+    return { success: results.every(r => r.success), results }
+  } catch (error) {
+    console.error('Error creating multi-class assignment:', error)
     return { success: false, error: error.message }
   }
 }
