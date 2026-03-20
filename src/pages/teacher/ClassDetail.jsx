@@ -29,6 +29,7 @@ function TeacherClassDetail() {
     files: null
   })
   const [posting, setPosting] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState(null)
   const { currentUser } = useAuth()
 
   useEffect(() => {
@@ -151,6 +152,33 @@ function TeacherClassDetail() {
     }
   }
 
+  const handleDeleteClass = () => {
+    setConfirmDialog({
+      title: 'Delete Class',
+      message: `Are you sure you want to delete "${classData.name}"? This action cannot be undone and all students, assignments, and materials will be permanently removed.`,
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        const result = await deleteClass(classId)
+        if (result.success) {
+          setNotification({
+            message: `Class "${classData.name}" deleted successfully`,
+            type: 'success'
+          })
+          navigate('/teacher-dashboard/class')
+        } else {
+          setNotification({
+            message: `Failed to delete class: ${result.error}`,
+            type: 'error'
+          })
+        }
+      },
+      onCancel: () => setConfirmDialog(null),
+      confirmText: 'Delete Class',
+      type: 'danger'
+    })
+  }
+
+
   if (loading) {
     return (
       <div className="page-container">
@@ -187,6 +215,15 @@ function TeacherClassDetail() {
             <code className="class-code-value theme-code">{classData.classCode}</code>
             <button className="copy-code-btn" onClick={handleCopyCode}>
               Copy
+            </button>
+            <button 
+              className="btn-delete-assignment"
+              onClick={handleDeleteClass}
+              title="Delete Class"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -451,11 +488,23 @@ function TeacherClassDetail() {
         </div>
       )}
 
-      {notification && (
+{notification && (
         <Notification 
           message={notification.message} 
           type={notification.type} 
           onClose={() => setNotification(null)} 
+        />
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={confirmDialog.onCancel}
+          confirmText={confirmDialog.confirmText}
+          type={confirmDialog.type}
         />
       )}
     </div>
