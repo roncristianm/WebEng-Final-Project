@@ -11,6 +11,7 @@ function Assignment() {
   const [notification, setNotification] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedAssignment, setSelectedAssignment] = useState(null)
+  const [activeTab, setActiveTab] = useState('upcoming')
 
   useEffect(() => {
     loadAssignments()
@@ -26,6 +27,52 @@ function Assignment() {
       const studentAssignments = await getStudentAssignments(auth.currentUser.uid, classIds)
       setAssignments(studentAssignments)
       setLoading(false)
+    }
+  }
+
+  const getTabCounts = () => {
+    let upcomingCount = 0
+    let pastDueCount = 0
+    let completedCount = 0
+
+    assignments.forEach(assignment => {
+      const submission = assignment.submission || { status: 'not_submitted' }
+      const overdue = isOverdue(assignment.deadline)
+
+      if (!overdue && submission.status === 'not_submitted') {
+        upcomingCount++
+      } else if (overdue && submission.status === 'not_submitted') {
+        pastDueCount++
+      } else if (submission.status === 'done' || submission.status === 'late') {
+        completedCount++
+      }
+    })
+
+    return { upcoming: upcomingCount, pastDue: pastDueCount, completed: completedCount }
+  }
+
+  const getFilteredAssignments = () => {
+    const counts = getTabCounts()
+    switch (activeTab) {
+      case 'upcoming':
+        return assignments.filter(assignment => {
+          const submission = assignment.submission || { status: 'not_submitted' }
+          const overdue = isOverdue(assignment.deadline)
+          return !overdue && submission.status === 'not_submitted'
+        })
+      case 'past-due':
+        return assignments.filter(assignment => {
+          const submission = assignment.submission || { status: 'not_submitted' }
+          const overdue = isOverdue(assignment.deadline)
+          return overdue && submission.status === 'not_submitted'
+        })
+      case 'completed':
+        return assignments.filter(assignment => {
+          const submission = assignment.submission || { status: 'not_submitted' }
+          return submission.status === 'done' || submission.status === 'late'
+        })
+      default:
+        return assignments
     }
   }
 
@@ -119,6 +166,22 @@ function Assignment() {
     return new Date(deadline) < new Date()
   }
 
+  const filteredAssignments = getFilteredAssignments()
+  const tabCounts = getTabCounts()
+
+  const getEmptyStateMessage = () => {
+    switch (activeTab) {
+      case 'upcoming':
+        return 'No Upcoming Assignments'
+      case 'past-due':
+        return 'No Past Due Assignments'
+      case 'completed':
+        return 'No Completed Assignments'
+      default:
+        return 'No Assignments Yet'
+    }
+  }
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -126,13 +189,34 @@ function Assignment() {
         <p className="page-subtitle">Track and submit your assignments</p>
       </div>
 
+      <div className="tabs-container">
+        <button
+          className={`tab-btn ${activeTab === 'upcoming' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('upcoming')}
+        >
+          Upcoming ({tabCounts.upcoming})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'past-due' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('past-due')}
+        >
+          Past Due ({tabCounts.pastDue})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'completed' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('completed')}
+        >
+          Completed ({tabCounts.completed})
+        </button>
+      </div>
+
       {loading ? (
         <div className="loading-container">
           <p>Loading assignments...</p>
         </div>
-      ) : assignments.length > 0 ? (
+      ) : filteredAssignments.length > 0 ? (
         <div className="assignments-grid">
-          {assignments.map((assignment) => {
+          {filteredAssignments.map((assignment) => {
             const submission = assignment.submission || { status: 'not_submitted' }
             const overdue = isOverdue(assignment.deadline)
             
@@ -207,8 +291,8 @@ function Assignment() {
               <line x1="16" y1="13" x2="8" y2="13"/>
               <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
-            <h3>No Assignments Yet</h3>
-            <p>You don't have any assignments at the moment.</p>
+            <h3>{getEmptyStateMessage()}</h3>
+            <p>{activeTab === 'upcoming' ? "Check back later for new assignments." : activeTab === 'past-due' ? "No overdue assignments at the moment." : "You haven't completed any assignments yet."}</p>
           </div>
         </div>
       )}
@@ -287,3 +371,4 @@ function Assignment() {
 }
 
 export default Assignment
+
