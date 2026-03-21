@@ -7,6 +7,7 @@ import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement }
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
 import { useAuth } from '../../context/AuthContext'
 import Notification from '../../components/Notification'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/ClassDetail.css'
 
 function TeacherClassDetail() {
@@ -167,21 +168,25 @@ function TeacherClassDetail() {
     setConfirmDialog({
       title: 'Delete Class',
       message: `Are you sure you want to delete "${classData.name}"? This action cannot be undone and all students, assignments, and materials will be permanently removed.`,
-      onConfirm: async () => {
-        setConfirmDialog(null)
-        const result = await deleteClass(classId)
-        if (result.success) {
-          setNotification({
-            message: `Class "${classData.name}" deleted successfully`,
-            type: 'success'
-          })
-          navigate('/teacher-dashboard/class')
-        } else {
-          setNotification({
-            message: `Failed to delete class: ${result.error}`,
-            type: 'error'
-          })
-        }
+      onConfirm: () => {
+        (async () => {
+          console.log('DeleteClass: Dialog confirmed, classId:', classId)
+          setConfirmDialog(null)
+          const result = await deleteClass(classId)
+          console.log('DeleteClass: Result:', result)
+          if (result.success) {
+            setNotification({
+              message: `Class "${classData.name}" deleted successfully`,
+              type: 'success'
+            })
+            navigate('/teacher-dashboard/class')
+          } else {
+            setNotification({
+              message: `Failed to delete class: ${result.error}`,
+              type: 'error'
+            })
+          }
+        })()
       },
       onCancel: () => setConfirmDialog(null),
       confirmText: 'Delete Class',
@@ -226,15 +231,6 @@ function TeacherClassDetail() {
             <code className="class-code-value theme-code">{classData.classCode}</code>
             <button className="copy-code-btn" onClick={handleCopyCode}>
               Copy
-            </button>
-            <button 
-              className="btn-delete-assignment"
-              onClick={handleDeleteClass}
-              title="Delete Class"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
             </button>
           </div>
         </div>

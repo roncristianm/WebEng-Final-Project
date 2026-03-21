@@ -194,10 +194,34 @@ export const leaveClass = async (classId, studentId) => {
 
 export const deleteClass = async (classId) => {
   try {
+    // Delete all students
     const studentsRef = collection(db, 'classes', classId, 'students')
     const studentsSnapshot = await getDocs(studentsRef)
-    const deletePromises = studentsSnapshot.docs.map(doc => deleteDoc(doc.ref))
-    await Promise.all(deletePromises)
+    const deleteStudentPromises = studentsSnapshot.docs.map(doc => deleteDoc(doc.ref))
+    await Promise.all(deleteStudentPromises)
+
+    // Delete all assignments for this class (and their submissions)
+    const assignmentsQuery = query(collection(db, 'assignments'), where('classId', '==', classId))
+    const assignmentsSnapshot = await getDocs(assignmentsQuery)
+    const { deleteAssignment } = await import('../services/assignmentService')
+    const deleteAssignmentPromises = assignmentsSnapshot.docs.map(doc => deleteAssignment(doc.id))
+    await Promise.all(deleteAssignmentPromises)
+
+    // Delete all announcements for this class
+    const announcementsQuery = query(collection(db, 'announcements'), where('classId', '==', classId))
+    const announcementsSnapshot = await getDocs(announcementsQuery)
+    const { deleteAnnouncement } = await import('../services/announcementService')
+    const deleteAnnouncementPromises = announcementsSnapshot.docs.map(doc => deleteAnnouncement(doc.id))
+    await Promise.all(deleteAnnouncementPromises)
+
+    // Delete all materials for this class (and their files)
+    const materialsQuery = query(collection(db, 'materials'), where('classId', '==', classId))
+    const materialsSnapshot = await getDocs(materialsQuery)
+    const { deleteMaterial } = await import('../services/materialService')
+    const deleteMaterialPromises = materialsSnapshot.docs.map(doc => deleteMaterial(doc.id))
+    await Promise.all(deleteMaterialPromises)
+
+    // Delete the class document itself
     const classRef = doc(db, 'classes', classId)
     await deleteDoc(classRef)
     return { success: true }
