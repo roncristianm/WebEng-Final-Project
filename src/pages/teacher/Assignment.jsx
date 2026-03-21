@@ -172,11 +172,13 @@ const loadData = async () => {
         </label>
         <div style={{ position: 'relative' }}>
           <select 
-            value={selectedClassId} 
+            value={selectedClassId || ""}
             onChange={(e) => {
-              setSelectedClassId(e.target.value)
-              loadData() // Trigger reload
+              const value = e.target.value
+              setSelectedClassId(value)
+              loadData(value)
             }}
+
             style={{
               width: '100%', 
               padding: '1rem 1.5rem', 
@@ -193,12 +195,16 @@ const loadData = async () => {
               paddingRight: '3rem'
             }}
           >
+            <option value="" disabled hidden>
+              Select a class...
+            </option>
 
             {classes.map(cls => (
               <option key={cls.id} value={cls.id}>
                 {cls.name} ({cls.grade || 'N/A'} - {cls.section || 'N/A'}) - {cls.studentCount || 0} students
               </option>
             ))}
+
           </select>
         </div>
         {!selectedClassId && classes.length > 0 && (
