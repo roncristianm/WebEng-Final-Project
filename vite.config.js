@@ -6,13 +6,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true,
-    proxy: {
-      '/sheets-api': {
-        target: 'http://localhost:4000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/sheets-api/, '')
-      }
-    }
+    open: true
   }
 })

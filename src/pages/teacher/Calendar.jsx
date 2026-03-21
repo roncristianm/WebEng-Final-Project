@@ -29,7 +29,6 @@ function Calendar() {
     description: '', // assignment
     classId: '',
     type: 'Written Works', // assignment
-    possibleScore: 100,
     deadlineDate: '',
     deadlineTime: ''
   })
@@ -92,7 +91,6 @@ function Calendar() {
     const timeStr = new Date().toTimeString().slice(0, 5)
     setFormData(prev => ({
       ...prev,
-      possibleScore: 100,
       deadlineDate: dateStr,
       deadlineTime: timeStr
     }))
@@ -128,7 +126,6 @@ function Calendar() {
           createdAt: clickedDateStr,
           description: formData.description,
           type: formData.type,
-          possibleScore: formData.possibleScore,
           deadline
         })
       } else {
@@ -160,7 +157,6 @@ function Calendar() {
       description: '',
       classId: '',
       type: 'Written Works',
-      possibleScore: 100,
       deadlineDate: '',
       deadlineTime: ''
     })
@@ -308,21 +304,10 @@ function Calendar() {
                       >
                         <option>Written Works</option>
                         <option>Performance Task</option>
-                      <option>Quarterly Assessment</option>
+                        <option>Quarterly Assessment</option>
                       </select>
                     </label>
-                    <label>Possible Score
-                      <input
-                        type="number"
-                        value={formData.possibleScore}
-                        onChange={e => setFormData({...formData, possibleScore: e.target.value})}
-                        min="1"
-                        max="1000"
-                        placeholder="100"
-                      />
-                    </label>
                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-
                       <label>Deadline Date *
                         <input type="date" value={formData.deadlineDate} onChange={e => setFormData({...formData, deadlineDate: e.target.value})} required />
                       </label>
