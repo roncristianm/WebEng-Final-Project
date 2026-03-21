@@ -17,42 +17,49 @@ app.use((req, res, next) => {
   next()
 })
 
+// ── Credentials ─────────────────────────────────────────────────────────────
 function getSheetsClient() {
   let credentials
-
-  // Option 1: credentials.json file in same directory (easiest, check first)
   const localKeyFile = path.join(__dirname, 'credentials.json')
   if (fs.existsSync(localKeyFile)) {
     credentials = JSON.parse(fs.readFileSync(localKeyFile, 'utf8'))
-    console.log('📄 Using credentials.json from sheets-backend folder')
-  }
-  // Option 2: use a key file path from env var
-  else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
-    const keyPath = path.resolve(process.env.GOOGLE_SHEETS_KEY_FILE)
-    credentials = JSON.parse(fs.readFileSync(keyPath, 'utf8'))
-  }
-  // Option 3: use inline JSON string in env var
-  else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
+  } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
+    credentials = JSON.parse(fs.readFileSync(path.resolve(process.env.GOOGLE_SHEETS_KEY_FILE), 'utf8'))
+  } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
     const raw = process.env.GOOGLE_SHEETS_CREDENTIALS
-    try {
-      credentials = JSON.parse(raw)
-    } catch (e) {
-      try {
-        credentials = JSON.parse(raw.replace(/\\n/g, '\n'))
-      } catch (e2) {
-        throw new Error('GOOGLE_SHEETS_CREDENTIALS is not valid JSON. Place credentials.json in the sheets-backend folder instead.')
-      }
+    try { credentials = JSON.parse(raw) }
+    catch (e) {
+      try { credentials = JSON.parse(raw.replace(/\\n/g, '\n')) }
+      catch (e2) { throw new Error('Invalid GOOGLE_SHEETS_CREDENTIALS JSON. Place credentials.json in sheets-backend folder instead.') }
     }
-  }
-  else {
+  } else {
     throw new Error('No credentials found. Place credentials.json in the sheets-backend folder.')
   }
+  const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] })
+  return google.sheets({ version: 'v4', auth })
+}
 
+// Drive client — needed to share sheets with the service account
+function getDriveClient() {
+  let credentials
+  const localKeyFile = path.join(__dirname, 'credentials.json')
+  if (fs.existsSync(localKeyFile)) {
+    credentials = JSON.parse(fs.readFileSync(localKeyFile, 'utf8'))
+  } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
+    credentials = JSON.parse(fs.readFileSync(path.resolve(process.env.GOOGLE_SHEETS_KEY_FILE), 'utf8'))
+  } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
+    const raw = process.env.GOOGLE_SHEETS_CREDENTIALS
+    try { credentials = JSON.parse(raw) }
+    catch (e) { credentials = JSON.parse(raw.replace(/\\n/g, '\n')) }
+  }
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    scopes: [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive'
+    ]
   })
-  return google.sheets({ version: 'v4', auth })
+  return google.drive({ version: 'v3', auth })
 }
 
 function columnToLetter(col) {
@@ -65,17 +72,140 @@ function columnToLetter(col) {
   return letter
 }
 
-// ── Health ─────────────────────────────────────────────────────────────────
+// ── Tab name resolver (auto-detects tabs by keyword, caches per sheetId) ───
+const tabCache = {} // { sheetId: { inputData, q1, q2, q3, q4 } }
+
+async function resolveTabNames(sheetId, sheets) {
+  if (tabCache[sheetId]) return tabCache[sheetId]
+
+  // Fetch all sheet tab names from the spreadsheet metadata
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId: sheetId,
+    fields: 'sheets.properties.title'
+  })
+  const tabs = meta.data.sheets.map(s => s.properties.title)
+  console.log(`📋 Tabs found in sheet ${sheetId}:`, tabs)
+
+  // Match tabs by keyword (case-insensitive, flexible)
+  const find = (keywords) => {
+    const tab = tabs.find(t =>
+      keywords.every(kw => t.toLowerCase().includes(kw.toLowerCase()))
+    )
+    // Wrap in single quotes if tab name has spaces or special chars
+    return tab ? (tab.match(/[\s()]/) ? `'${tab}'` : tab) : null
+  }
+
+  const resolved = {
+    inputData: find(['input']) || find(['input', 'data']),
+    q1: find(['q1']) || find(['first', 'quarter']) || find(['1st', 'quarter']),
+    q2: find(['q2']) || find(['second', 'quarter']) || find(['2nd', 'quarter']),
+    q3: find(['q3']) || find(['third', 'quarter']) || find(['3rd', 'quarter']),
+    q4: find(['q4']) || find(['fourth', 'quarter']) || find(['4th', 'quarter']),
+  }
+
+  console.log(`✅ Resolved tab names:`, resolved)
+  tabCache[sheetId] = resolved
+  return resolved
+}
+
+// Clear cache for a sheet (call if tab names change)
+function clearTabCache(sheetId) {
+  delete tabCache[sheetId]
+}
+
+function getQuarterTab(tabs, quarter) {
+  const map = { Q1: tabs.q1, Q2: tabs.q2, Q3: tabs.q3, Q4: tabs.q4 }
+  return map[quarter] || tabs.q1
+}
+
+// ── Health ──────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }))
+
+// ── Auto-share sheet with service account ───────────────────────────────────
+// POST /share-sheet { sheetId }
+// Grants the service account Editor access to the sheet automatically
+app.post('/share-sheet', async (req, res) => {
+  try {
+    const { sheetId } = req.body
+    if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
+
+    const drive = getDriveClient()
+
+    // Get the service account email from credentials
+    const localKeyFile = path.join(__dirname, 'credentials.json')
+    const credentials = JSON.parse(fs.readFileSync(localKeyFile, 'utf8'))
+    const serviceAccountEmail = credentials.client_email
+
+    // Check if already shared
+    const existingPerms = await drive.permissions.list({
+      fileId: sheetId,
+      fields: 'permissions(id,emailAddress,role)'
+    })
+    const alreadyShared = existingPerms.data.permissions?.some(
+      p => p.emailAddress?.toLowerCase() === serviceAccountEmail.toLowerCase()
+    )
+
+    if (alreadyShared) {
+      console.log(`✅ Sheet ${sheetId} already shared with ${serviceAccountEmail}`)
+      return res.json({ success: true, message: 'Already shared', email: serviceAccountEmail })
+    }
+
+    // Grant Editor access to the service account
+    await drive.permissions.create({
+      fileId: sheetId,
+      requestBody: {
+        type: 'user',
+        role: 'writer',
+        emailAddress: serviceAccountEmail
+      },
+      fields: 'id'
+    })
+
+    // Clear tab cache so fresh tab names are read
+    clearTabCache(sheetId)
+
+    console.log(`✅ Shared sheet ${sheetId} with ${serviceAccountEmail}`)
+    res.json({ success: true, message: `Sheet shared with ${serviceAccountEmail}`, email: serviceAccountEmail })
+  } catch (err) {
+    console.error('share-sheet error', err.message)
+    // If it's a permission error, the sheet owner needs to share manually
+    if (err.message.includes('insufficientPermissions') || err.code === 403) {
+      return res.status(403).json({
+        error: 'Cannot auto-share: The sheet owner must grant access. Share the sheet with ' +
+          'nexxus@nexxus-490901.iam.gserviceaccount.com as Editor.',
+        manualShare: true
+      })
+    }
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── Get tab names for a sheet (so frontend can display them) ────────────────
+app.get('/tab-names', async (req, res) => {
+  try {
+    const { sheetId } = req.query
+    if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
+    clearTabCache(sheetId) // always re-fetch fresh
+    const sheets = getSheetsClient()
+    const tabs = await resolveTabNames(sheetId, sheets)
+    res.json({ tabs })
+  } catch (err) {
+    console.error('tab-names error', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
 
 // ── Read all rows from a sheet tab ──────────────────────────────────────────
 app.get('/read-grades', async (req, res) => {
   try {
-    const { sheetId, sheetName = 'Sheet1' } = req.query
+    const { sheetId, quarter = 'Q1' } = req.query
     if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
     const sheets = getSheetsClient()
+    const tabs = await resolveTabNames(sheetId, sheets)
+    const sheetName = getQuarterTab(tabs, quarter)
+    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
-    res.json({ values: response.data.values || [] })
+    res.json({ values: response.data.values || [], sheetName })
   } catch (err) {
     console.error('read-grades error', err.message)
     res.status(500).json({ error: err.message })
@@ -85,18 +215,20 @@ app.get('/read-grades', async (req, res) => {
 // ── Read grades for a specific student by name ──────────────────────────────
 app.get('/student-grades', async (req, res) => {
   try {
-    const { sheetId, studentName, sheetName = 'ENGLISH Q1' } = req.query
+    const { sheetId, studentName, quarter = 'Q1' } = req.query
     if (!sheetId || !studentName) return res.status(400).json({ error: 'sheetId and studentName required' })
     const sheets = getSheetsClient()
+    const tabs = await resolveTabNames(sheetId, sheets)
+    const sheetName = getQuarterTab(tabs, quarter)
+    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     const allRows = response.data.values || []
     if (allRows.length === 0) return res.json({ headers: [], row: [], rowIndex: -1 })
 
-    // Row 8 (index 7) has group headers, row 9 (index 8) has sub-headers
     const groupHeaders = allRows[7] || []
     const subHeaders = allRows[8] || []
 
-    // Find student row by name in col B (index 1)
     let studentRow = null, rowIndex = -1
     for (let i = 9; i < allRows.length; i++) {
       const name = String(allRows[i][1] || '').trim().toLowerCase()
@@ -114,35 +246,24 @@ app.get('/student-grades', async (req, res) => {
   }
 })
 
-// POST /add-student-to-sheet { sheetId, studentName, gender }
-// gender: 'Male' | 'Female'
+// ── Add student to INPUT DATA sheet (sorted, by gender) ─────────────────────
 app.post('/add-student-to-sheet', async (req, res) => {
   try {
     const { sheetId, studentName, gender = 'Male' } = req.body
     if (!sheetId || !studentName) return res.status(400).json({ error: 'sheetId and studentName required' })
 
     const sheets = getSheetsClient()
+    const tabs = await resolveTabNames(sheetId, sheets)
+    const sheetName = tabs.inputData
 
-    // Try to find the correct sheet tab name
-    let sheetName = null
-    const candidates = ["'INPUT DATA (1)'", "'INPUT DATA'", "'INPUT_DATA (1)'", 'INPUT_DATA']
-    for (const candidate of candidates) {
-      try {
-        await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${candidate}!A1` })
-        sheetName = candidate
-        console.log(`✅ Found INPUT DATA tab as: ${candidate}`)
-        break
-      } catch (e) {
-        console.log(`Tab "${candidate}" not found, trying next...`)
-      }
-    }
-    if (!sheetName) return res.status(400).json({ error: 'Could not find INPUT_DATA sheet tab. Check the tab name in your Google Sheet.' })
+    if (!sheetName) return res.status(400).json({ error: 'Could not find INPUT DATA tab in this sheet. Make sure your sheet has a tab with "input" in the name.' })
 
-    // Read the whole INPUT_DATA sheet
+    console.log(`Using INPUT DATA tab: ${sheetName}`)
+
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     const rows = response.data.values || []
 
-    console.log(`Total rows read from INPUT_DATA: ${rows.length}`)
+    console.log(`Total rows read from INPUT DATA: ${rows.length}`)
 
     // Find MALE and FEMALE section header rows by checking col B (index 1)
     let maleHeaderRow = -1, femaleHeaderRow = -1
@@ -154,10 +275,9 @@ app.post('/add-student-to-sheet', async (req, res) => {
 
     console.log(`MALE header at row index: ${maleHeaderRow}, FEMALE at: ${femaleHeaderRow}`)
 
-    if (maleHeaderRow === -1) return res.status(400).json({ error: 'Could not find MALE section in INPUT_DATA (1)' })
+    if (maleHeaderRow === -1) return res.status(400).json({ error: 'Could not find MALE section in INPUT DATA tab.' })
 
     const isMale = gender.toUpperCase() === 'MALE'
-    // sectionStart is the first data row index (0-based) after the gender header
     const sectionStart = isMale ? maleHeaderRow + 1 : femaleHeaderRow + 1
     const sectionEnd = isMale
       ? (femaleHeaderRow > -1 ? femaleHeaderRow : rows.length)
@@ -165,26 +285,20 @@ app.post('/add-student-to-sheet', async (req, res) => {
 
     console.log(`Section: rows[${sectionStart}] to rows[${sectionEnd - 1}] (0-based)`)
 
-    // Collect existing names in this section from col B (index 1)
     let names = []
     for (let i = sectionStart; i < sectionEnd; i++) {
       const name = String(rows[i][1] || '').trim()
       if (name) names.push(name)
     }
 
-    console.log(`Existing names in ${gender} section:`, names)
-
-    // Check if already exists (case-insensitive)
     const alreadyExists = names.some(n => n.toLowerCase() === studentName.trim().toLowerCase())
     if (alreadyExists) return res.json({ success: true, message: 'Student already in sheet' })
 
-    // Add new name and sort alphabetically
     names.push(studentName.trim())
     names.sort((a, b) => a.localeCompare(b))
 
     console.log(`Sorted names after adding "${studentName}":`, names)
 
-    // Write sorted names back — sectionStart is 0-based index, sheet row = index + 1
     const updateData = names.map((name, idx) => ({
       range: `${sheetName}!B${sectionStart + idx + 1}`,
       values: [[name]]
@@ -194,13 +308,10 @@ app.post('/add-student-to-sheet', async (req, res) => {
 
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: sheetId,
-      requestBody: {
-        valueInputOption: 'USER_ENTERED',
-        data: updateData
-      }
+      requestBody: { valueInputOption: 'USER_ENTERED', data: updateData }
     })
 
-    console.log(`✅ Added "${studentName}" to ${gender} section at sheet rows: ${sectionStart + 1} to ${sectionStart + names.length}`)
+    console.log(`✅ Added "${studentName}" to ${gender} section`)
     res.json({ success: true, message: `Added ${studentName} to ${gender} section` })
   } catch (err) {
     console.error('add-student-to-sheet error', err.message)
@@ -208,10 +319,7 @@ app.post('/add-student-to-sheet', async (req, res) => {
   }
 })
 
-// ── Record a student score in the quarter sheet ─────────────────────────────
-// POST /record-score
-// { sheetId, studentName, assignmentType, assignmentId, score, quarter }
-// Auto-detects the correct item column based on existing assignments
+// ── Record a student score (auto-detects tab and item slot) ─────────────────
 app.post('/record-score', async (req, res) => {
   try {
     const { sheetId, studentName, assignmentType, assignmentId, score, quarter = 'Q1' } = req.body
@@ -219,22 +327,11 @@ app.post('/record-score', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: sheetId, studentName, assignmentType, assignmentId, score' })
 
     const sheets = getSheetsClient()
+    const tabs = await resolveTabNames(sheetId, sheets)
+    const sheetName = getQuarterTab(tabs, quarter)
 
-    // Auto-detect quarter sheet tab name
-    const quarterSheetMap = { 'Q1': 'ENGLISH Q1', 'Q2': 'ENGLISH Q2', 'Q3': 'ENGLISH Q3', 'Q4': 'ENGLISH Q4' }
-    let sheetName = null
-    const baseName = quarterSheetMap[quarter] || 'ENGLISH Q1'
-    const candidates = [`'${baseName}'`, baseName]
-    for (const candidate of candidates) {
-      try {
-        await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${candidate}!A1` })
-        sheetName = candidate
-        break
-      } catch (e) {}
-    }
-    if (!sheetName) return res.status(400).json({ error: `Could not find sheet tab for ${quarter}` })
+    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
 
-    // Read the quarter sheet
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     const rows = response.data.values || []
 
@@ -256,7 +353,6 @@ app.post('/record-score', async (req, res) => {
     // Written Works items 1-10: cols 4-13
     // Performance Task items 1-10: cols 17-26
     // Quarterly Assessment item 1: col 30
-
     let startCol, maxItems, colIndex
 
     if (assignmentType === 'Written Works') {
@@ -264,17 +360,14 @@ app.post('/record-score', async (req, res) => {
     } else if (assignmentType === 'Performance Task') {
       startCol = 17; maxItems = 10
     } else if (assignmentType === 'Quarterly Assessment') {
-      colIndex = 30 // fixed single column
+      colIndex = 30
     } else {
       return res.status(400).json({ error: 'Invalid assignmentType' })
     }
 
-    // For WW and PT: find the column for this assignmentId, or use next empty slot
+    // For WW and PT: find existing or next empty slot using assignmentId as marker
     if (colIndex === undefined) {
-      // Read the header row (row index 8) to check if assignmentId is already mapped
       const headerRow = rows[8] || []
-
-      // Check if this assignmentId is already written in a header cell
       let found = -1
       for (let c = startCol; c < startCol + maxItems; c++) {
         if (String(headerRow[c] || '').trim() === assignmentId) {
@@ -285,7 +378,6 @@ app.post('/record-score', async (req, res) => {
       if (found >= 0) {
         colIndex = found
       } else {
-        // Find next empty slot in the header row for this type range
         let nextEmpty = -1
         for (let c = startCol; c < startCol + maxItems; c++) {
           if (!headerRow[c] || String(headerRow[c]).trim() === '') {
@@ -294,7 +386,6 @@ app.post('/record-score', async (req, res) => {
         }
         if (nextEmpty === -1) return res.status(400).json({ error: `All ${maxItems} slots for ${assignmentType} are already used` })
 
-        // Write the assignmentId into the header row so future submissions map to same column
         const headerColLetter = columnToLetter(nextEmpty + 1)
         await sheets.spreadsheets.values.update({
           spreadsheetId: sheetId,
@@ -306,7 +397,6 @@ app.post('/record-score', async (req, res) => {
       }
     }
 
-    // Write the score to the student's row
     const colLetter = columnToLetter(colIndex + 1)
     const cellRange = `${sheetName}!${colLetter}${targetRowIndex + 1}`
 
