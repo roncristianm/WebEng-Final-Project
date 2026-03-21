@@ -105,8 +105,13 @@ function Class() {
   return (
     <div className="page-container">
       <div className="section-header">
-        <h2>My Classes</h2>
-        <p className="page-subtitle">View and manage your enrolled classes</p>
+        <div>
+          <h2>My Classes</h2>
+          <p className="page-subtitle">View and manage your enrolled classes</p>
+        </div>
+        <button className="btn-create-assignment" onClick={handleOpenJoinModal}>
+          + Join Class
+        </button>
       </div>
 
       {loading ? (

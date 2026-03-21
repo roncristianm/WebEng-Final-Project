@@ -164,8 +164,14 @@ function Assignment() {
   return (
     <div className="page-container">
       <div className="section-header">
-        <h2>Assignments</h2>
-        <button className="btn-create-assignment" onClick={() => setShowModal(true)}>+ Create Assignment</button>
+        <div>
+          <h2>Assignments</h2>
+          <p className="page-subtitle">Manage your assignments across your classes</p>
+        </div>
+        {/* Placeholder for Create button */}
+        <button className="btn-create-assignment">
+          + New Assignment
+        </button>
       </div>
 
       {loading ? (

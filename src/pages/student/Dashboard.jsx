@@ -158,10 +158,18 @@ function Dashboard() {
       {/* My Classes Section */}
       <div className="my-classes-section">
         <div className="section-header">
-          <h2>MY CLASSES</h2>
-          <button className="btn-view-all" onClick={() => navigate('/dashboard/class')}>
-            View All
-          </button>
+          <div>
+            <h2>MY CLASSES</h2>
+            <p className="page-subtitle">View and manage your enrolled classes</p>
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className="btn-create-assignment" onClick={handleJoinClass}>
+              + Join Class
+            </button>
+            <button className="btn-view-all" onClick={() => navigate('/dashboard/class')}>
+              View All
+            </button>
+          </div>
         </div>
         {loading ? (
           <div className="loading-state">Loading classes...</div>
@@ -187,7 +195,7 @@ function Dashboard() {
           </div>
         ) : (
           <div className="empty-classes">
-            <p>No classes yet. Join your first class to get started!</p>
+            <h3>No Classes Yet</h3>
           </div>
         )}
       </div>
