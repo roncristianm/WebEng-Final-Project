@@ -12,6 +12,9 @@ function Class() {
   const [loading, setLoading] = useState(true)
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [classCode, setClassCode] = useState('')
+  const [joining, setJoining] = useState(false)
 
   useEffect(() => {
     loadClasses()
@@ -65,6 +68,35 @@ function Class() {
     })
   }
 
+  // Join Class logic (copied from Dashboard)
+  const handleOpenJoinModal = () => {
+    setShowJoinModal(true)
+    setClassCode('')
+  }
+  const handleCloseJoinModal = () => {
+    setShowJoinModal(false)
+    setClassCode('')
+  }
+  const handleJoinSubmit = async (e) => {
+    e.preventDefault()
+    if (!classCode.trim()) return
+    setJoining(true)
+    try {
+      const { joinClass } = await import('../../services/classService')
+      const result = await joinClass(classCode, auth.currentUser.uid)
+      if (result.success) {
+        setNotification({ message: 'Successfully joined class!', type: 'success' })
+        loadClasses()
+        setShowJoinModal(false)
+      } else {
+        setNotification({ message: `Failed to join class: ${result.error}`, type: 'error' })
+      }
+    } catch (err) {
+      setNotification({ message: 'An error occurred while joining class.', type: 'error' })
+    }
+    setJoining(false)
+  }
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -103,11 +135,44 @@ function Class() {
             <p>Join a class using a class code to get started!</p>
             <button 
               className="btn-create-first"
-              onClick={() => navigate('/dashboard')}
+              onClick={handleOpenJoinModal}
             >
-              Go to Dashboard
+              Join Class
             </button>
           </div>
+              {/* Join Class Modal */}
+              {showJoinModal && (
+                <div className="modal-overlay" onClick={handleCloseJoinModal}>
+                  <div className="modal-content" onClick={e => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h2>Join Class</h2>
+                      <button className="modal-close" onClick={handleCloseJoinModal}>&times;</button>
+                    </div>
+                    <form onSubmit={handleJoinSubmit}>
+                      <div className="modal-body">
+                        <label htmlFor="classCode">Class Code</label>
+                        <input
+                          type="text"
+                          id="classCode"
+                          value={classCode}
+                          onChange={e => setClassCode(e.target.value)}
+                          placeholder="Enter class code"
+                          autoFocus
+                          required
+                        />
+                      </div>
+                      <div className="modal-footer">
+                        <button type="button" className="btn-cancel" onClick={handleCloseJoinModal} disabled={joining}>
+                          Cancel
+                        </button>
+                        <button type="submit" className="btn-submit" disabled={joining}>
+                          {joining ? 'Joining...' : 'Join Class'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
         </div>
       )}
 
