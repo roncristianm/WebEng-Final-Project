@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { auth } from '../../config/firebase'
 import { getTeacherClasses } from '../../services/classService'
+import { getClassStudents } from '../../services/classService'
 import { 
   createAssignmentSingle as createAssignment, 
   getTeacherAssignments, 
   deleteAssignment,
-  getAssignmentById 
+  getAssignmentById,
+  getClassAssignments
 } from '../../services/assignmentService'
+import { sendNewAssignmentNotification } from '../../services/emailService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/Assignment.css'
@@ -27,13 +30,13 @@ function Assignment() {
     return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
   }
 
-const [assignmentsByType, setAssignmentsByType] = useState({
-  writtenWorks: [],
-  performanceTask: [],
-  quarterlyAssessment: []
-})
+  const [assignmentsByType, setAssignmentsByType] = useState({
+    writtenWorks: [],
+    performanceTask: [],
+    quarterlyAssessment: []
+  })
   const [classes, setClasses] = useState([])
-const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [selectedClassName, setSelectedClassName] = useState('')
   const [selectedClassId, setSelectedClassId] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -41,7 +44,7 @@ const [loading, setLoading] = useState(true)
   const [selectedAssignment, setSelectedAssignment] = useState(null)
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
-const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [activeStatusFilter, setActiveStatusFilter] = useState('all')
 
   const [formData, setFormData] = useState({
@@ -56,7 +59,6 @@ const [creating, setCreating] = useState(false)
   })
 
   const handleViewAssignment = async (assignmentId) => {
-    const { getAssignmentById } = await import('../../services/assignmentService')
     const fullAssignment = await getAssignmentById(assignmentId)
     if (fullAssignment) {
       setSelectedAssignment(fullAssignment)
@@ -67,7 +69,7 @@ const [creating, setCreating] = useState(false)
 
   useEffect(() => { loadData() }, [selectedClassId])
 
-const loadData = async () => {
+  const loadData = async () => {
     setLoading(true)
     if (auth.currentUser) {
       const teacherClasses = await getTeacherClasses(auth.currentUser.uid)
@@ -76,18 +78,14 @@ const loadData = async () => {
       setSelectedClassName(selectedClass ? selectedClass.name : '')
       
       if (selectedClassId && teacherClasses.find(c => c.id === selectedClassId)) {
-        // Load class-specific assignments and group by type
-        const { getClassAssignments } = await import('../../services/assignmentService')
         const classAssignments = await getClassAssignments(selectedClassId)
-        
         const grouped = {
-          writtenWorks: classAssignments.filter(a => a.type === 'Written Works'),
-          performanceTask: classAssignments.filter(a => a.type === 'Performance Task'),
+          writtenWorks:        classAssignments.filter(a => a.type === 'Written Works'),
+          performanceTask:     classAssignments.filter(a => a.type === 'Performance Task'),
           quarterlyAssessment: classAssignments.filter(a => a.type === 'Quarterly Assessment')
         }
         setAssignmentsByType(grouped)
       } else {
-        // No class selected - clear assignments
         setAssignmentsByType({ writtenWorks: [], performanceTask: [], quarterlyAssessment: [] })
       }
       setLoading(false)
@@ -111,16 +109,16 @@ const loadData = async () => {
 
     setCreating(true)
     const result = await createAssignment({
-      title: formData.title,
-      description: formData.description,
-      classId: formData.classId,
-      className: selectedClass.name,
-      teacherId: auth.currentUser.uid,
-      teacherName: auth.currentUser.displayName,
-      type: formData.type,
-      quarter: formData.quarter,
+      title:         formData.title,
+      description:   formData.description,
+      classId:       formData.classId,
+      className:     selectedClass.name,
+      teacherId:     auth.currentUser.uid,
+      teacherName:   auth.currentUser.displayName,
+      type:          formData.type,
+      quarter:       formData.quarter,
       possibleScore: parseFloat(formData.possibleScore),
-      deadline
+      deadline,
     })
     setCreating(false)
 
@@ -132,11 +130,58 @@ const loadData = async () => {
         type: 'Written Works', quarter: 'Q1',
         possibleScore: 100, deadlineDate: getCurrentDate(), deadlineTime: getCurrentTime()
       })
+
+      // Send email notification to all students in the class (non-blocking)
+      try {
+        const classStudents = await getClassStudents(formData.classId)
+        const studentEmails = classStudents.filter(s => s.email).map(s => s.email)
+        const studentNames  = classStudents.filter(s => s.email).map(s => s.name)
+        if (studentEmails.length > 0) {
+          sendNewAssignmentNotification({
+            to:           studentEmails,
+            studentName:  studentNames,
+            teacherName:  auth.currentUser.displayName || 'Teacher',
+            className:    selectedClass.name,
+            title:        formData.title,
+            description:  formData.description,
+            deadline,
+            type:         formData.type,
+            possibleScore: parseFloat(formData.possibleScore),
+          })
+        }
+      } catch (emailErr) {
+        console.error('[Assignment] Email notification failed:', emailErr.message)
+      }
+
+      loadData()
+    } else {
+      setNotification({ message: `Error: ${result.error}`, type: 'error' })
     }
   }
 
-  const formatDate = (ds) => ds ? new Date(ds).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
-  const formatTime = (ds) => ds ? new Date(ds).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'
+  const handleDeleteAssignment = (e, assignment) => {
+    e.stopPropagation()
+    setConfirmDialog({
+      title:       'Delete Assignment',
+      message:     `Are you sure you want to delete "${assignment.title}"?`,
+      onConfirm:   async () => {
+        setConfirmDialog(null)
+        const result = await deleteAssignment(assignment.id)
+        if (result.success) {
+          setNotification({ message: 'Assignment deleted', type: 'success' })
+          loadData()
+        } else {
+          setNotification({ message: `Error: ${result.error}`, type: 'error' })
+        }
+      },
+      onCancel:    () => setConfirmDialog(null),
+      confirmText: 'Delete',
+      type:        'danger',
+    })
+  }
+
+  const formatDate     = (ds) => ds ? new Date(ds).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+  const formatTime     = (ds) => ds ? new Date(ds).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'
   const formatDateTime = (ts) => {
     if (!ts) return 'Not submitted'
     const d = ts.toDate ? ts.toDate() : new Date(ts)
@@ -145,8 +190,8 @@ const loadData = async () => {
 
   const getStatusBadge = (status) => {
     const badges = {
-      done: { text: 'Done', color: '#10b981' },
-      late: { text: 'Late', color: '#ef4444' },
+      done:          { text: 'Done',          color: '#10b981' },
+      late:          { text: 'Late',          color: '#ef4444' },
       not_submitted: { text: 'Not Submitted', color: '#6b7280' }
     }
     const badge = badges[status] || badges.not_submitted
@@ -158,10 +203,91 @@ const loadData = async () => {
   }
 
   const getSubmissionStats = (submissions) => {
-    const done = submissions?.filter(s => s.status === 'done').length || 0
-    const late = submissions?.filter(s => s.status === 'late').length || 0
+    const done         = submissions?.filter(s => s.status === 'done').length || 0
+    const late         = submissions?.filter(s => s.status === 'late').length || 0
     const notSubmitted = submissions?.filter(s => s.status === 'not_submitted').length || 0
     return { done, late, notSubmitted, total: submissions?.length || 0 }
+  }
+
+  const renderAssignmentColumn = (title, percentage, colorKey, items) => {
+    const color      = TYPE_COLORS[colorKey]
+    const bgGradient = {
+      'Written Works':        'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+      'Performance Task':     'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+      'Quarterly Assessment': 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+    }[colorKey]
+    const borderColor = {
+      'Written Works':        '#bfdbfe',
+      'Performance Task':     '#a7f3d0',
+      'Quarterly Assessment': '#fcd34d',
+    }[colorKey]
+    const headingColor = {
+      'Written Works':        '#1e40af',
+      'Performance Task':     '#166534',
+      'Quarterly Assessment': '#d97706',
+    }[colorKey]
+    const badgeBg = {
+      'Written Works':        'rgba(59,130,246,.1)',
+      'Performance Task':     'rgba(16,185,129,.1)',
+      'Quarterly Assessment': 'rgba(245,158,11,.1)',
+    }[colorKey]
+
+    return (
+      <div style={{ background: bgGradient, padding: '1.5rem', borderRadius: 16, border: `2px solid ${borderColor}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: color }}></div>
+          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: headingColor }}>{title} ({percentage}%)</h3>
+          <span style={{ background: badgeBg, color: headingColor, padding: '0.25rem 0.75rem', borderRadius: 20, fontSize: '0.85rem', fontWeight: 500 }}>{items.length}</span>
+        </div>
+        {items.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {items.map((assignment) => {
+              const stats = getSubmissionStats(assignment.submissions)
+              return (
+                <div key={assignment.id} className="assignment-card"
+                  onClick={() => handleViewAssignment(assignment.id)}
+                  style={{ borderLeft: `4px solid ${color}`, cursor: 'pointer' }}>
+                  <div className="assignment-card-header">
+                    <div>
+                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>{assignment.title}</h4>
+                      <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>{assignment.quarter} · Item {assignment.itemNumber}</span>
+                    </div>
+                    <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="assignment-card-body">
+                    <div className="assignment-dates">
+                      <div className="assignment-date">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        <span>{formatDate(assignment.deadline)}</span>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
+                      {stats.done + stats.late}/{stats.total} Completed
+                    </div>
+                    <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
+                      <span style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</span>
+                      <span style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</span>
+                      <span style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+            <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>No {colorKey} yet</p>
+            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Create the first one for this class</p>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -169,339 +295,40 @@ const loadData = async () => {
       <div className="section-header">
         <div>
           <h2>{selectedClassId ? `Assignments - ${selectedClassName}` : 'Assignments'}</h2>
-          <p className="page-subtitle">{selectedClassId ? `Organized by type: Written Works (30%) | Performance Tasks (50%) | Quarterly Assessments (20%)` : 'Select a class to manage assignments'}</p>
+          <p className="page-subtitle">{selectedClassId ? 'Written Works (30%) | Performance Tasks (50%) | Quarterly Assessments (20%)' : 'Select a class to manage assignments'}</p>
         </div>
-        <button className="btn-create-assignment" onClick={() => setShowModal(true)}>
-          + New Assignment
-        </button>
+        <button className="btn-create-assignment" onClick={() => setShowModal(true)}>+ New Assignment</button>
       </div>
 
       {/* Class Selector */}
-      <div className="class-selector-section" style={{ marginBottom: '2rem', padding: '1.5rem', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-        <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.75rem', fontSize: '1.1rem', color: '#1e293b' }}>
-          Select Class to View Assignments:
-        </label>
-        <div style={{ position: 'relative' }}>
-          <select 
-            value={selectedClassId || ""}
-            onChange={(e) => {
-              const value = e.target.value
-              setSelectedClassId(value)
-              loadData(value)
-            }}
-
-            style={{
-              width: '100%', 
-              padding: '1rem 1.5rem', 
-              fontSize: '1.1rem',
-              border: '2px solid #e2e8f0',
-              borderRadius: 12,
-              background: 'white',
-              cursor: 'pointer',
-              appearance: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-              backgroundPosition: 'right 0.75rem center',
-              backgroundRepeat: 'no-repeat',
-              backgroundSize: '1.5em 1.5em',
-              paddingRight: '3rem'
-            }}
-          >
-            <option value="" disabled hidden>
-              Select a class...
-            </option>
-
-            {classes.map(cls => (
-              <option key={cls.id} value={cls.id}>
-                {cls.name} ({cls.grade || 'N/A'} - {cls.section || 'N/A'}) - {cls.studentCount || 0} students
-              </option>
-            ))}
-
-          </select>
-        </div>
-        {!selectedClassId && classes.length > 0 && (
-          <p style={{ marginTop: '0.75rem', color: '#64748b', fontSize: '0.95rem' }}>
-            Choose a class to see its Written Works, Performance Tasks, and Quarterly Assessments
-          </p>
-        )}
+      <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.75rem', fontSize: '1.1rem', color: '#1e293b' }}>Select Class to View Assignments:</label>
+        <select
+          value={selectedClassId || ""}
+          onChange={(e) => setSelectedClassId(e.target.value)}
+          style={{ width: '100%', padding: '1rem 1.5rem', fontSize: '1.1rem', border: '2px solid #e2e8f0', borderRadius: 12, background: 'white', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '3rem' }}
+        >
+          <option value="" disabled hidden>Select a class...</option>
+          {classes.map(cls => (
+            <option key={cls.id} value={cls.id}>{cls.name} ({cls.grade || 'N/A'} - {cls.section || 'N/A'}) - {cls.studentCount || 0} students</option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
-        <div className="loading-container">
-          <p>{selectedClassId ? 'Loading class assignments...' : 'Loading classes...'}</p>
-        </div>
+        <div className="loading-container"><p>{selectedClassId ? 'Loading class assignments...' : 'Loading classes...'}</p></div>
       ) : !selectedClassId ? (
         <div className="empty-state-container">
           <div className="empty-state-card" style={{ maxWidth: '500px' }}>
-            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '1rem' }}>
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
             <h3>Select a Class</h3>
-            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              Choose a class from the dropdown above to view and manage its assignments organized by type:
-              <br/><strong>Written Works | Performance Tasks | Quarterly Assessments </strong>
-            </p>
+            <p style={{ color: '#64748b' }}>Choose a class from the dropdown above to view and manage its assignments.</p>
           </div>
         </div>
       ) : (
-        <div className="assignment-columns" style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
-          gap: '2rem', 
-          marginTop: '1rem'
-        }}>
-          {/* Written Works Column */}
-          <div className="assignment-column" style={{ 
-            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', 
-            padding: '1.5rem', 
-            borderRadius: 16, 
-            border: '2px solid #bfdbfe'
-          }}>
-            <div className="column-header" style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' 
-            }}>
-              <div style={{ 
-                width: 12, height: 12, borderRadius: '50%', 
-                backgroundColor: TYPE_COLORS['Written Works'] 
-              }}></div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1e40af' }}>
-                Written Works (30%)
-              </h3>
-              <span style={{ 
-                background: 'rgba(59, 130, 246, 0.1)', 
-                color: '#1e40af', padding: '0.25rem 0.75rem', 
-                borderRadius: 20, fontSize: '0.85rem', fontWeight: 500 
-              }}>
-                {assignmentsByType.writtenWorks.length}
-              </span>
-            </div>
-            {assignmentsByType.writtenWorks.length > 0 ? (
-              <div className="column-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {assignmentsByType.writtenWorks.map((assignment) => {
-                  const stats = getSubmissionStats(assignment.submissions)
-                  return (
-                    <div key={assignment.id} className="assignment-card"
-                      onClick={() => handleViewAssignment(assignment.id)}
-                      style={{ 
-                        borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}>
-                      <div className="assignment-card-header">
-                        <div>
-                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>{assignment.title}</h4>
-                          <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
-                            {assignment.quarter} · Item {assignment.itemNumber}
-                          </span>
-                        </div>
-                        <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="assignment-card-body">
-                        <div className="assignment-dates">
-                          <div className="assignment-date">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
-                            <span>{formatDate(assignment.deadline)}</span>
-                          </div>
-                        </div>
-                        <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
-                          {stats.done + stats.late}/{stats.total} Completed
-                        </div>
-                        <div className="assignment-stats" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</span>
-                          <span style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</span>
-                          <span style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                </svg>
-                <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>No Written Works yet</p>
-                <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Create the first one for this class</p>
-              </div>
-            )}
-          </div>
-
-          {/* Performance Task Column */}
-          <div className="assignment-column" style={{ 
-            background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', 
-            padding: '1.5rem', 
-            borderRadius: 16, 
-            border: '2px solid #a7f3d0'
-          }}>
-            <div className="column-header" style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' 
-            }}>
-              <div style={{ 
-                width: 12, height: 12, borderRadius: '50%', 
-                backgroundColor: TYPE_COLORS['Performance Task'] 
-              }}></div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#166534' }}>
-                Performance Tasks (50%)
-              </h3>
-              <span style={{ 
-                background: 'rgba(16, 185, 129, 0.1)', 
-                color: '#166534', padding: '0.25rem 0.75rem', 
-                borderRadius: 20, fontSize: '0.85rem', fontWeight: 500 
-              }}>
-                {assignmentsByType.performanceTask.length}
-              </span>
-            </div>
-            {assignmentsByType.performanceTask.length > 0 ? (
-              <div className="column-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {assignmentsByType.performanceTask.map((assignment) => {
-                  const stats = getSubmissionStats(assignment.submissions)
-                  return (
-                    <div key={assignment.id} className="assignment-card"
-                      onClick={() => handleViewAssignment(assignment.id)}
-                      style={{ 
-                        borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}>
-                      <div className="assignment-card-header">
-                        <div>
-                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>{assignment.title}</h4>
-                          <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
-                            {assignment.quarter} · Item {assignment.itemNumber}
-                          </span>
-                        </div>
-                        <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="assignment-card-body">
-                        <div className="assignment-dates">
-                          <div className="assignment-date">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
-                            <span>{formatDate(assignment.deadline)}</span>
-                          </div>
-                        </div>
-                        <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
-                          {stats.done + stats.late}/{stats.total} Completed
-                        </div>
-                        <div className="assignment-stats" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</span>
-                          <span style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</span>
-                          <span style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                </svg>
-                <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>No Performance Tasks yet</p>
-                <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Create the first one for this class</p>
-              </div>
-            )}
-          </div>
-
-          {/* Quarterly Assessment Column */}
-          <div className="assignment-column" style={{ 
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', 
-            padding: '1.5rem', 
-            borderRadius: 16, 
-            border: '2px solid #fcd34d'
-          }}>
-            <div className="column-header" style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' 
-            }}>
-              <div style={{ 
-                width: 12, height: 12, borderRadius: '50%', 
-                backgroundColor: TYPE_COLORS['Quarterly Assessment'] 
-              }}></div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#d97706' }}>
-                Quarterly Assessments (20%)
-              </h3>
-              <span style={{ 
-                background: 'rgba(245, 158, 11, 0.1)', 
-                color: '#d97706', padding: '0.25rem 0.75rem', 
-                borderRadius: 20, fontSize: '0.85rem', fontWeight: 500 
-              }}>
-                {assignmentsByType.quarterlyAssessment.length}
-              </span>
-            </div>
-            {assignmentsByType.quarterlyAssessment.length > 0 ? (
-              <div className="column-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {assignmentsByType.quarterlyAssessment.map((assignment) => {
-                  const stats = getSubmissionStats(assignment.submissions)
-                  return (
-                    <div key={assignment.id} className="assignment-card"
-                      onClick={() => handleViewAssignment(assignment.id)}
-                      style={{ 
-                        borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}>
-                      <div className="assignment-card-header">
-                        <div>
-                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>{assignment.title}</h4>
-                          <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
-                            {assignment.quarter} · Item {assignment.itemNumber}
-                          </span>
-                        </div>
-                        <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="assignment-card-body">
-                        <div className="assignment-dates">
-                          <div className="assignment-date">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
-                            <span>{formatDate(assignment.deadline)}</span>
-                          </div>
-                        </div>
-                        <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
-                          {stats.done + stats.late}/{stats.total} Completed
-                        </div>
-                        <div className="assignment-stats" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</span>
-                          <span style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</span>
-                          <span style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#92400e' }}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M12 2v20M2 12h20"/>
-                </svg>
-                <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>No Quarterly Assessments yet</p>
-                <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Create the first one for this class</p>
-              </div>
-            )}
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem', marginTop: '1rem' }}>
+          {renderAssignmentColumn('Written Works',        30, 'Written Works',        assignmentsByType.writtenWorks)}
+          {renderAssignmentColumn('Performance Tasks',    50, 'Performance Task',     assignmentsByType.performanceTask)}
+          {renderAssignmentColumn('Quarterly Assessments',20, 'Quarterly Assessment', assignmentsByType.quarterlyAssessment)}
         </div>
       )}
 
@@ -518,18 +345,15 @@ const loadData = async () => {
                 <label>Assignment Title *
                   <input type="text" name="title" value={formData.title} onChange={handleInputChange} placeholder="Enter assignment title" required />
                 </label>
-
                 <label>Description *
                   <textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Enter assignment description" rows="3" required />
                 </label>
-
                 <label>Class *
                   <select name="classId" value={formData.classId} onChange={handleInputChange} required>
                     <option value="">Select a class</option>
                     {classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
                   </select>
                 </label>
-
                 <label>Assignment Type *
                   <select name="type" value={formData.type} onChange={handleInputChange} required>
                     <option value="Written Works">Written Works (30%)</option>
@@ -537,20 +361,16 @@ const loadData = async () => {
                     <option value="Quarterly Assessment">Quarterly Assessment (20%)</option>
                   </select>
                 </label>
-
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <label>Quarter *
                     <select name="quarter" value={formData.quarter} onChange={handleInputChange} required>
                       <option value="Q1">1st Quarter</option>
                     </select>
                   </label>
-
                   <label>Possible Score *
-                    <input type="number" name="possibleScore" value={formData.possibleScore} onChange={handleInputChange}
-                      min="1" max="1000" placeholder="100" required />
+                    <input type="number" name="possibleScore" value={formData.possibleScore} onChange={handleInputChange} min="1" max="1000" required />
                   </label>
                 </div>
-
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <label>Deadline Date *
                     <input type="date" name="deadlineDate" value={formData.deadlineDate} onChange={handleInputChange} required />
@@ -562,9 +382,7 @@ const loadData = async () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={() => setShowModal(false)} disabled={creating}>Cancel</button>
-                <button type="submit" className="btn-submit" disabled={creating}>
-                  {creating ? 'Creating...' : 'Create Assignment'}
-                </button>
+                <button type="submit" className="btn-submit" disabled={creating}>{creating ? 'Creating...' : 'Create Assignment'}</button>
               </div>
             </form>
           </div>
@@ -576,12 +394,12 @@ const loadData = async () => {
         <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-            <div style={{ width: '100%', textAlign: 'center' }}>
-  <h2 style={{ margin: 0, fontSize: '3rem' }}>{selectedAssignment.title}</h2>
-  <div style={{ marginTop: '20px', fontSize: '1.5rem', color: '#374151', fontWeight: 500 }}>
-    {selectedAssignment.type} | {selectedAssignment.quarter}
-  </div>
-</div>
+              <div style={{ width: '100%', textAlign: 'center' }}>
+                <h2 style={{ margin: 0, fontSize: '2rem' }}>{selectedAssignment.title}</h2>
+                <div style={{ marginTop: '12px', fontSize: '1.2rem', color: '#374151', fontWeight: 500 }}>
+                  {selectedAssignment.type} | {selectedAssignment.quarter}
+                </div>
+              </div>
               <button className="modal-close" onClick={() => setShowDetailModal(false)}>×</button>
             </div>
             <div className="modal-body">
@@ -597,94 +415,24 @@ const loadData = async () => {
               </div>
               <div className="students-progress-section">
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                  <button 
-                    className="status-filter-btn"
-                    style={{
-                      padding: '8px 16px',
-                      border: '2px solid #10b98130',
-                      backgroundColor: activeStatusFilter === 'all' ? '#10b981' : 'white',
-                      color: activeStatusFilter === 'all' ? 'white' : '#10b981',
-                      borderRadius: '8px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem'
-                    }}
-                    onClick={() => setActiveStatusFilter('all')}
-                  >
-                    All ({selectedAssignment.submissions?.length || 0})
-                  </button>
-                  {(() => {
-                    const stats = getSubmissionStats(selectedAssignment.submissions)
+                  {['all', 'done', 'late', 'not_submitted'].map((filter) => {
+                    const stats  = getSubmissionStats(selectedAssignment.submissions)
+                    const counts = { all: stats.total, done: stats.done, late: stats.late, not_submitted: stats.notSubmitted }
+                    const labels = { all: 'All', done: 'Completed', late: 'Overdue', not_submitted: 'Pending' }
+                    const colors = { all: '#10b981', done: '#10b981', late: '#ef4444', not_submitted: '#6b7280' }
+                    const color  = colors[filter]
                     return (
-                      <>
-                        <button 
-                          className="status-filter-btn"
-                          style={{
-                            padding: '8px 16px',
-                            border: '2px solid #10b98130',
-                            backgroundColor: activeStatusFilter === 'done' ? '#10b981' : 'white',
-                            color: activeStatusFilter === 'done' ? 'white' : '#10b981',
-                            borderRadius: '8px',
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem'
-                          }}
-                          onClick={() => setActiveStatusFilter('done')}
-                        >
-                          Completed ({stats.done})
-                        </button>
-                        <button 
-                          className="status-filter-btn"
-                          style={{
-                            padding: '8px 16px',
-                            border: '2px solid #ef444430',
-                            backgroundColor: activeStatusFilter === 'late' ? '#ef4444' : 'white',
-                            color: activeStatusFilter === 'late' ? 'white' : '#ef4444',
-                            borderRadius: '8px',
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem'
-                          }}
-                          onClick={() => setActiveStatusFilter('late')}
-                        >
-                          Overdue ({stats.late})
-                        </button>
-                        <button 
-                          className="status-filter-btn"
-                          style={{
-                            padding: '8px 16px',
-                            border: '2px solid #6b728030',
-                            backgroundColor: activeStatusFilter === 'not_submitted' ? '#6b7280' : 'white',
-                            color: activeStatusFilter === 'not_submitted' ? 'white' : '#6b7280',
-                            borderRadius: '8px',
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem'
-                          }}
-                          onClick={() => setActiveStatusFilter('not_submitted')}
-                        >
-                          Pending ({stats.notSubmitted})
-                        </button>
-                      </>
+                      <button key={filter}
+                        style={{ padding: '8px 16px', border: `2px solid ${color}30`, backgroundColor: activeStatusFilter === filter ? color : 'white', color: activeStatusFilter === filter ? 'white' : color, borderRadius: '8px', fontWeight: '500', cursor: 'pointer', fontSize: '0.9rem' }}
+                        onClick={() => setActiveStatusFilter(filter)}>
+                        {labels[filter]} ({counts[filter]})
+                      </button>
                     )
-                  })()}
+                  })}
                 </div>
-                <h3 style={{ margin: '0 0 16px 0' }}>Students ({(() => {
-                  const stats = getSubmissionStats(selectedAssignment.submissions)
-                  const filteredCount = activeStatusFilter === 'all' 
-                    ? stats.total 
-                    : activeStatusFilter === 'done' ? stats.done 
-                    : activeStatusFilter === 'late' ? stats.late 
-                    : stats.notSubmitted
-                  return filteredCount
-                })()})</h3>
                 <div className="students-list">
-                  {(() => {
-                    const filteredSubmissions = selectedAssignment.submissions?.filter(s => 
-                      activeStatusFilter === 'all' || s.status === activeStatusFilter
-                    ) || []
-                    return filteredSubmissions.length > 0 ? (
-                      filteredSubmissions.map((submission) => (
+                  {(selectedAssignment.submissions?.filter(s => activeStatusFilter === 'all' || s.status === activeStatusFilter) || []).length > 0
+                    ? (selectedAssignment.submissions?.filter(s => activeStatusFilter === 'all' || s.status === activeStatusFilter) || []).map((submission) => (
                         <div key={submission.studentId} className="student-progress-item">
                           <div className="student-info">
                             <div className="student-avatar">{submission.studentName?.charAt(0).toUpperCase()}</div>
@@ -696,18 +444,14 @@ const loadData = async () => {
                           <div className="submission-info">
                             {getStatusBadge(submission.status)}
                             {submission.score !== null && submission.score !== undefined && (
-                              <span style={{ fontWeight: 'bold', color: '#059669', marginLeft: 8 }}>
-                                Score: {submission.score}/{selectedAssignment.possibleScore}
-                              </span>
+                              <span style={{ fontWeight: 'bold', color: '#059669', marginLeft: 8 }}>Score: {submission.score}/{selectedAssignment.possibleScore}</span>
                             )}
                             <div className="submission-time">{formatDateTime(submission.submittedAt)}</div>
                           </div>
                         </div>
                       ))
-                    ) : (
-                      <p className="no-students">No students in this category.</p>
-                    )
-                  })()}
+                    : <p className="no-students">No students in this category.</p>
+                  }
                 </div>
               </div>
             </div>
@@ -722,7 +466,7 @@ const loadData = async () => {
           confirmText={confirmDialog.confirmText} type={confirmDialog.type} />
       )}
     </div>
-  );
+  )
 }
 
-export default Assignment;
+export default Assignment

@@ -5,6 +5,7 @@ import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../context/NotificationContext'
+import { sendWelcomeEmail } from '../../services/emailService'
 import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
@@ -92,6 +93,9 @@ function Signup() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
+
+      // Send welcome email (non-blocking — won't crash signup if it fails)
+      sendWelcomeEmail({ to: email, name, role })
       
       console.log('User created successfully:', userCredential.user)
       
