@@ -8,31 +8,45 @@ import {
   where,
   serverTimestamp,
   deleteDoc,
-  updateDoc
+  updateDoc,
+  orderBy
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
-const SHEETS_API = '/sheets-api'
-
+/**
+ * Create assignment for SINGLE class (internal/backward compat)
+ */
 export const createAssignmentSingle = async (assignmentData) => {
   try {
     const {
-      title, description, classId, className,
-      teacherId, teacherName, type, deadline,
-      possibleScore, quarter = 'Q1', itemNumber = 1
+      title,
+      description,
+      classId,
+      className,
+      teacherId,
+      teacherName,
+      type,
+      deadline,
+      createdAt // optional clicked date
     } = assignmentData
 
     const assignmentRef = doc(collection(db, 'assignments'))
     await setDoc(assignmentRef, {
-      title, description, classId, className,
-      teacherId, teacherName, type, deadline,
-      possibleScore, quarter, itemNumber,
-      createdAt: serverTimestamp()
+      title,
+      description,
+      classId,
+      className,
+      teacherId,
+      teacherName,
+      type,
+      deadline,
+      createdAt: createdAt || serverTimestamp()
     })
 
-    // Create submission records for all students
+    // Get all students in the class and create submission records
     const studentsRef = collection(db, 'classes', classId, 'students')
     const studentsSnapshot = await getDocs(studentsRef)
+    
     const submissionPromises = studentsSnapshot.docs.map(async (studentDoc) => {
       const studentData = studentDoc.data()
       const submissionRef = doc(db, 'assignments', assignmentRef.id, 'submissions', studentDoc.id)
@@ -41,10 +55,10 @@ export const createAssignmentSingle = async (assignmentData) => {
         studentName: studentData.name,
         studentEmail: studentData.email,
         status: 'not_submitted',
-        submittedAt: null,
-        score: null
+        submittedAt: null
       })
     })
+
     await Promise.all(submissionPromises)
 
     return { success: true, assignmentId: assignmentRef.id }
@@ -54,15 +68,20 @@ export const createAssignmentSingle = async (assignmentData) => {
   }
 }
 
+/**
+ * Create assignment for MULTIPLE classes (calendar feature)
+ */
 export const createAssignmentMulti = async (classIds, commonData) => {
   try {
     const results = []
     for (const classId of classIds) {
+      // Get class name
       const classDoc = await getDoc(doc(db, 'classes', classId))
       if (!classDoc.exists()) {
         results.push({ success: false, classId, error: 'Class not found' })
         continue
       }
+
       const result = await createAssignmentSingle({
         ...commonData,
         classId,
@@ -77,27 +96,43 @@ export const createAssignmentMulti = async (classIds, commonData) => {
   }
 }
 
+/**
+ * Get all assignments for a teacher
+ */
 export const getTeacherAssignments = async (teacherId) => {
   try {
-    const q = query(collection(db, 'assignments'), where('teacherId', '==', teacherId))
+    const q = query(
+      collection(db, 'assignments'), 
+      where('teacherId', '==', teacherId)
+    )
     const snapshot = await getDocs(q)
+    
     const assignments = []
+    
+    // Fetch each assignment with its submissions
     for (const assignmentDoc of snapshot.docs) {
       const assignmentData = { id: assignmentDoc.id, ...assignmentDoc.data() }
+      
+      // Get all submissions for this assignment
       const submissionsRef = collection(db, 'assignments', assignmentDoc.id, 'submissions')
       const submissionsSnapshot = await getDocs(submissionsRef)
+      
       const submissions = []
       submissionsSnapshot.forEach((subDoc) => {
         submissions.push({ id: subDoc.id, ...subDoc.data() })
       })
+      
       assignmentData.submissions = submissions
       assignments.push(assignmentData)
     }
+    
+    // Sort client-side by createdAt
     assignments.sort((a, b) => {
       const aTime = a.createdAt?.toMillis?.() || 0
       const bTime = b.createdAt?.toMillis?.() || 0
       return bTime - aTime
     })
+    
     return assignments
   } catch (error) {
     console.error('Error fetching teacher assignments:', error)
@@ -105,19 +140,29 @@ export const getTeacherAssignments = async (teacherId) => {
   }
 }
 
+/**
+ * Get assignments for a specific class
+ */
 export const getClassAssignments = async (classId) => {
   try {
-    const q = query(collection(db, 'assignments'), where('classId', '==', classId))
+    const q = query(
+      collection(db, 'assignments'), 
+      where('classId', '==', classId)
+    )
     const snapshot = await getDocs(q)
+    
     const assignments = []
     snapshot.forEach((doc) => {
       assignments.push({ id: doc.id, ...doc.data() })
     })
+    
+    // Sort client-side by createdAt
     assignments.sort((a, b) => {
       const aTime = a.createdAt?.toMillis?.() || 0
       const bTime = b.createdAt?.toMillis?.() || 0
       return bTime - aTime
     })
+    
     return assignments
   } catch (error) {
     console.error('Error fetching class assignments:', error)
@@ -125,31 +170,54 @@ export const getClassAssignments = async (classId) => {
   }
 }
 
+/**
+ * Get assignment by ID with submissions
+ */
 export const getAssignmentById = async (assignmentId) => {
   try {
     const assignmentRef = doc(db, 'assignments', assignmentId)
     const assignmentDoc = await getDoc(assignmentRef)
-    if (!assignmentDoc.exists()) return null
+    
+    if (!assignmentDoc.exists()) {
+      return null
+    }
+
+    // Get all submissions
     const submissionsRef = collection(db, 'assignments', assignmentId, 'submissions')
     const submissionsSnapshot = await getDocs(submissionsRef)
+    
     const submissions = []
     submissionsSnapshot.forEach((doc) => {
       submissions.push({ id: doc.id, ...doc.data() })
     })
-    return { id: assignmentDoc.id, ...assignmentDoc.data(), submissions }
+
+    return { 
+      id: assignmentDoc.id, 
+      ...assignmentDoc.data(),
+      submissions 
+    }
   } catch (error) {
     console.error('Error fetching assignment:', error)
     return null
   }
 }
 
+/**
+ * Delete an assignment (Teacher)
+ */
 export const deleteAssignment = async (assignmentId) => {
   try {
+    // Delete all submissions
     const submissionsRef = collection(db, 'assignments', assignmentId, 'submissions')
     const submissionsSnapshot = await getDocs(submissionsRef)
+    
     const deletePromises = submissionsSnapshot.docs.map(doc => deleteDoc(doc.ref))
     await Promise.all(deletePromises)
-    await deleteDoc(doc(db, 'assignments', assignmentId))
+    
+    // Delete the assignment
+    const assignmentRef = doc(db, 'assignments', assignmentId)
+    await deleteDoc(assignmentRef)
+    
     return { success: true }
   } catch (error) {
     console.error('Error deleting assignment:', error)
@@ -158,64 +226,21 @@ export const deleteAssignment = async (assignmentId) => {
 }
 
 /**
- * Submit assignment + record score to Google Sheet
+ * Submit an assignment (Student)
  */
-export const submitAssignment = async (assignmentId, studentId, deadline, score = null) => {
+export const submitAssignment = async (assignmentId, studentId, deadline) => {
   try {
     const submissionRef = doc(db, 'assignments', assignmentId, 'submissions', studentId)
     const now = new Date()
     const deadlineDate = new Date(deadline)
+    
     const status = now > deadlineDate ? 'late' : 'done'
-
+    
     await updateDoc(submissionRef, {
       status,
-      submittedAt: serverTimestamp(),
-      score
+      submittedAt: serverTimestamp()
     })
-
-    // Now record the score to Google Sheet if possible
-    if (score !== null) {
-      try {
-        // Get the assignment details to find sheetId, type, itemNumber, quarter
-        const assignmentDoc = await getDoc(doc(db, 'assignments', assignmentId))
-        if (assignmentDoc.exists()) {
-          const assignment = assignmentDoc.data()
-
-          // Get the class sheetId
-          const classDoc = await getDoc(doc(db, 'classes', assignment.classId))
-          if (classDoc.exists()) {
-            const sheetId = classDoc.data().sheetId
-
-            if (sheetId) {
-              // Get student name from submission
-              const subSnap = await getDoc(submissionRef)
-              const studentName = subSnap.data()?.studentName
-
-              if (studentName) {
-                const resp = await fetch(`${SHEETS_API}/record-score`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    sheetId,
-                    studentName,
-                    assignmentType: assignment.type,
-                    assignmentId,
-                    score,
-                    possibleScore: assignment.possibleScore,
-                    quarter: assignment.quarter || 'Q1'
-                  })
-                })
-                const result = await resp.json()
-                console.log('record-score result:', result)
-              }
-            }
-          }
-        }
-      } catch (sheetError) {
-        console.error('Failed to record score to sheet (non-critical):', sheetError)
-      }
-    }
-
+    
     return { success: true, status }
   } catch (error) {
     console.error('Error submitting assignment:', error)
@@ -223,23 +248,43 @@ export const submitAssignment = async (assignmentId, studentId, deadline, score 
   }
 }
 
+/**
+ * Get student's assignments
+ */
 export const getStudentAssignments = async (studentId, classIds) => {
   try {
-    if (!classIds || classIds.length === 0) return []
-    const q = query(collection(db, 'assignments'), where('classId', 'in', classIds))
+    if (!classIds || classIds.length === 0) {
+      return []
+    }
+
+    const q = query(
+      collection(db, 'assignments'),
+      where('classId', 'in', classIds)
+    )
     const snapshot = await getDocs(q)
+    
     const assignments = []
     for (const assignmentDoc of snapshot.docs) {
       const assignmentData = assignmentDoc.data()
+      
+      // Get student's submission status
       const submissionRef = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
       const submissionDoc = await getDoc(submissionRef)
+      
       assignments.push({
         id: assignmentDoc.id,
         ...assignmentData,
         submission: submissionDoc.exists() ? submissionDoc.data() : null
       })
     }
-    assignments.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    
+    // Sort client-side by deadline
+    assignments.sort((a, b) => {
+      const aTime = new Date(a.deadline).getTime()
+      const bTime = new Date(b.deadline).getTime()
+      return aTime - bTime
+    })
+    
     return assignments
   } catch (error) {
     console.error('Error fetching student assignments:', error)

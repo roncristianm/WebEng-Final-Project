@@ -16,7 +16,6 @@ function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [notification, setNotification] = useState(null)
-  const [sheetId, setSheetId] = useState('')
 
   useEffect(() => {
     loadClasses()
@@ -47,8 +46,7 @@ function Dashboard() {
         grade.trim(),
         section.trim(),
         auth.currentUser.uid,
-        auth.currentUser.displayName || 'Teacher',
-        sheetId
+        auth.currentUser.displayName || 'Teacher'
       )
       
       if (result.success) {
@@ -76,7 +74,6 @@ function Dashboard() {
     setClassName('')
     setGrade('')
     setSection('')
-    setSheetId('')
   }
 
   const handleClassClick = (classId) => {
@@ -190,14 +187,6 @@ function Dashboard() {
                   onChange={(e) => setSection(e.target.value)}
                   placeholder="Enter section"
                   required
-                />
-                <label htmlFor="sheetId">Google Sheet ID (optional)</label>
-                <input
-                  type="text"
-                  id="sheetId"
-                  value={sheetId}
-                  onChange={(e) => setSheetId(e.target.value)}
-                  placeholder="1TRtsLX3WWvkCx_sBmucDrphTjD_5BFGWWYUVVHgFOMc"
                 />
               </div>
               <div className="modal-footer">
