@@ -5,14 +5,15 @@ import { getClassById, getClassStudents } from '../../services/classService'
 import { getClassAssignments } from '../../services/assignmentService'
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
+import { sendAnnouncementNotification, sendNewMaterialNotification } from '../../services/emailService'
 import { useAuth } from '../../context/AuthContext'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/ClassDetail.css'
 
 function TeacherClassDetail() {
-      const [showOverdueOnly, setShowOverdueOnly] = useState(false)
-    const [studentStatuses, setStudentStatuses] = useState({})
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false)
+  const [studentStatuses, setStudentStatuses] = useState({})
   const { classId } = useParams()
   const navigate = useNavigate()
   const [classData, setClassData] = useState(null)
@@ -54,7 +55,7 @@ function TeacherClassDetail() {
       setAnnouncements(classAnnouncements)
       setStudents(classStudents)
       setMaterials(classMaterials)
-      // Fetch completed/overdue for each student
+
       const { getStudentAssignmentStatus } = await import('../../services/studentAssignmentStatus')
       const statuses = {}
       await Promise.all(
@@ -83,7 +84,6 @@ function TeacherClassDetail() {
     return date.toLocaleDateString('en-US', options)
   }
 
-  // Linkify text
   const linkify = (text) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g
     return text.replace(urlRegex, '<a href="$1" target="_blank" class="material-link">$1</a>')
@@ -102,21 +102,37 @@ function TeacherClassDetail() {
     setPosting(true)
 
     try {
+      let successMessage = ''
+
       if (postType === 'announcements') {
         if (!formData.title.trim() || !formData.content.trim()) {
           setNotification({ message: 'Please fill title and content', type: 'error' })
           return
         }
         const result = await createAnnouncement({
-          title: formData.title.trim(),
-          content: formData.content.trim(),
-          classId: classId,
-          className: classData.name,
-          teacherId: currentUser.uid,
+          title:       formData.title.trim(),
+          content:     formData.content.trim(),
+          classId:     classId,
+          className:   classData.name,
+          teacherId:   currentUser.uid,
           teacherName: currentUser.displayName || 'Teacher'
         })
         if (result.success) {
-          setNotification({ message: 'Announcement posted!', type: 'success' })
+          successMessage = 'Announcement posted!'
+
+          // Send email notification to all students (non-blocking)
+          const studentEmails = students.filter(s => s.email).map(s => s.email)
+          const studentNames  = students.filter(s => s.email).map(s => s.name)
+          if (studentEmails.length > 0) {
+            sendAnnouncementNotification({
+              to:          studentEmails,
+              studentName: studentNames,
+              teacherName: currentUser.displayName || 'Teacher',
+              className:   classData.name,
+              title:       formData.title.trim(),
+              content:     formData.content.trim(),
+            })
+          }
         } else {
           throw new Error(result.error)
         }
@@ -133,14 +149,31 @@ function TeacherClassDetail() {
           currentUser.displayName
         )
         if (result.success) {
-          setNotification({ message: 'Material posted successfully!', type: 'success' })
+          successMessage = 'Material posted successfully!'
+
+          // Send email notification to all students (non-blocking)
+          const studentEmails = students.filter(s => s.email).map(s => s.email)
+          const studentNames  = students.filter(s => s.email).map(s => s.name)
+          if (studentEmails.length > 0) {
+            sendNewMaterialNotification({
+              to:          studentEmails,
+              studentName: studentNames,
+              teacherName: currentUser.displayName || 'Teacher',
+              className:   classData.name,
+              description: formData.description.trim(),
+              fileCount:   formData.files.length,
+            })
+          }
         } else {
           throw new Error(result.error)
         }
       }
+
+      // Close modal and reload first, THEN show notification so it isn't lost
       setFormData({ title: '', content: '', description: '', files: null })
       setShowPostModal(false)
       await loadClassData()
+      setNotification({ message: successMessage, type: 'success' })
     } catch (error) {
       setNotification({ message: error.message, type: 'error' })
     } finally {
@@ -193,7 +226,6 @@ function TeacherClassDetail() {
       type: 'danger'
     })
   }
-
 
   if (loading) {
     return (
@@ -248,39 +280,13 @@ function TeacherClassDetail() {
             Post
           </button>
 
-        <div className="class-tabs">
-          <button 
-            className={`class-tab ${activeTab === 'general' ? 'active' : ''}`}
-            onClick={() => setActiveTab('general')}
-          >
-            General
-          </button>
-          <button 
-            className={`class-tab ${activeTab === 'assignments' ? 'active' : ''}`}
-            onClick={() => setActiveTab('assignments')}
-          >
-            Assignments
-          </button>
-          <button 
-            className={`class-tab ${activeTab === 'announcements' ? 'active' : ''}`}
-            onClick={() => setActiveTab('announcements')}
-          >
-            Announcements
-          </button>
-          <button 
-            className={`class-tab ${activeTab === 'materials' ? 'active' : ''}`}
-            onClick={() => setActiveTab('materials')}
-          >
-            Materials
-          </button>
-          <button 
-            className={`class-tab ${activeTab === 'people' ? 'active' : ''}`}
-            onClick={() => setActiveTab('people')}
-          >
-            Members
-          </button>
-        </div>
-
+          <div className="class-tabs">
+            <button className={`class-tab ${activeTab === 'general' ? 'active' : ''}`} onClick={() => setActiveTab('general')}>General</button>
+            <button className={`class-tab ${activeTab === 'assignments' ? 'active' : ''}`} onClick={() => setActiveTab('assignments')}>Assignments</button>
+            <button className={`class-tab ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => setActiveTab('announcements')}>Announcements</button>
+            <button className={`class-tab ${activeTab === 'materials' ? 'active' : ''}`} onClick={() => setActiveTab('materials')}>Materials</button>
+            <button className={`class-tab ${activeTab === 'people' ? 'active' : ''}`} onClick={() => setActiveTab('people')}>Members</button>
+          </div>
         </div>
       </div>
 
@@ -292,29 +298,11 @@ function TeacherClassDetail() {
               <h2>General</h2>
               {(() => {
                 const allItems = [
-                  ...announcements.map(ann => ({
-                    ...ann,
-                    itemType: 'announcement',
-                    title: ann.title,
-                    content: ann.content,
-                    date: ann.createdAt
-                  })),
-                  ...materials.map(mat => ({
-                    ...mat,
-                    itemType: 'material',
-                    title: mat.description,
-                    content: '',
-                    date: mat.createdAt
-                  })),
-                  ...assignments.map(ass => ({
-                    ...ass,
-                    itemType: 'assignment',
-                    title: ass.title,
-                    content: ass.description,
-                    date: ass.deadline || ass.createdAt
-                  }))
+                  ...announcements.map(ann => ({ ...ann, itemType: 'announcement', title: ann.title, content: ann.content, date: ann.createdAt })),
+                  ...materials.map(mat => ({ ...mat, itemType: 'material', title: mat.description, content: '', date: mat.createdAt })),
+                  ...assignments.map(ass => ({ ...ass, itemType: 'assignment', title: ass.title, content: ass.description, date: ass.deadline || ass.createdAt }))
                 ].filter(item => item.date)
-                  .sort((a, b) => (b.date.toMillis ? b.date.toMillis() : new Date(b.date).getTime()) - (a.date.toMillis ? a.date.toMillis() : new Date(a.date).getTime()));
+                  .sort((a, b) => (b.date.toMillis ? b.date.toMillis() : new Date(b.date).getTime()) - (a.date.toMillis ? a.date.toMillis() : new Date(a.date).getTime()))
                 return allItems.length > 0 ? allItems.map(item => (
                   <div key={item.id} className="activity-card">
                     <div className="activity-header">
@@ -326,7 +314,7 @@ function TeacherClassDetail() {
                       </div>
                     </div>
                   </div>
-                )) : <div className="empty-state">No items yet</div>;
+                )) : <div className="empty-state">No items yet</div>
               })()}
             </div>
           )}
@@ -348,6 +336,7 @@ function TeacherClassDetail() {
               )) : <div className="empty-state">No announcements yet</div>}
             </div>
           )}
+
           {activeTab === 'assignments' && (
             <div className="content-section">
               <h2>Assignments</h2>
@@ -377,17 +366,13 @@ function TeacherClassDetail() {
                       <h3 dangerouslySetInnerHTML={{ __html: linkify(material.description) }} />
                       <small>By {material.teacherName} • {formatDateTime(material.createdAt)}</small>
                     </div>
-                    <button className="delete-btn" onClick={() => handleDeleteMaterial(material.id)}>
-                      Delete
-                    </button>
+                    <button className="delete-btn" onClick={() => handleDeleteMaterial(material.id)}>Delete</button>
                   </div>
                   {material.files && material.files.length > 0 && (
                     <div>
                       <h4>Files ({material.files.length})</h4>
                       {material.files.map((file, index) => (
-                        <a key={index} href={file.url} target="_blank" className="file-download">
-                          📄 {file.filename}
-                        </a>
+                        <a key={index} href={file.url} target="_blank" className="file-download">📄 {file.filename}</a>
                       ))}
                     </div>
                   )}
@@ -449,78 +434,39 @@ function TeacherClassDetail() {
                   <>
                     <div className="form-group">
                       <label>Title *</label>
-                      <input
-                        value={formData.title}
-                        onChange={e => setFormData({...formData, title: e.target.value})}
-                        required
-                      />
+                      <input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
                     </div>
                     <div className="form-group">
                       <label>Content *</label>
-                      <textarea
-                        value={formData.content}
-                        onChange={e => setFormData({...formData, content: e.target.value})}
-                        rows="4"
-                        required
-                      />
+                      <textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} rows="4" required />
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="form-group">
                       <label>Description *</label>
-                      <textarea
-                        value={formData.description}
-                        onChange={e => setFormData({...formData, description: e.target.value})}
-                        rows="6"
-                        required
-                      />
+                      <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows="6" required />
                     </div>
                     <div className="form-group">
                       <label>Files *</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png"
-                        onChange={e => setFormData({...formData, files: e.target.files})}
-                        required
-                      />
+                      <input type="file" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png" onChange={e => setFormData({...formData, files: e.target.files})} required />
                     </div>
                   </>
                 )}
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="modal-btn-cancel modal-btn-red"
-                  style={{ flex: 1, minWidth: 0, marginRight: '10px' }}
-                  onClick={() => setShowPostModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="modal-btn-post"
-                  style={{ flex: 1, minWidth: 0 }}
-                  disabled={posting}
-                >
-                  {posting ? 'Posting...' : 'Post'}
-                </button>
+                <button type="button" className="modal-btn-cancel modal-btn-red" style={{ flex: 1, minWidth: 0, marginRight: '10px' }} onClick={() => setShowPostModal(false)}>Cancel</button>
+                <button type="submit" className="modal-btn-post" style={{ flex: 1, minWidth: 0 }} disabled={posting}>{posting ? 'Posting...' : 'Post'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-{notification && (
-        <Notification 
-          message={notification.message} 
-          type={notification.type} 
-          onClose={() => setNotification(null)} 
-        />
+      {notification && (
+        <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />
       )}
 
-      {/* Confirm Dialog */}
       {confirmDialog && (
         <ConfirmDialog
           title={confirmDialog.title}
@@ -536,4 +482,3 @@ function TeacherClassDetail() {
 }
 
 export default TeacherClassDetail
-

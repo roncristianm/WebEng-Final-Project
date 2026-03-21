@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { auth } from '../config/firebase'
-import { getTeacherClasses } from '../services/classService'
+import { getTeacherClasses, getClassStudents } from '../services/classService'
 import { createAnnouncementMulti } from '../services/announcementService'
+import { sendAnnouncementNotification } from '../services/emailService'
 import Notification from './Notification'
 
 const CreateAnnouncement = ({ isOpen, onClose, onSuccess }) => {
@@ -49,18 +50,37 @@ const CreateAnnouncement = ({ isOpen, onClose, onSuccess }) => {
     try {
       const selectedClass = teacherClasses.find(c => c.id === formData.classId)
       const commonData = {
-        title: formData.title,
-        classId: formData.classId,
-        className: selectedClass?.name || 'Unknown Class',
-        teacherId: currentUser.uid,
+        title:       formData.title,
+        classId:     formData.classId,
+        className:   selectedClass?.name || 'Unknown Class',
+        teacherId:   currentUser.uid,
         teacherName: currentUser.displayName || 'Teacher',
-        createdAt: new Date().toISOString()
+        createdAt:   new Date().toISOString()
       }
       const result = await createAnnouncementMulti([formData.classId], {
         ...commonData,
         content: formData.content
       })
       if (result.success) {
+        // Send email notification to all students in the class (non-blocking)
+        try {
+          const classStudents = await getClassStudents(formData.classId)
+          const studentEmails = classStudents.filter(s => s.email).map(s => s.email)
+          const studentNames  = classStudents.filter(s => s.email).map(s => s.name)
+          if (studentEmails.length > 0) {
+            sendAnnouncementNotification({
+              to:          studentEmails,
+              studentName: studentNames,
+              teacherName: currentUser.displayName || 'Teacher',
+              className:   selectedClass?.name || 'Unknown Class',
+              title:       formData.title,
+              content:     formData.content,
+            })
+          }
+        } catch (emailErr) {
+          console.error('[CreateAnnouncement] Email notification failed:', emailErr.message)
+        }
+
         setNotification({ message: 'Announcement created successfully!', type: 'success' })
         resetForm()
         onSuccess?.()
