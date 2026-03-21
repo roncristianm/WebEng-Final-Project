@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.local
 .env.production
+-e 
+# Google Sheets credentials - NEVER commit this
+sheets-backend/credentials.json

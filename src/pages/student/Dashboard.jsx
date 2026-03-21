@@ -66,11 +66,27 @@ function Dashboard() {
     e.preventDefault()
     if (classCode.trim() && auth.currentUser) {
       setJoining(true)
+
+      // Read gender from the user's Firestore profile (set during signup)
+      let userGender = 'Male'
+      try {
+        const { getDoc, doc } = await import('firebase/firestore')
+        const { db } = await import('../../config/firebase')
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
+        if (userDoc.exists()) {
+          const raw = userDoc.data().gender || 'male'
+          userGender = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() // "male" → "Male"
+        }
+      } catch (e) {
+        console.warn('Could not read user gender, defaulting to Male', e)
+      }
+
       const result = await joinClass(
         classCode.trim(),
         auth.currentUser.uid,
         auth.currentUser.displayName || 'Student',
-        auth.currentUser.email
+        auth.currentUser.email,
+        userGender
       )
       
       if (result.success) {
