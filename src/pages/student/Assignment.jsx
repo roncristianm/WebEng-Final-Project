@@ -137,7 +137,7 @@ function Assignment() {
                   <div>
                     <h3>{assignment.title}</h3>
                     <span className="assignment-type" style={{ color: TYPE_COLORS[assignment.type] || '#6b7280' }}>{assignment.type}</span>
-                    <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>{assignment.quarter} · Item {assignment.itemNumber}</span>
+                    <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>{assignment.quarter}</span>
                   </div>
                 </div>
                 <div className="assignment-card-body">
@@ -191,7 +191,7 @@ function Assignment() {
               <div>
                 <h2>{selectedAssignment.title}</h2>
                 <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: 4 }}>
-                  {selectedAssignment.className} · <span style={{ color: TYPE_COLORS[selectedAssignment.type] }}>{selectedAssignment.type}</span> · {selectedAssignment.quarter} Item {selectedAssignment.itemNumber}
+                  {selectedAssignment.className} · <span style={{ color: TYPE_COLORS[selectedAssignment.type] }}>{selectedAssignment.type}</span> · {selectedAssignment.quarter}
                 </p>
               </div>
               <button className="modal-close" onClick={() => setShowDetailModal(false)}>×</button>
@@ -212,7 +212,7 @@ function Assignment() {
 
               {/* Sheet info */}
               <div style={{ marginTop: 16, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#0369a1' }}>
-                📊 Your score will be recorded in the <strong>ENGLISH {selectedAssignment.quarter}</strong> sheet under <strong>{selectedAssignment.type}</strong>{selectedAssignment.type !== 'Quarterly Assessment' ? `, Item ${selectedAssignment.itemNumber}` : ''}.
+                📊 Your score will be recorded in the <strong>ENGLISH {selectedAssignment.quarter}</strong> sheet under <strong>{selectedAssignment.type}</strong>{''}.
               </div>
 
               {/* Submit section */}

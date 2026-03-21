@@ -199,7 +199,7 @@ export const submitAssignment = async (assignmentId, studentId, deadline, score 
                     sheetId,
                     studentName,
                     assignmentType: assignment.type,
-                    itemNumber: assignment.itemNumber || 1,
+                    assignmentId,
                     score,
                     quarter: assignment.quarter || 'Q1'
                   })

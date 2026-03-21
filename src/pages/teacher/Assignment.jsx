@@ -17,12 +17,6 @@ const TYPE_COLORS = {
   'Quarterly Assessment': '#f59e0b'
 }
 
-const TYPE_MAX_ITEMS = {
-  'Written Works': 10,
-  'Performance Task': 10,
-  'Quarterly Assessment': 1
-}
-
 function Assignment() {
   const getCurrentDate = () => {
     const now = new Date()
@@ -49,7 +43,6 @@ function Assignment() {
     classId: '',
     type: 'Written Works',
     quarter: 'Q1',
-    itemNumber: 1,
     possibleScore: 100,
     deadlineDate: getCurrentDate(),
     deadlineTime: getCurrentTime()
@@ -71,28 +64,13 @@ function Assignment() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => {
-      const updated = { ...prev, [name]: value }
-      // Reset itemNumber when type changes
-      if (name === 'type') {
-        updated.itemNumber = 1
-        if (value === 'Quarterly Assessment') updated.possibleScore = 100
-      }
-      return updated
-    })
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleCreateAssignment = async (e) => {
     e.preventDefault()
     if (!formData.title || !formData.description || !formData.classId || !formData.possibleScore || !formData.deadlineDate || !formData.deadlineTime) {
       setNotification({ message: 'Please fill in all fields', type: 'error' })
-      return
-    }
-
-    // Validate item number
-    const maxItems = TYPE_MAX_ITEMS[formData.type]
-    if (parseInt(formData.itemNumber) < 1 || parseInt(formData.itemNumber) > maxItems) {
-      setNotification({ message: `Item number must be between 1 and ${maxItems} for ${formData.type}`, type: 'error' })
       return
     }
 
@@ -109,7 +87,6 @@ function Assignment() {
       teacherName: auth.currentUser.displayName,
       type: formData.type,
       quarter: formData.quarter,
-      itemNumber: parseInt(formData.itemNumber),
       possibleScore: parseFloat(formData.possibleScore),
       deadline
     })
@@ -120,7 +97,7 @@ function Assignment() {
       setShowModal(false)
       setFormData({
         title: '', description: '', classId: '',
-        type: 'Written Works', quarter: 'Q1', itemNumber: 1,
+        type: 'Written Works', quarter: 'Q1',
         possibleScore: 100, deadlineDate: getCurrentDate(), deadlineTime: getCurrentTime()
       })
       loadData()
@@ -183,8 +160,6 @@ function Assignment() {
     const notSubmitted = submissions?.filter(s => s.status === 'not_submitted').length || 0
     return { done, late, notSubmitted, total: submissions?.length || 0 }
   }
-
-  const maxItems = TYPE_MAX_ITEMS[formData.type]
 
   return (
     <div className="page-container">
@@ -303,19 +278,11 @@ function Assignment() {
                     </select>
                   </label>
 
-                  <label>
-                    Item Number * <span style={{ fontSize: 12, color: '#9ca3af' }}>(1–{maxItems})</span>
-                    <input type="number" name="itemNumber" value={formData.itemNumber} onChange={handleInputChange}
-                      min="1" max={maxItems}
-                      disabled={formData.type === 'Quarterly Assessment'}
-                      placeholder="1" required />
+                  <label>Possible Score *
+                    <input type="number" name="possibleScore" value={formData.possibleScore} onChange={handleInputChange}
+                      min="1" max="1000" placeholder="100" required />
                   </label>
                 </div>
-
-                <label>Possible Score *
-                  <input type="number" name="possibleScore" value={formData.possibleScore} onChange={handleInputChange}
-                    min="1" max="1000" placeholder="100" required />
-                </label>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <label>Deadline Date *
@@ -324,13 +291,6 @@ function Assignment() {
                   <label>Deadline Time *
                     <input type="time" name="deadlineTime" value={formData.deadlineTime} onChange={handleInputChange} required />
                   </label>
-                </div>
-
-                {/* Info box */}
-                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#0369a1' }}>
-                  <strong>📊 Sheet mapping:</strong> When students submit, their score will be recorded in the{' '}
-                  <strong>ENGLISH {formData.quarter}</strong> sheet under{' '}
-                  <strong>{formData.type}</strong>{formData.type !== 'Quarterly Assessment' ? `, Item ${formData.itemNumber}` : ''}.
                 </div>
               </div>
               <div className="modal-footer">
@@ -352,7 +312,7 @@ function Assignment() {
               <div>
                 <h2>{selectedAssignment.title}</h2>
                 <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: 4 }}>
-                  {selectedAssignment.className} · {selectedAssignment.type} · {selectedAssignment.quarter} Item {selectedAssignment.itemNumber}
+                  {selectedAssignment.className} · {selectedAssignment.type} · {selectedAssignment.quarter}
                 </p>
               </div>
               <button className="modal-close" onClick={() => setShowDetailModal(false)}>×</button>

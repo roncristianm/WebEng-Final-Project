@@ -208,34 +208,37 @@ app.post('/add-student-to-sheet', async (req, res) => {
   }
 })
 
-// ── Record a student score in the Q1 sheet ──────────────────────────────────
+// ── Record a student score in the quarter sheet ─────────────────────────────
 // POST /record-score
-// { sheetId, studentName, assignmentType, itemNumber, score, quarter }
-// assignmentType: 'Written Works' | 'Performance Task' | 'Quarterly Assessment'
-// itemNumber: 1-10 (1 for Quarterly Assessment)
-// quarter: 'Q1' (only Q1 for now)
+// { sheetId, studentName, assignmentType, assignmentId, score, quarter }
+// Auto-detects the correct item column based on existing assignments
 app.post('/record-score', async (req, res) => {
   try {
-    const { sheetId, studentName, assignmentType, itemNumber, score, quarter = 'Q1' } = req.body
-    if (!sheetId || !studentName || !assignmentType || itemNumber === undefined || score === undefined)
-      return res.status(400).json({ error: 'Missing required fields: sheetId, studentName, assignmentType, itemNumber, score' })
+    const { sheetId, studentName, assignmentType, assignmentId, score, quarter = 'Q1' } = req.body
+    if (!sheetId || !studentName || !assignmentType || !assignmentId || score === undefined)
+      return res.status(400).json({ error: 'Missing required fields: sheetId, studentName, assignmentType, assignmentId, score' })
 
     const sheets = getSheetsClient()
 
-    // Map quarter to sheet tab name
-    const quarterSheetMap = {
-      'Q1': 'ENGLISH Q1',
-      'Q2': 'ENGLISH Q2',
-      'Q3': 'ENGLISH Q3',
-      'Q4': 'ENGLISH Q4'
+    // Auto-detect quarter sheet tab name
+    const quarterSheetMap = { 'Q1': 'ENGLISH Q1', 'Q2': 'ENGLISH Q2', 'Q3': 'ENGLISH Q3', 'Q4': 'ENGLISH Q4' }
+    let sheetName = null
+    const baseName = quarterSheetMap[quarter] || 'ENGLISH Q1'
+    const candidates = [`'${baseName}'`, baseName]
+    for (const candidate of candidates) {
+      try {
+        await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${candidate}!A1` })
+        sheetName = candidate
+        break
+      } catch (e) {}
     }
-    const sheetName = quarterSheetMap[quarter] || 'ENGLISH Q1'
+    if (!sheetName) return res.status(400).json({ error: `Could not find sheet tab for ${quarter}` })
 
     // Read the quarter sheet
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     const rows = response.data.values || []
 
-    // Find the student's row by name in col B (index 1), starting after row 9 (index 9)
+    // Find student row by name in col B (index 1), starting after header rows (index 9+)
     let targetRowIndex = -1
     for (let i = 9; i < rows.length; i++) {
       const name = String(rows[i][1] || '').trim().toLowerCase()
@@ -246,42 +249,64 @@ app.post('/record-score', async (req, res) => {
     }
 
     if (targetRowIndex === -1) {
-      return res.status(404).json({ error: `Student "${studentName}" not found in sheet "${sheetName}"` })
+      return res.status(404).json({ error: `Student "${studentName}" not found in ${sheetName}` })
     }
 
-    // Map assignment type + item number to column index (0-based)
-    // Sheet structure (row 9, 0-based columns):
-    // Col 0: row number
-    // Col 1: LEARNERS' NAMES
-    // Col 2: blank
-    // Col 3: blank
-    // Col 4: blank
-    // Written Works items 1-10: cols 4-13  (E to N)
-    // WW Total: col 14, PS: col 15, WS: col 16
-    // Performance Task items 1-10: cols 17-26 (R to AA)
-    // PT Total: col 27, PS: col 28, WS: col 29
-    // QA item 1: col 30 (AE), PS: col 31, WS: col 32
-    // Initial Grade: col 33, Quarterly Grade: col 34
+    // Column layout (0-based):
+    // Written Works items 1-10: cols 4-13
+    // Performance Task items 1-10: cols 17-26
+    // Quarterly Assessment item 1: col 30
 
-    let colIndex = -1
-    const item = parseInt(itemNumber)
+    let startCol, maxItems, colIndex
 
     if (assignmentType === 'Written Works') {
-      // Items 1-10 → cols 4-13
-      if (item < 1 || item > 10) return res.status(400).json({ error: 'Written Works item must be 1-10' })
-      colIndex = 3 + item  // item 1 → col 4, item 10 → col 13
+      startCol = 4; maxItems = 10
     } else if (assignmentType === 'Performance Task') {
-      // Items 1-10 → cols 17-26
-      if (item < 1 || item > 10) return res.status(400).json({ error: 'Performance Task item must be 1-10' })
-      colIndex = 16 + item  // item 1 → col 17, item 10 → col 26
+      startCol = 17; maxItems = 10
     } else if (assignmentType === 'Quarterly Assessment') {
-      // Single item → col 30
-      colIndex = 30
+      colIndex = 30 // fixed single column
     } else {
-      return res.status(400).json({ error: 'Invalid assignmentType. Use: Written Works, Performance Task, or Quarterly Assessment' })
+      return res.status(400).json({ error: 'Invalid assignmentType' })
     }
 
-    // Convert to A1 notation (colIndex is 0-based, sheet rows are 1-based)
+    // For WW and PT: find the column for this assignmentId, or use next empty slot
+    if (colIndex === undefined) {
+      // Read the header row (row index 8) to check if assignmentId is already mapped
+      const headerRow = rows[8] || []
+
+      // Check if this assignmentId is already written in a header cell
+      let found = -1
+      for (let c = startCol; c < startCol + maxItems; c++) {
+        if (String(headerRow[c] || '').trim() === assignmentId) {
+          found = c; break
+        }
+      }
+
+      if (found >= 0) {
+        colIndex = found
+      } else {
+        // Find next empty slot in the header row for this type range
+        let nextEmpty = -1
+        for (let c = startCol; c < startCol + maxItems; c++) {
+          if (!headerRow[c] || String(headerRow[c]).trim() === '') {
+            nextEmpty = c; break
+          }
+        }
+        if (nextEmpty === -1) return res.status(400).json({ error: `All ${maxItems} slots for ${assignmentType} are already used` })
+
+        // Write the assignmentId into the header row so future submissions map to same column
+        const headerColLetter = columnToLetter(nextEmpty + 1)
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `${sheetName}!${headerColLetter}9`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { values: [[assignmentId]] }
+        })
+        colIndex = nextEmpty
+      }
+    }
+
+    // Write the score to the student's row
     const colLetter = columnToLetter(colIndex + 1)
     const cellRange = `${sheetName}!${colLetter}${targetRowIndex + 1}`
 
@@ -292,7 +317,7 @@ app.post('/record-score', async (req, res) => {
       requestBody: { values: [[score]] }
     })
 
-    console.log(`✅ Recorded score ${score} for "${studentName}" → ${cellRange}`)
+    console.log(`✅ Recorded score ${score} for "${studentName}" → ${cellRange} (${assignmentType})`)
     res.json({ success: true, cell: cellRange, studentName, score })
   } catch (err) {
     console.error('record-score error', err.message)
