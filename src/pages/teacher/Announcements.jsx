@@ -3,7 +3,9 @@ import { auth } from '../../config/firebase'
 import { getTeacherAnnouncements, deleteAnnouncement } from '../../services/announcementService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import CreateAnnouncement from '../../components/CreateAnnouncement'
 import '../../styles/Assignment.css'
+
 
 function Announcements() {
   const [announcements, setAnnouncements] = useState([])
@@ -13,6 +15,7 @@ function Announcements() {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [announcementToDelete, setAnnouncementToDelete] = useState(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     loadAnnouncements()
@@ -71,7 +74,7 @@ function Announcements() {
           <p className="page-subtitle">Manage announcements across your classes</p>
         </div>
         {/* Placeholder for Create button */}
-        <button className="btn-create-assignment">
+        <button className="btn-create-assignment" onClick={() => setShowCreateModal(true)}>
           + New Announcement
         </button>
       </div>
@@ -131,9 +134,18 @@ function Announcements() {
             </svg>
             <h3>No Announcements</h3>
             <p>You haven't created any announcements yet. Create your first one to keep your students informed!</p>
-            <button className="btn-create-first">Create Announcement</button>
+            <button className="btn-create-first" onClick={() => setShowCreateModal(true)}>Create Announcement</button>
           </div>
         </div>
+      )}
+
+      {/* Create Announcement Modal */}
+      {showCreateModal && (
+        <CreateAnnouncement
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={loadAnnouncements}
+        />
       )}
 
       {/* Detail Modal - Read-only view */}
