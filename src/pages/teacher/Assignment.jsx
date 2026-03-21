@@ -27,9 +27,15 @@ function Assignment() {
     return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
   }
 
-  const [assignments, setAssignments] = useState([])
+const [assignmentsByType, setAssignmentsByType] = useState({
+  writtenWorks: [],
+  performanceTask: [],
+  quarterlyAssessment: []
+})
   const [classes, setClasses] = useState([])
-  const [loading, setLoading] = useState(true)
+const [loading, setLoading] = useState(true)
+  const [selectedClassName, setSelectedClassName] = useState('')
+  const [selectedClassId, setSelectedClassId] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedAssignment, setSelectedAssignment] = useState(null)
@@ -48,16 +54,31 @@ function Assignment() {
     deadlineTime: getCurrentTime()
   })
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { loadData() }, [selectedClassId])
 
-  const loadData = async () => {
+const loadData = async () => {
+    setLoading(true)
     if (auth.currentUser) {
-      const [teacherClasses, teacherAssignments] = await Promise.all([
-        getTeacherClasses(auth.currentUser.uid),
-        getTeacherAssignments(auth.currentUser.uid)
-      ])
+      const teacherClasses = await getTeacherClasses(auth.currentUser.uid)
       setClasses(teacherClasses)
-      setAssignments(teacherAssignments)
+      const selectedClass = teacherClasses.find(c => c.id === selectedClassId)
+      setSelectedClassName(selectedClass ? selectedClass.name : '')
+      
+      if (selectedClassId && teacherClasses.find(c => c.id === selectedClassId)) {
+        // Load class-specific assignments and group by type
+        const { getClassAssignments } = await import('../../services/assignmentService')
+        const classAssignments = await getClassAssignments(selectedClassId)
+        
+        const grouped = {
+          writtenWorks: classAssignments.filter(a => a.type === 'Written Works'),
+          performanceTask: classAssignments.filter(a => a.type === 'Performance Task'),
+          quarterlyAssessment: classAssignments.filter(a => a.type === 'Quarterly Assessment')
+        }
+        setAssignmentsByType(grouped)
+      } else {
+        // No class selected - clear assignments
+        setAssignmentsByType({ writtenWorks: [], performanceTask: [], quarterlyAssessment: [] })
+      }
       setLoading(false)
     }
   }
@@ -100,36 +121,7 @@ function Assignment() {
         type: 'Written Works', quarter: 'Q1',
         possibleScore: 100, deadlineDate: getCurrentDate(), deadlineTime: getCurrentTime()
       })
-      loadData()
-    } else {
-      setNotification({ message: `Error: ${result.error}`, type: 'error' })
     }
-  }
-
-  const handleViewAssignment = async (assignmentId) => {
-    const assignment = await getAssignmentById(assignmentId)
-    if (assignment) { setSelectedAssignment(assignment); setShowDetailModal(true) }
-  }
-
-  const handleDeleteAssignment = (e, assignment) => {
-    e.stopPropagation()
-    setConfirmDialog({
-      title: 'Delete Assignment',
-      message: `Are you sure you want to delete "${assignment.title}"?`,
-      onConfirm: async () => {
-        setConfirmDialog(null)
-        const result = await deleteAssignment(assignment.id)
-        if (result.success) {
-          setNotification({ message: 'Assignment deleted', type: 'success' })
-          loadData()
-        } else {
-          setNotification({ message: `Error: ${result.error}`, type: 'error' })
-        }
-      },
-      onCancel: () => setConfirmDialog(null),
-      confirmText: 'Delete',
-      type: 'danger'
-    })
   }
 
   const formatDate = (ds) => ds ? new Date(ds).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
@@ -165,81 +157,333 @@ function Assignment() {
     <div className="page-container">
       <div className="section-header">
         <div>
-          <h2>Assignments</h2>
-          <p className="page-subtitle">Manage your assignments across your classes</p>
+          <h2>{selectedClassId ? `Assignments - ${selectedClassName}` : 'Assignments'}</h2>
+          <p className="page-subtitle">{selectedClassId ? `Organized by type: Written Works (30%) | Performance Tasks (50%) | Quarterly Assessments (20%)` : 'Select a class to manage assignments'}</p>
         </div>
-        {/* Placeholder for Create button */}
-        <button className="btn-create-assignment">
+        <button className="btn-create-assignment" onClick={() => setShowModal(true)}>
           + New Assignment
         </button>
       </div>
 
+      {/* Class Selector */}
+      <div className="class-selector-section" style={{ marginBottom: '2rem', padding: '1.5rem', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.75rem', fontSize: '1.1rem', color: '#1e293b' }}>
+          Select Class to View Assignments:
+        </label>
+        <div style={{ position: 'relative' }}>
+          <select 
+            value={selectedClassId} 
+            onChange={(e) => {
+              setSelectedClassId(e.target.value)
+              loadData() // Trigger reload
+            }}
+            style={{
+              width: '100%', 
+              padding: '1rem 1.5rem', 
+              fontSize: '1.1rem',
+              border: '2px solid #e2e8f0',
+              borderRadius: 12,
+              background: 'white',
+              cursor: 'pointer',
+              appearance: 'none',
+              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+              backgroundPosition: 'right 0.75rem center',
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: '1.5em 1.5em',
+              paddingRight: '3rem'
+            }}
+          >
+
+            {classes.map(cls => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name} ({cls.grade || 'N/A'} - {cls.section || 'N/A'}) - {cls.studentCount || 0} students
+              </option>
+            ))}
+          </select>
+        </div>
+        {!selectedClassId && classes.length > 0 && (
+          <p style={{ marginTop: '0.75rem', color: '#64748b', fontSize: '0.95rem' }}>
+            Choose a class to see its Written Works, Performance Tasks, and Quarterly Assessments
+          </p>
+        )}
+      </div>
+
       {loading ? (
-        <div className="loading-container"><p>Loading assignments...</p></div>
-      ) : assignments.length > 0 ? (
-        <div className="assignments-grid">
-          {assignments.map((assignment) => {
-            const stats = getSubmissionStats(assignment.submissions)
-            return (
-              <div key={assignment.id} className="assignment-card"
-                onClick={() => handleViewAssignment(assignment.id)}
-                style={{ borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}` }}>
-                <div className="assignment-card-header">
-                  <div>
-                    <h3>{assignment.title}</h3>
-                    <span className="assignment-type" style={{ color: TYPE_COLORS[assignment.type] || '#6b7280' }}>
-                      {assignment.type}
-                    </span>
-                    <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
-                      {assignment.quarter} · Item {assignment.itemNumber}
-                    </span>
-                  </div>
-                  <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                  </button>
-                </div>
-                <div className="assignment-card-body">
-                  <p className="assignment-class">{assignment.className}</p>
-                  <div className="assignment-dates">
-                    <div className="assignment-date">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                      </svg>
-                      <span>{formatDate(assignment.deadline)}</span>
-                    </div>
-                    <div className="assignment-date">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      <span>{formatTime(assignment.deadline)}</span>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: '#f9fafb', borderRadius: 6, fontSize: '0.9rem', fontWeight: 600, color: '#374151' }}>
-                    {stats.done + stats.late}/{stats.total} Students Completed
-                  </div>
-                  <div className="assignment-stats">
-                    <div className="stat-item" style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</div>
-                    <div className="stat-item" style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</div>
-                    <div className="stat-item" style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+        <div className="loading-container">
+          <p>{selectedClassId ? 'Loading class assignments...' : 'Loading classes...'}</p>
+        </div>
+      ) : !selectedClassId ? (
+        <div className="empty-state-container">
+          <div className="empty-state-card" style={{ maxWidth: '500px' }}>
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '1rem' }}>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            <h3>Select a Class</h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Choose a class from the dropdown above to view and manage its assignments organized by type:
+              <br/><strong>Written Works | Performance Tasks | Quarterly Assessments </strong>
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="empty-state-container">
-          <div className="empty-state-card">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-            <h3>No Assignments Yet</h3>
-            <p>Create your first assignment to get started!</p>
-            <button className="btn-create-first" onClick={() => setShowModal(true)}>Create Assignment</button>
+        <div className="assignment-columns" style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
+          gap: '2rem', 
+          marginTop: '1rem'
+        }}>
+          {/* Written Works Column */}
+          <div className="assignment-column" style={{ 
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', 
+            padding: '1.5rem', 
+            borderRadius: 16, 
+            border: '2px solid #bfdbfe'
+          }}>
+            <div className="column-header" style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' 
+            }}>
+              <div style={{ 
+                width: 12, height: 12, borderRadius: '50%', 
+                backgroundColor: TYPE_COLORS['Written Works'] 
+              }}></div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1e40af' }}>
+                Written Works (30%)
+              </h3>
+              <span style={{ 
+                background: 'rgba(59, 130, 246, 0.1)', 
+                color: '#1e40af', padding: '0.25rem 0.75rem', 
+                borderRadius: 20, fontSize: '0.85rem', fontWeight: 500 
+              }}>
+                {assignmentsByType.writtenWorks.length}
+              </span>
+            </div>
+            {assignmentsByType.writtenWorks.length > 0 ? (
+              <div className="column-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {assignmentsByType.writtenWorks.map((assignment) => {
+                  const stats = getSubmissionStats(assignment.submissions)
+                  return (
+                    <div key={assignment.id} className="assignment-card"
+                      onClick={() => handleViewAssignment(assignment.id)}
+                      style={{ 
+                        borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                      <div className="assignment-card-header">
+                        <div>
+                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>{assignment.title}</h4>
+                          <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
+                            {assignment.quarter} · Item {assignment.itemNumber}
+                          </span>
+                        </div>
+                        <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="assignment-card-body">
+                        <div className="assignment-dates">
+                          <div className="assignment-date">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <span>{formatDate(assignment.deadline)}</span>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
+                          {stats.done + stats.late}/{stats.total} Completed
+                        </div>
+                        <div className="assignment-stats" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</span>
+                          <span style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</span>
+                          <span style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                </svg>
+                <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>No Written Works yet</p>
+                <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Create the first one for this class</p>
+              </div>
+            )}
+          </div>
+
+          {/* Performance Task Column */}
+          <div className="assignment-column" style={{ 
+            background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', 
+            padding: '1.5rem', 
+            borderRadius: 16, 
+            border: '2px solid #a7f3d0'
+          }}>
+            <div className="column-header" style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' 
+            }}>
+              <div style={{ 
+                width: 12, height: 12, borderRadius: '50%', 
+                backgroundColor: TYPE_COLORS['Performance Task'] 
+              }}></div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#166534' }}>
+                Performance Tasks (50%)
+              </h3>
+              <span style={{ 
+                background: 'rgba(16, 185, 129, 0.1)', 
+                color: '#166534', padding: '0.25rem 0.75rem', 
+                borderRadius: 20, fontSize: '0.85rem', fontWeight: 500 
+              }}>
+                {assignmentsByType.performanceTask.length}
+              </span>
+            </div>
+            {assignmentsByType.performanceTask.length > 0 ? (
+              <div className="column-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {assignmentsByType.performanceTask.map((assignment) => {
+                  const stats = getSubmissionStats(assignment.submissions)
+                  return (
+                    <div key={assignment.id} className="assignment-card"
+                      onClick={() => handleViewAssignment(assignment.id)}
+                      style={{ 
+                        borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                      <div className="assignment-card-header">
+                        <div>
+                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>{assignment.title}</h4>
+                          <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
+                            {assignment.quarter} · Item {assignment.itemNumber}
+                          </span>
+                        </div>
+                        <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="assignment-card-body">
+                        <div className="assignment-dates">
+                          <div className="assignment-date">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <span>{formatDate(assignment.deadline)}</span>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
+                          {stats.done + stats.late}/{stats.total} Completed
+                        </div>
+                        <div className="assignment-stats" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</span>
+                          <span style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</span>
+                          <span style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                </svg>
+                <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>No Performance Tasks yet</p>
+                <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Create the first one for this class</p>
+              </div>
+            )}
+          </div>
+
+          {/* Quarterly Assessment Column */}
+          <div className="assignment-column" style={{ 
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', 
+            padding: '1.5rem', 
+            borderRadius: 16, 
+            border: '2px solid #fcd34d'
+          }}>
+            <div className="column-header" style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' 
+            }}>
+              <div style={{ 
+                width: 12, height: 12, borderRadius: '50%', 
+                backgroundColor: TYPE_COLORS['Quarterly Assessment'] 
+              }}></div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#d97706' }}>
+                Quarterly Assessments (20%)
+              </h3>
+              <span style={{ 
+                background: 'rgba(245, 158, 11, 0.1)', 
+                color: '#d97706', padding: '0.25rem 0.75rem', 
+                borderRadius: 20, fontSize: '0.85rem', fontWeight: 500 
+              }}>
+                {assignmentsByType.quarterlyAssessment.length}
+              </span>
+            </div>
+            {assignmentsByType.quarterlyAssessment.length > 0 ? (
+              <div className="column-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {assignmentsByType.quarterlyAssessment.map((assignment) => {
+                  const stats = getSubmissionStats(assignment.submissions)
+                  return (
+                    <div key={assignment.id} className="assignment-card"
+                      onClick={() => handleViewAssignment(assignment.id)}
+                      style={{ 
+                        borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                      <div className="assignment-card-header">
+                        <div>
+                          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>{assignment.title}</h4>
+                          <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
+                            {assignment.quarter} · Item {assignment.itemNumber}
+                          </span>
+                        </div>
+                        <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="assignment-card-body">
+                        <div className="assignment-dates">
+                          <div className="assignment-date">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <span>{formatDate(assignment.deadline)}</span>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
+                          {stats.done + stats.late}/{stats.total} Completed
+                        </div>
+                        <div className="assignment-stats" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</span>
+                          <span style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</span>
+                          <span style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#92400e' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 2v20M2 12h20"/>
+                </svg>
+                <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>No Quarterly Assessments yet</p>
+                <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Create the first one for this class</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -375,7 +619,7 @@ function Assignment() {
           confirmText={confirmDialog.confirmText} type={confirmDialog.type} />
       )}
     </div>
-  )
+  );
 }
 
-export default Assignment
+export default Assignment;
