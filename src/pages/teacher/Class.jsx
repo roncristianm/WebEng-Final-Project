@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { createClass } from '../../services/classService'
+import CreateClassModal from '../../components/CreateClassModal'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { getTeacherClasses, deleteClass } from '../../services/classService'
@@ -13,6 +15,39 @@ function Class() {
   const [loading, setLoading] = useState(true)
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const handleCreateClass = () => {
+    setShowCreateModal(true)
+  }
+
+  const handleCreateClassModal = async ({ className, grade, section, sheetId }) => {
+    if (className.trim() && grade.trim() && section.trim() && auth.currentUser) {
+      setCreating(true)
+      const result = await createClass(
+        className.trim(),
+        grade.trim(),
+        section.trim(),
+        auth.currentUser.uid,
+        auth.currentUser.displayName || 'Teacher',
+        sheetId || ''
+      )
+      if (result.success) {
+        setShowCreateModal(false)
+        await loadClasses()
+        setNotification({
+          message: `Class "${className.trim()}" created successfully! Class code: ${result.classCode}`,
+          type: 'success'
+        })
+      } else {
+        setNotification({
+          message: `Failed to create class: ${result.error}`,
+          type: 'error'
+        })
+      }
+      setCreating(false)
+    }
+  }
 
   useEffect(() => {
     loadClasses()
@@ -134,13 +169,21 @@ function Class() {
             <p>Create your first class to get started teaching!</p>
             <button 
               className="btn-create-first"
-              onClick={() => navigate('/teacher-dashboard')}
+              onClick={handleCreateClass}
             >
-              Go to Dashboard
+              Create Classes
             </button>
           </div>
         </div>
       )}
+
+      {/* Create Class Modal */}
+      <CreateClassModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateClassModal}
+        creating={creating}
+      />
 
       {/* Notification */}
       {notification && (

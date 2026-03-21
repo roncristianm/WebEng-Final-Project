@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import CreateClassModal from '../../components/CreateClassModal'
+import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { createClass, getTeacherClasses } from '../../services/classService'
@@ -7,19 +9,25 @@ import '../../styles/Dashboard.css'
 
 function Dashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const userName = auth.currentUser?.displayName || 'Teacher'
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [className, setClassName] = useState('')
-  const [grade, setGrade] = useState('')
-  const [section, setSection] = useState('')
+  // Remove local state for className, grade, section, sheetId
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [notification, setNotification] = useState(null)
-  const [sheetId, setSheetId] = useState('')
+  // Remove local state for sheetId
+
 
   useEffect(() => {
     loadClasses()
+    // If navigated with state.openCreateClass, open the modal
+    if (location.state && location.state.openCreateClass) {
+      setShowCreateModal(true)
+      // Optionally clear the state so it doesn't reopen on refresh
+      navigate(location.pathname, { replace: true, state: {} })
+    }
   }, [])
 
   const loadClasses = async () => {
@@ -38,8 +46,7 @@ function Dashboard() {
     navigate('/teacher-dashboard/assignment')
   }
 
-  const handleCreateSubmit = async (e) => {
-    e.preventDefault()
+  const handleCreateClassModal = async ({ className, grade, section, sheetId }) => {
     if (className.trim() && grade.trim() && section.trim() && auth.currentUser) {
       setCreating(true)
       const result = await createClass(
@@ -48,15 +55,11 @@ function Dashboard() {
         section.trim(),
         auth.currentUser.uid,
         auth.currentUser.displayName || 'Teacher',
-        sheetId
+        sheetId || ''
       )
-      
       if (result.success) {
         setShowCreateModal(false)
-        setClassName('')
-        setGrade('')
-        setSection('')
-        await loadClasses() // Reload classes
+        await loadClasses()
         setNotification({
           message: `Class "${className.trim()}" created successfully! Class code: ${result.classCode}`,
           type: 'success'
@@ -69,14 +72,6 @@ function Dashboard() {
       }
       setCreating(false)
     }
-  }
-
-  const handleCloseModal = () => {
-    setShowCreateModal(false)
-    setClassName('')
-    setGrade('')
-    setSection('')
-    setSheetId('')
   }
 
   const handleClassClick = (classId) => {
@@ -127,7 +122,7 @@ function Dashboard() {
           <div className="classes-grid">
             {classes.slice(0, 4).map((classItem) => (
               <div 
-                key={classItem.id} 
+                key={classItem.id}
                 className="class-card"
                 onClick={() => handleClassClick(classItem.id)}
               >
@@ -151,67 +146,13 @@ function Dashboard() {
           </div>
         )}
       </div>
-
-
-      {/* Create Class Modal */}
-      {showCreateModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Create New Class</h2>
-              <button className="modal-close" onClick={handleCloseModal}>&times;</button>
-            </div>
-            <form onSubmit={handleCreateSubmit}>
-              <div className="modal-body">
-                <label htmlFor="className">Class Name</label>
-                <input
-                  type="text"
-                  id="className"
-                  value={className}
-                  onChange={(e) => setClassName(e.target.value)}
-                  placeholder="Enter class name (e.g., ST. CELESTINE (STEM))"
-                  autoFocus
-                  required
-                />
-                <label htmlFor="grade">Grade</label>
-                <input
-                  type="text"
-                  id="grade"
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
-                  placeholder="Enter grade (e.g., 12)"
-                  required
-                />
-                <label htmlFor="section">Section</label>
-                <input
-                  type="text"
-                  id="section"
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                  placeholder="Enter section"
-                  required
-                />
-                <label htmlFor="sheetId">Google Sheet ID (optional)</label>
-                <input
-                  type="text"
-                  id="sheetId"
-                  value={sheetId}
-                  onChange={(e) => setSheetId(e.target.value)}
-                  placeholder="1TRtsLX3WWvkCx_sBmucDrphTjD_5BFGWWYUVVHgFOMc"
-                />
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-cancel" onClick={handleCloseModal} disabled={creating}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-submit" disabled={creating}>
-                  {creating ? 'Creating...' : 'Create Class'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Create Class Modal (should be outside the map/loop) */}
+      <CreateClassModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateClassModal}
+        creating={creating}
+      />
 
       {/* Notification */}
       {notification && (
