@@ -41,7 +41,8 @@ const [loading, setLoading] = useState(true)
   const [selectedAssignment, setSelectedAssignment] = useState(null)
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
-  const [creating, setCreating] = useState(false)
+const [creating, setCreating] = useState(false)
+  const [activeStatusFilter, setActiveStatusFilter] = useState('all')
 
   const [formData, setFormData] = useState({
     title: '',
@@ -53,6 +54,16 @@ const [loading, setLoading] = useState(true)
     deadlineDate: getCurrentDate(),
     deadlineTime: getCurrentTime()
   })
+
+  const handleViewAssignment = async (assignmentId) => {
+    const { getAssignmentById } = await import('../../services/assignmentService')
+    const fullAssignment = await getAssignmentById(assignmentId)
+    if (fullAssignment) {
+      setSelectedAssignment(fullAssignment)
+      setActiveStatusFilter('all')
+      setShowDetailModal(true)
+    }
+  }
 
   useEffect(() => { loadData() }, [selectedClassId])
 
@@ -565,12 +576,12 @@ const loadData = async () => {
         <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div>
-                <h2>{selectedAssignment.title}</h2>
-                <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: 4 }}>
-                  {selectedAssignment.className} · {selectedAssignment.type} · {selectedAssignment.quarter}
-                </p>
-              </div>
+            <div style={{ width: '100%', textAlign: 'center' }}>
+  <h2 style={{ margin: 0, fontSize: '3rem' }}>{selectedAssignment.title}</h2>
+  <div style={{ marginTop: '20px', fontSize: '1.5rem', color: '#374151', fontWeight: 500 }}>
+    {selectedAssignment.type} | {selectedAssignment.quarter}
+  </div>
+</div>
               <button className="modal-close" onClick={() => setShowDetailModal(false)}>×</button>
             </div>
             <div className="modal-body">
@@ -585,32 +596,118 @@ const loadData = async () => {
                 </p>
               </div>
               <div className="students-progress-section">
-                <h3>Student Submissions ({selectedAssignment.submissions?.length || 0})</h3>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <button 
+                    className="status-filter-btn"
+                    style={{
+                      padding: '8px 16px',
+                      border: '2px solid #10b98130',
+                      backgroundColor: activeStatusFilter === 'all' ? '#10b981' : 'white',
+                      color: activeStatusFilter === 'all' ? 'white' : '#10b981',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem'
+                    }}
+                    onClick={() => setActiveStatusFilter('all')}
+                  >
+                    All ({selectedAssignment.submissions?.length || 0})
+                  </button>
+                  {(() => {
+                    const stats = getSubmissionStats(selectedAssignment.submissions)
+                    return (
+                      <>
+                        <button 
+                          className="status-filter-btn"
+                          style={{
+                            padding: '8px 16px',
+                            border: '2px solid #10b98130',
+                            backgroundColor: activeStatusFilter === 'done' ? '#10b981' : 'white',
+                            color: activeStatusFilter === 'done' ? 'white' : '#10b981',
+                            borderRadius: '8px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem'
+                          }}
+                          onClick={() => setActiveStatusFilter('done')}
+                        >
+                          Completed ({stats.done})
+                        </button>
+                        <button 
+                          className="status-filter-btn"
+                          style={{
+                            padding: '8px 16px',
+                            border: '2px solid #ef444430',
+                            backgroundColor: activeStatusFilter === 'late' ? '#ef4444' : 'white',
+                            color: activeStatusFilter === 'late' ? 'white' : '#ef4444',
+                            borderRadius: '8px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem'
+                          }}
+                          onClick={() => setActiveStatusFilter('late')}
+                        >
+                          Overdue ({stats.late})
+                        </button>
+                        <button 
+                          className="status-filter-btn"
+                          style={{
+                            padding: '8px 16px',
+                            border: '2px solid #6b728030',
+                            backgroundColor: activeStatusFilter === 'not_submitted' ? '#6b7280' : 'white',
+                            color: activeStatusFilter === 'not_submitted' ? 'white' : '#6b7280',
+                            borderRadius: '8px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem'
+                          }}
+                          onClick={() => setActiveStatusFilter('not_submitted')}
+                        >
+                          Pending ({stats.notSubmitted})
+                        </button>
+                      </>
+                    )
+                  })()}
+                </div>
+                <h3 style={{ margin: '0 0 16px 0' }}>Students ({(() => {
+                  const stats = getSubmissionStats(selectedAssignment.submissions)
+                  const filteredCount = activeStatusFilter === 'all' 
+                    ? stats.total 
+                    : activeStatusFilter === 'done' ? stats.done 
+                    : activeStatusFilter === 'late' ? stats.late 
+                    : stats.notSubmitted
+                  return filteredCount
+                })()})</h3>
                 <div className="students-list">
-                  {selectedAssignment.submissions?.length > 0 ? (
-                    selectedAssignment.submissions.map((submission) => (
-                      <div key={submission.studentId} className="student-progress-item">
-                        <div className="student-info">
-                          <div className="student-avatar">{submission.studentName?.charAt(0).toUpperCase()}</div>
-                          <div className="student-details">
-                            <span className="student-name">{submission.studentName}</span>
-                            <span className="student-email">{submission.studentEmail}</span>
+                  {(() => {
+                    const filteredSubmissions = selectedAssignment.submissions?.filter(s => 
+                      activeStatusFilter === 'all' || s.status === activeStatusFilter
+                    ) || []
+                    return filteredSubmissions.length > 0 ? (
+                      filteredSubmissions.map((submission) => (
+                        <div key={submission.studentId} className="student-progress-item">
+                          <div className="student-info">
+                            <div className="student-avatar">{submission.studentName?.charAt(0).toUpperCase()}</div>
+                            <div className="student-details">
+                              <span className="student-name">{submission.studentName}</span>
+                              <span className="student-email">{submission.studentEmail}</span>
+                            </div>
+                          </div>
+                          <div className="submission-info">
+                            {getStatusBadge(submission.status)}
+                            {submission.score !== null && submission.score !== undefined && (
+                              <span style={{ fontWeight: 'bold', color: '#059669', marginLeft: 8 }}>
+                                Score: {submission.score}/{selectedAssignment.possibleScore}
+                              </span>
+                            )}
+                            <div className="submission-time">{formatDateTime(submission.submittedAt)}</div>
                           </div>
                         </div>
-                        <div className="submission-info">
-                          {getStatusBadge(submission.status)}
-                          {submission.score !== null && submission.score !== undefined && (
-                            <span style={{ fontWeight: 'bold', color: '#059669', marginLeft: 8 }}>
-                              Score: {submission.score}/{selectedAssignment.possibleScore}
-                            </span>
-                          )}
-                          <div className="submission-time">{formatDateTime(submission.submittedAt)}</div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="no-students">No students enrolled yet.</p>
-                  )}
+                      ))
+                    ) : (
+                      <p className="no-students">No students in this category.</p>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
