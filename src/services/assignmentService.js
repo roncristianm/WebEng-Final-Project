@@ -201,6 +201,7 @@ export const submitAssignment = async (assignmentId, studentId, deadline, score 
                     assignmentType: assignment.type,
                     assignmentId,
                     score,
+                    possibleScore: assignment.possibleScore,
                     quarter: assignment.quarter || 'Q1'
                   })
                 })

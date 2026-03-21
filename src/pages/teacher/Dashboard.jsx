@@ -42,30 +42,6 @@ function Dashboard() {
     e.preventDefault()
     if (className.trim() && grade.trim() && section.trim() && auth.currentUser) {
       setCreating(true)
-
-      // Auto-share the sheet with service account if sheetId provided
-      if (sheetId.trim()) {
-        try {
-          const resp = await fetch('/sheets-api/share-sheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sheetId: sheetId.trim() })
-          })
-          const result = await resp.json()
-          if (result.manualShare) {
-            setNotification({
-              message: `⚠️ Could not auto-share sheet. Please manually share it with: nexxus@nexxus-490901.iam.gserviceaccount.com`,
-              type: 'error'
-            })
-            setCreating(false)
-            return
-          }
-          console.log('Sheet auto-share result:', result.message)
-        } catch (shareErr) {
-          console.warn('Auto-share failed (non-critical):', shareErr)
-        }
-      }
-
       const result = await createClass(
         className.trim(),
         grade.trim(),

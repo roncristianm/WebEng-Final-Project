@@ -18,9 +18,10 @@ app.use((req, res, next) => {
 })
 
 // ── Credentials ─────────────────────────────────────────────────────────────
-function getSheetsClient() {
+function loadCredentials() {
   let credentials
   const localKeyFile = path.join(__dirname, 'credentials.json')
+
   if (fs.existsSync(localKeyFile)) {
     credentials = JSON.parse(fs.readFileSync(localKeyFile, 'utf8'))
   } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
@@ -30,36 +31,27 @@ function getSheetsClient() {
     try { credentials = JSON.parse(raw) }
     catch (e) {
       try { credentials = JSON.parse(raw.replace(/\\n/g, '\n')) }
-      catch (e2) { throw new Error('Invalid GOOGLE_SHEETS_CREDENTIALS JSON. Place credentials.json in sheets-backend folder instead.') }
+      catch (e2) { throw new Error('Invalid GOOGLE_SHEETS_CREDENTIALS JSON.') }
     }
   } else {
     throw new Error('No credentials found. Place credentials.json in the sheets-backend folder.')
   }
-  const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] })
-  return google.sheets({ version: 'v4', auth })
+
+  // Fix private key — ensure actual newlines are used, not escaped \n
+  if (credentials.private_key) {
+    credentials.private_key = credentials.private_key.replace(/\\n/g, '\n')
+  }
+
+  return credentials
 }
 
-// Drive client — needed to share sheets with the service account
-function getDriveClient() {
-  let credentials
-  const localKeyFile = path.join(__dirname, 'credentials.json')
-  if (fs.existsSync(localKeyFile)) {
-    credentials = JSON.parse(fs.readFileSync(localKeyFile, 'utf8'))
-  } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
-    credentials = JSON.parse(fs.readFileSync(path.resolve(process.env.GOOGLE_SHEETS_KEY_FILE), 'utf8'))
-  } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
-    const raw = process.env.GOOGLE_SHEETS_CREDENTIALS
-    try { credentials = JSON.parse(raw) }
-    catch (e) { credentials = JSON.parse(raw.replace(/\\n/g, '\n')) }
-  }
+function getSheetsClient() {
+  const credentials = loadCredentials()
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: [
-      'https://www.googleapis.com/auth/spreadsheets',
-      'https://www.googleapis.com/auth/drive'
-    ]
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
   })
-  return google.drive({ version: 'v3', auth })
+  return google.sheets({ version: 'v4', auth })
 }
 
 function columnToLetter(col) {
@@ -88,19 +80,21 @@ async function resolveTabNames(sheetId, sheets) {
 
   // Match tabs by keyword (case-insensitive, flexible)
   const find = (keywords) => {
-    const tab = tabs.find(t =>
-      keywords.every(kw => t.toLowerCase().includes(kw.toLowerCase()))
-    )
+    const tab = tabs.find(t => {
+      // Normalize: lowercase and replace underscores with spaces for matching
+      const normalized = t.toLowerCase().replace(/_/g, ' ')
+      return keywords.every(kw => normalized.includes(kw.toLowerCase()))
+    })
     // Wrap in single quotes if tab name has spaces or special chars
-    return tab ? (tab.match(/[\s()]/) ? `'${tab}'` : tab) : null
+    return tab ? (tab.match(/[\s()']/) ? `'${tab}'` : tab) : null
   }
 
   const resolved = {
-    inputData: find(['input']) || find(['input', 'data']),
-    q1: find(['q1']) || find(['first', 'quarter']) || find(['1st', 'quarter']),
-    q2: find(['q2']) || find(['second', 'quarter']) || find(['2nd', 'quarter']),
-    q3: find(['q3']) || find(['third', 'quarter']) || find(['3rd', 'quarter']),
-    q4: find(['q4']) || find(['fourth', 'quarter']) || find(['4th', 'quarter']),
+    inputData: find(['input data']) || find(['input']) || find(['input', 'data']),
+    q1: find(['q1']),
+    q2: find(['q2']),
+    q3: find(['q3']),
+    q4: find(['q4']),
   }
 
   console.log(`✅ Resolved tab names:`, resolved)
@@ -121,61 +115,21 @@ function getQuarterTab(tabs, quarter) {
 // ── Health ──────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }))
 
-// ── Auto-share sheet with service account ───────────────────────────────────
-// POST /share-sheet { sheetId }
-// Grants the service account Editor access to the sheet automatically
-app.post('/share-sheet', async (req, res) => {
+// ── Debug: see exactly what tabs are found and resolved ─────────────────────
+app.get('/debug-tabs', async (req, res) => {
   try {
-    const { sheetId } = req.body
+    const { sheetId } = req.query
     if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
-
-    const drive = getDriveClient()
-
-    // Get the service account email from credentials
-    const localKeyFile = path.join(__dirname, 'credentials.json')
-    const credentials = JSON.parse(fs.readFileSync(localKeyFile, 'utf8'))
-    const serviceAccountEmail = credentials.client_email
-
-    // Check if already shared
-    const existingPerms = await drive.permissions.list({
-      fileId: sheetId,
-      fields: 'permissions(id,emailAddress,role)'
-    })
-    const alreadyShared = existingPerms.data.permissions?.some(
-      p => p.emailAddress?.toLowerCase() === serviceAccountEmail.toLowerCase()
-    )
-
-    if (alreadyShared) {
-      console.log(`✅ Sheet ${sheetId} already shared with ${serviceAccountEmail}`)
-      return res.json({ success: true, message: 'Already shared', email: serviceAccountEmail })
-    }
-
-    // Grant Editor access to the service account
-    await drive.permissions.create({
-      fileId: sheetId,
-      requestBody: {
-        type: 'user',
-        role: 'writer',
-        emailAddress: serviceAccountEmail
-      },
-      fields: 'id'
-    })
-
-    // Clear tab cache so fresh tab names are read
     clearTabCache(sheetId)
-
-    console.log(`✅ Shared sheet ${sheetId} with ${serviceAccountEmail}`)
-    res.json({ success: true, message: `Sheet shared with ${serviceAccountEmail}`, email: serviceAccountEmail })
+    const sheets = getSheetsClient()
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+      fields: 'sheets.properties.title'
+    })
+    const allTabs = meta.data.sheets.map(s => s.properties.title)
+    const resolved = await resolveTabNames(sheetId, sheets)
+    res.json({ allTabs, resolved })
   } catch (err) {
-    console.error('share-sheet error', err.message)
-    // If it's a permission error, the sheet owner needs to share manually
-    if (err.message.includes('insufficientPermissions') || err.code === 403) {
-      return res.status(403).json({
-        error: 'Cannot auto-share: The sheet owner must grant access. Share the sheet with ' +
-          'nexxus@nexxus-490901.iam.gserviceaccount.com as Editor.',
-        manualShare: true
-      })
-    }
     res.status(500).json({ error: err.message })
   }
 })
@@ -230,7 +184,7 @@ app.get('/student-grades', async (req, res) => {
     const subHeaders = allRows[8] || []
 
     let studentRow = null, rowIndex = -1
-    for (let i = 9; i < allRows.length; i++) {
+    for (let i = 11; i < allRows.length; i++) {
       const name = String(allRows[i][1] || '').trim().toLowerCase()
       if (name === String(studentName).trim().toLowerCase()) {
         studentRow = allRows[i]
@@ -299,20 +253,64 @@ app.post('/add-student-to-sheet', async (req, res) => {
 
     console.log(`Sorted names after adding "${studentName}":`, names)
 
+    // Write sorted names to INPUT DATA
     const updateData = names.map((name, idx) => ({
       range: `${sheetName}!B${sectionStart + idx + 1}`,
       values: [[name]]
     }))
 
-    console.log('Writing ranges:', updateData.map(d => d.range))
+    console.log('Writing ranges to INPUT DATA:', updateData.map(d => d.range))
 
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: sheetId,
       requestBody: { valueInputOption: 'USER_ENTERED', data: updateData }
     })
 
-    console.log(`✅ Added "${studentName}" to ${gender} section`)
-    res.json({ success: true, message: `Added ${studentName} to ${gender} section` })
+    console.log(`✅ Added "${studentName}" to INPUT DATA ${gender} section`)
+
+    // ── Also write names to all quarter sheets (Q1–Q4) ──────────────────────
+    // The quarter sheets have the same MALE/FEMALE structure in col B starting at row 10 (index 9)
+    // We write all sorted names to each quarter sheet so they stay in sync
+    const quarterTabs = [tabs.q1, tabs.q2, tabs.q3, tabs.q4].filter(Boolean)
+
+    for (const quarterTab of quarterTabs) {
+      try {
+        const qResponse = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: quarterTab })
+        const qRows = qResponse.data.values || []
+
+        // Find MALE and FEMALE headers in quarter sheet
+        let qMaleRow = -1, qFemaleRow = -1
+        for (let i = 0; i < qRows.length; i++) {
+          const val = String(qRows[i][1] || '').trim().toUpperCase()
+          if (val === 'MALE') qMaleRow = i
+          if (val === 'FEMALE') qFemaleRow = i
+        }
+
+        if (qMaleRow === -1) {
+          console.log(`⚠️ Could not find MALE section in ${quarterTab}, skipping`)
+          continue
+        }
+
+        const qSectionStart = isMale ? qMaleRow + 1 : qFemaleRow + 1
+
+        // Write sorted names to this quarter sheet
+        const qUpdateData = names.map((name, idx) => ({
+          range: `${quarterTab}!B${qSectionStart + idx + 1}`,
+          values: [[name]]
+        }))
+
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: qUpdateData }
+        })
+
+        console.log(`✅ Synced names to ${quarterTab}`)
+      } catch (qErr) {
+        console.warn(`⚠️ Could not sync to ${quarterTab}:`, qErr.message)
+      }
+    }
+
+    res.json({ success: true, message: `Added ${studentName} to all sheets` })
   } catch (err) {
     console.error('add-student-to-sheet error', err.message)
     res.status(500).json({ error: err.message })
@@ -322,7 +320,7 @@ app.post('/add-student-to-sheet', async (req, res) => {
 // ── Record a student score (auto-detects tab and item slot) ─────────────────
 app.post('/record-score', async (req, res) => {
   try {
-    const { sheetId, studentName, assignmentType, assignmentId, score, quarter = 'Q1' } = req.body
+    const { sheetId, studentName, assignmentType, assignmentId, score, possibleScore, quarter = 'Q1' } = req.body
     if (!sheetId || !studentName || !assignmentType || !assignmentId || score === undefined)
       return res.status(400).json({ error: 'Missing required fields: sheetId, studentName, assignmentType, assignmentId, score' })
 
@@ -337,7 +335,7 @@ app.post('/record-score', async (req, res) => {
 
     // Find student row by name in col B (index 1), starting after header rows (index 9+)
     let targetRowIndex = -1
-    for (let i = 9; i < rows.length; i++) {
+    for (let i = 11; i < rows.length; i++) {
       const name = String(rows[i][1] || '').trim().toLowerCase()
       if (name === String(studentName).trim().toLowerCase()) {
         targetRowIndex = i
@@ -349,51 +347,133 @@ app.post('/record-score', async (req, res) => {
       return res.status(404).json({ error: `Student "${studentName}" not found in ${sheetName}` })
     }
 
-    // Column layout (0-based):
-    // Written Works items 1-10: cols 4-13
-    // Performance Task items 1-10: cols 17-26
-    // Quarterly Assessment item 1: col 30
-    let startCol, maxItems, colIndex
+    // ── Find correct columns by reading the actual sheet header rows ──────────
+    // Row 8 (index 7): group headers — WRITTEN WORKS, PERFORMANCE TASKS, QUARTERLY ASSESSMENT
+    // Row 9 (index 8): sub-headers — 1, 2, 3...10, Total, PS, WS
+    // Row 10 (index 9): HIGHEST POSSIBLE SCORE
+    const groupHeaderRow = rows[7] || []
+    const subHeaderRow = rows[8] || []
+    const HIGHEST_SCORE_ROW = 10  // 1-based sheet row
+
+    // Find which columns belong to each assignment type by scanning group header row
+    // Then within that range, find item slots by reading sub-header numbers
+    function findItemColumns(typeKeyword) {
+      // Find the start column of this type by searching group header row
+      let typeStartCol = -1
+      for (let c = 0; c < groupHeaderRow.length; c++) {
+        const val = String(groupHeaderRow[c] || '').toLowerCase()
+        if (val.includes(typeKeyword.toLowerCase())) {
+          typeStartCol = c; break
+        }
+      }
+      if (typeStartCol === -1) return { itemCols: [], typeStartCol: -1 }
+
+      // Collect item columns — sub-header row cells that are numbers 1-10
+      const itemCols = []
+      for (let c = typeStartCol; c < typeStartCol + 20; c++) {
+        const sub = String(subHeaderRow[c] || '').trim()
+        const num = parseInt(sub)
+        if (!isNaN(num) && num >= 1 && num <= 10) {
+          itemCols.push({ col: c, item: num })
+        }
+      }
+      return { itemCols, typeStartCol }
+    }
+
+    let startCol, maxItems, colIndex, itemCols
 
     if (assignmentType === 'Written Works') {
-      startCol = 4; maxItems = 10
+      const result = findItemColumns('written')
+      itemCols = result.itemCols
+      startCol = result.typeStartCol
+      maxItems = 10
     } else if (assignmentType === 'Performance Task') {
-      startCol = 17; maxItems = 10
+      const result = findItemColumns('performance')
+      itemCols = result.itemCols
+      startCol = result.typeStartCol
+      maxItems = 10
     } else if (assignmentType === 'Quarterly Assessment') {
-      colIndex = 30
+      const result = findItemColumns('quarterly')
+      // QA has only 1 item — first item col
+      colIndex = result.itemCols.length > 0 ? result.itemCols[0].col : -1
+      if (colIndex === -1) return res.status(400).json({ error: 'Could not find Quarterly Assessment column in sheet' })
     } else {
       return res.status(400).json({ error: 'Invalid assignmentType' })
     }
 
-    // For WW and PT: find existing or next empty slot using assignmentId as marker
+    // For WW and PT: find the right item column using assignmentId marker
+    // We store assignmentId markers in HIGHEST POSSIBLE SCORE row itself
+    // (row 10, index 9) — only in cells that don't already have the score
+    // Actually we use a dedicated marker approach: check row 8 (group header) cells
+    // within item range for existing assignmentId
     if (colIndex === undefined) {
-      const headerRow = rows[8] || []
+      if (!itemCols || itemCols.length === 0) {
+        return res.status(400).json({ error: `Could not find ${assignmentType} item columns in sheet` })
+      }
+
+      // Check if this assignmentId is already mapped to a column
+      // We store markers in the HIGHEST POSSIBLE SCORE row (row 10, index 9)
+      // but only as a marker prefix — actually let's use a separate approach:
+      // We store assignmentId in row 8 (group header row) cells within item range
       let found = -1
-      for (let c = startCol; c < startCol + maxItems; c++) {
-        if (String(headerRow[c] || '').trim() === assignmentId) {
-          found = c; break
+      for (const { col } of itemCols) {
+        if (String(groupHeaderRow[col] || '').trim() === assignmentId) {
+          found = col; break
         }
       }
 
       if (found >= 0) {
         colIndex = found
       } else {
+        // Find next empty item slot — no assignmentId marker yet
         let nextEmpty = -1
-        for (let c = startCol; c < startCol + maxItems; c++) {
-          if (!headerRow[c] || String(headerRow[c]).trim() === '') {
-            nextEmpty = c; break
+        for (const { col } of itemCols) {
+          const marker = String(groupHeaderRow[col] || '').trim()
+          // Empty if no assignmentId stored (original value is just a number or blank)
+          const isNumber = !isNaN(parseInt(marker)) || marker === ''
+          if (isNumber) {
+            nextEmpty = col; break
           }
         }
         if (nextEmpty === -1) return res.status(400).json({ error: `All ${maxItems} slots for ${assignmentType} are already used` })
 
         const headerColLetter = columnToLetter(nextEmpty + 1)
+
+        // Write assignmentId marker in group header row (row 8)
         await sheets.spreadsheets.values.update({
           spreadsheetId: sheetId,
-          range: `${sheetName}!${headerColLetter}9`,
+          range: `${sheetName}!${headerColLetter}8`,
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[assignmentId]] }
         })
+
+        // Write possible score to HIGHEST POSSIBLE SCORE row (row 10)
+        if (possibleScore !== undefined) {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `${sheetName}!${headerColLetter}${HIGHEST_SCORE_ROW}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[possibleScore]] }
+          })
+          console.log(`✅ Written possible score ${possibleScore} to ${sheetName}!${headerColLetter}${HIGHEST_SCORE_ROW}`)
+        }
+
         colIndex = nextEmpty
+      }
+    } else if (assignmentType === 'Quarterly Assessment') {
+      // Write possible score to QA column in HIGHEST POSSIBLE SCORE row if empty
+      if (possibleScore !== undefined) {
+        const qaColLetter = columnToLetter(colIndex + 1)
+        const existingPS = String((rows[9] || [])[colIndex] || '').trim()
+        if (!existingPS) {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `${sheetName}!${qaColLetter}${HIGHEST_SCORE_ROW}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[possibleScore]] }
+          })
+          console.log(`✅ Written QA possible score ${possibleScore} to ${sheetName}!${qaColLetter}${HIGHEST_SCORE_ROW}`)
+        }
       }
     }
 
