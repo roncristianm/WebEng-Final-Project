@@ -11,20 +11,26 @@ import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/Assignment.css'
 
+const TYPE_COLORS = {
+  'Written Works': '#3b82f6',
+  'Performance Task': '#10b981',
+  'Quarterly Assessment': '#f59e0b'
+}
+
+const TYPE_MAX_ITEMS = {
+  'Written Works': 10,
+  'Performance Task': 10,
+  'Quarterly Assessment': 1
+}
+
 function Assignment() {
   const getCurrentDate = () => {
     const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
   }
-
   const getCurrentTime = () => {
     const now = new Date()
-    const hours = String(now.getHours()).padStart(2, '0')
-    const minutes = String(now.getMinutes()).padStart(2, '0')
-    return `${hours}:${minutes}`
+    return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
   }
 
   const [assignments, setAssignments] = useState([])
@@ -35,19 +41,21 @@ function Assignment() {
   const [selectedAssignment, setSelectedAssignment] = useState(null)
   const [notification, setNotification] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [creating, setCreating] = useState(false)
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     classId: '',
     type: 'Written Works',
+    quarter: 'Q1',
+    itemNumber: 1,
     possibleScore: 100,
     deadlineDate: getCurrentDate(),
     deadlineTime: getCurrentTime()
   })
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
     if (auth.currentUser) {
@@ -63,22 +71,35 @@ function Assignment() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value }
+      // Reset itemNumber when type changes
+      if (name === 'type') {
+        updated.itemNumber = 1
+        if (value === 'Quarterly Assessment') updated.possibleScore = 100
+      }
+      return updated
+    })
   }
 
   const handleCreateAssignment = async (e) => {
     e.preventDefault()
-    
     if (!formData.title || !formData.description || !formData.classId || !formData.possibleScore || !formData.deadlineDate || !formData.deadlineTime) {
       setNotification({ message: 'Please fill in all fields', type: 'error' })
       return
     }
 
+    // Validate item number
+    const maxItems = TYPE_MAX_ITEMS[formData.type]
+    if (parseInt(formData.itemNumber) < 1 || parseInt(formData.itemNumber) > maxItems) {
+      setNotification({ message: `Item number must be between 1 and ${maxItems} for ${formData.type}`, type: 'error' })
+      return
+    }
+
     const selectedClass = classes.find(c => c.id === formData.classId)
-    
-    // Combine date and time into a single datetime string
     const deadline = `${formData.deadlineDate}T${formData.deadlineTime}`
-    
+
+    setCreating(true)
     const result = await createAssignment({
       title: formData.title,
       description: formData.description,
@@ -87,21 +108,20 @@ function Assignment() {
       teacherId: auth.currentUser.uid,
       teacherName: auth.currentUser.displayName,
       type: formData.type,
-      possibleScore: formData.possibleScore,
-      deadline: deadline
+      quarter: formData.quarter,
+      itemNumber: parseInt(formData.itemNumber),
+      possibleScore: parseFloat(formData.possibleScore),
+      deadline
     })
+    setCreating(false)
 
     if (result.success) {
       setNotification({ message: 'Assignment created successfully!', type: 'success' })
       setShowModal(false)
       setFormData({
-        title: '',
-        description: '',
-        classId: '',
-        type: 'Written Works',
-        possibleScore: 100,
-        deadlineDate: getCurrentDate(),
-        deadlineTime: getCurrentTime()
+        title: '', description: '', classId: '',
+        type: 'Written Works', quarter: 'Q1', itemNumber: 1,
+        possibleScore: 100, deadlineDate: getCurrentDate(), deadlineTime: getCurrentTime()
       })
       loadData()
     } else {
@@ -109,37 +129,21 @@ function Assignment() {
     }
   }
 
-  const handleOpenModal = () => {
-    setFormData({
-      title: '',
-      description: '',
-      classId: '',
-      type: 'Written Works',
-      possibleScore: 100,
-      deadlineDate: getCurrentDate(),
-      deadlineTime: getCurrentTime()
-    })
-    setShowModal(true)
-  }
-
   const handleViewAssignment = async (assignmentId) => {
     const assignment = await getAssignmentById(assignmentId)
-    if (assignment) {
-      setSelectedAssignment(assignment)
-      setShowDetailModal(true)
-    }
+    if (assignment) { setSelectedAssignment(assignment); setShowDetailModal(true) }
   }
 
   const handleDeleteAssignment = (e, assignment) => {
     e.stopPropagation()
     setConfirmDialog({
       title: 'Delete Assignment',
-      message: `Are you sure you want to delete "${assignment.title}"? This action cannot be undone.`,
+      message: `Are you sure you want to delete "${assignment.title}"?`,
       onConfirm: async () => {
         setConfirmDialog(null)
         const result = await deleteAssignment(assignment.id)
         if (result.success) {
-          setNotification({ message: 'Assignment deleted successfully', type: 'success' })
+          setNotification({ message: 'Assignment deleted', type: 'success' })
           loadData()
         } else {
           setNotification({ message: `Error: ${result.error}`, type: 'error' })
@@ -151,52 +155,12 @@ function Assignment() {
     })
   }
 
-  const getAssignmentTypeColor = (type) => {
-    switch(type) {
-      case 'Written Works': return '#3b82f6'
-      case 'Performance Task': return '#10b981'
-      case 'Quarterly Assessment': return '#f59e0b'
-      default: return '#6b7280'
-    }
-  }
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A'
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
-
-  const formatTime = (dateString) => {
-    if (!dateString) return 'N/A'
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const formatDeadline = (dateString) => {
-    if (!dateString) return 'N/A'
-    const date = new Date(dateString)
-    return date.toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const formatDateTime = (timestamp) => {
-    if (!timestamp) return 'Not submitted'
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-    return date.toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const formatDate = (ds) => ds ? new Date(ds).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+  const formatTime = (ds) => ds ? new Date(ds).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'
+  const formatDateTime = (ts) => {
+    if (!ts) return 'Not submitted'
+    const d = ts.toDate ? ts.toDate() : new Date(ts)
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
   const getStatusBadge = (status) => {
@@ -207,14 +171,7 @@ function Assignment() {
     }
     const badge = badges[status] || badges.not_submitted
     return (
-      <span style={{
-        padding: '4px 12px',
-        borderRadius: '12px',
-        fontSize: '0.85rem',
-        fontWeight: '500',
-        backgroundColor: `${badge.color}20`,
-        color: badge.color
-      }}>
+      <span style={{ padding: '4px 12px', borderRadius: 12, fontSize: '0.85rem', fontWeight: 500, backgroundColor: `${badge.color}20`, color: badge.color }}>
         {badge.text}
       </span>
     )
@@ -227,42 +184,36 @@ function Assignment() {
     return { done, late, notSubmitted, total: submissions?.length || 0 }
   }
 
+  const maxItems = TYPE_MAX_ITEMS[formData.type]
+
   return (
     <div className="page-container">
       <div className="page-header">
         <h1>Assignments</h1>
-        <button className="btn-create-assignment" onClick={handleOpenModal}>
-          + Create Assignment
-        </button>
+        <button className="btn-create-assignment" onClick={() => setShowModal(true)}>+ Create Assignment</button>
       </div>
 
       {loading ? (
-        <div className="loading-container">
-          <p>Loading assignments...</p>
-        </div>
+        <div className="loading-container"><p>Loading assignments...</p></div>
       ) : assignments.length > 0 ? (
         <div className="assignments-grid">
           {assignments.map((assignment) => {
             const stats = getSubmissionStats(assignment.submissions)
             return (
-              <div
-                key={assignment.id}
-                className="assignment-card"
+              <div key={assignment.id} className="assignment-card"
                 onClick={() => handleViewAssignment(assignment.id)}
-                style={{ borderLeft: `4px solid ${getAssignmentTypeColor(assignment.type)}` }}
-              >
+                style={{ borderLeft: `4px solid ${TYPE_COLORS[assignment.type] || '#6b7280'}` }}>
                 <div className="assignment-card-header">
                   <div>
                     <h3>{assignment.title}</h3>
-                    <span className="assignment-type" style={{ color: getAssignmentTypeColor(assignment.type) }}>
+                    <span className="assignment-type" style={{ color: TYPE_COLORS[assignment.type] || '#6b7280' }}>
                       {assignment.type}
                     </span>
+                    <span style={{ marginLeft: 8, fontSize: 12, color: '#9ca3af' }}>
+                      {assignment.quarter} · Item {assignment.itemNumber}
+                    </span>
                   </div>
-                  <button
-                    className="btn-delete-assignment"
-                    onClick={(e) => handleDeleteAssignment(e, assignment)}
-                    title="Delete assignment"
-                  >
+                  <button className="btn-delete-assignment" onClick={(e) => handleDeleteAssignment(e, assignment)} title="Delete">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                     </svg>
@@ -273,42 +224,24 @@ function Assignment() {
                   <div className="assignment-dates">
                     <div className="assignment-date">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
+                        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
                       <span>{formatDate(assignment.deadline)}</span>
                     </div>
                     <div className="assignment-date">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                       </svg>
                       <span>{formatTime(assignment.deadline)}</span>
                     </div>
                   </div>
-                  <div style={{ 
-                    marginTop: '12px', 
-                    padding: '8px 12px', 
-                    backgroundColor: '#f9fafb', 
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    color: '#374151'
-                  }}>
+                  <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: '#f9fafb', borderRadius: 6, fontSize: '0.9rem', fontWeight: 600, color: '#374151' }}>
                     {stats.done + stats.late}/{stats.total} Students Completed
                   </div>
                   <div className="assignment-stats">
-                    <div className="stat-item" style={{ color: '#10b981' }}>
-                      <strong>{stats.done}</strong> Done
-                    </div>
-                    <div className="stat-item" style={{ color: '#ef4444' }}>
-                      <strong>{stats.late}</strong> Late
-                    </div>
-                    <div className="stat-item" style={{ color: '#6b7280' }}>
-                      <strong>{stats.notSubmitted}</strong> Pending
-                    </div>
+                    <div className="stat-item" style={{ color: '#10b981' }}><strong>{stats.done}</strong> Done</div>
+                    <div className="stat-item" style={{ color: '#ef4444' }}><strong>{stats.late}</strong> Late</div>
+                    <div className="stat-item" style={{ color: '#6b7280' }}><strong>{stats.notSubmitted}</strong> Pending</div>
                   </div>
                 </div>
               </div>
@@ -321,14 +254,11 @@ function Assignment() {
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
             <h3>No Assignments Yet</h3>
             <p>Create your first assignment to get started!</p>
-            <button className="btn-create-first" onClick={handleOpenModal}>
-              Create Assignment
-            </button>
+            <button className="btn-create-first" onClick={() => setShowModal(true)}>Create Assignment</button>
           </div>
         </div>
       )}
@@ -343,103 +273,70 @@ function Assignment() {
             </div>
             <form onSubmit={handleCreateAssignment}>
               <div className="modal-body">
-                <label>
-                  Assignment Title *
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    placeholder="Enter assignment title"
-                    required
-                  />
+                <label>Assignment Title *
+                  <input type="text" name="title" value={formData.title} onChange={handleInputChange} placeholder="Enter assignment title" required />
                 </label>
 
-                <label>
-                  Description *
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder="Enter assignment description"
-                    rows="4"
-                    required
-                  />
+                <label>Description *
+                  <textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Enter assignment description" rows="3" required />
                 </label>
 
-                <label>
-                  Class *
-                  <select
-                    name="classId"
-                    value={formData.classId}
-                    onChange={handleInputChange}
-                    required
-                  >
+                <label>Class *
+                  <select name="classId" value={formData.classId} onChange={handleInputChange} required>
                     <option value="">Select a class</option>
-                    {classes.map(cls => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
-                    ))}
+                    {classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
                   </select>
                 </label>
 
-                <label>
-                  Assignment Type *
-                  <select
-                    name="type"
-                    value={formData.type}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="Written Works">Written Works</option>
-                    <option value="Performance Task">Performance Task</option>
-                  <option value="Quarterly Assessment">Quarterly Assessment</option>
+                <label>Assignment Type *
+                  <select name="type" value={formData.type} onChange={handleInputChange} required>
+                    <option value="Written Works">Written Works (30%)</option>
+                    <option value="Performance Task">Performance Task (50%)</option>
+                    <option value="Quarterly Assessment">Quarterly Assessment (20%)</option>
                   </select>
-                </label>
-
-                <label>
-                  Possible Score *
-                  <input
-                    type="number"
-                    name="possibleScore"
-                    value={formData.possibleScore}
-                    onChange={handleInputChange}
-                    min="1"
-                    max="1000"
-                    placeholder="100"
-                    required
-                  />
                 </label>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <label>
-                    Deadline Date *
-                    <input
-                      type="date"
-                      name="deadlineDate"
-                      value={formData.deadlineDate}
-                      onChange={handleInputChange}
-                      required
-                    />
+                  <label>Quarter *
+                    <select name="quarter" value={formData.quarter} onChange={handleInputChange} required>
+                      <option value="Q1">1st Quarter</option>
+                    </select>
                   </label>
 
                   <label>
-                    Deadline Time *
-                    <input
-                      type="time"
-                      name="deadlineTime"
-                      value={formData.deadlineTime}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    Item Number * <span style={{ fontSize: 12, color: '#9ca3af' }}>(1–{maxItems})</span>
+                    <input type="number" name="itemNumber" value={formData.itemNumber} onChange={handleInputChange}
+                      min="1" max={maxItems}
+                      disabled={formData.type === 'Quarterly Assessment'}
+                      placeholder="1" required />
                   </label>
+                </div>
+
+                <label>Possible Score *
+                  <input type="number" name="possibleScore" value={formData.possibleScore} onChange={handleInputChange}
+                    min="1" max="1000" placeholder="100" required />
+                </label>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <label>Deadline Date *
+                    <input type="date" name="deadlineDate" value={formData.deadlineDate} onChange={handleInputChange} required />
+                  </label>
+                  <label>Deadline Time *
+                    <input type="time" name="deadlineTime" value={formData.deadlineTime} onChange={handleInputChange} required />
+                  </label>
+                </div>
+
+                {/* Info box */}
+                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#0369a1' }}>
+                  <strong>📊 Sheet mapping:</strong> When students submit, their score will be recorded in the{' '}
+                  <strong>ENGLISH {formData.quarter}</strong> sheet under{' '}
+                  <strong>{formData.type}</strong>{formData.type !== 'Quarterly Assessment' ? `, Item ${formData.itemNumber}` : ''}.
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-submit">
-                  Create Assignment
+                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)} disabled={creating}>Cancel</button>
+                <button type="submit" className="btn-submit" disabled={creating}>
+                  {creating ? 'Creating...' : 'Create Assignment'}
                 </button>
               </div>
             </form>
@@ -447,78 +344,56 @@ function Assignment() {
         </div>
       )}
 
-      {/* Assignment Detail Modal */}
+      {/* Detail Modal */}
       {showDetailModal && selectedAssignment && (
         <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div>
                 <h2>{selectedAssignment.title}</h2>
-                <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: '4px' }}>
-                  {selectedAssignment.className} • {selectedAssignment.type}
+                <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: 4 }}>
+                  {selectedAssignment.className} · {selectedAssignment.type} · {selectedAssignment.quarter} Item {selectedAssignment.itemNumber}
                 </p>
               </div>
               <button className="modal-close" onClick={() => setShowDetailModal(false)}>×</button>
             </div>
             <div className="modal-body">
               <div className="assignment-detail-info">
-                <div className="info-row">
-                  <span className="info-label">Deadline Date:</span>
-                  <span>{formatDate(selectedAssignment.deadline)}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Deadline Time:</span>
-                  <span>{formatTime(selectedAssignment.deadline)}</span>
-                </div>
+                <div className="info-row"><span className="info-label">Deadline:</span><span>{formatDate(selectedAssignment.deadline)} {formatTime(selectedAssignment.deadline)}</span></div>
+                <div className="info-row"><span className="info-label">Possible Score:</span><span>{selectedAssignment.possibleScore}</span></div>
               </div>
-
-              <div style={{ marginTop: '24px', marginBottom: '24px' }}>
-                <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: '#1f2937' }}>Description</h3>
-                <p style={{ 
-                  color: '#4b5563', 
-                  lineHeight: '1.6', 
-                  whiteSpace: 'pre-wrap',
-                  backgroundColor: '#f9fafb',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  margin: 0
-                }}>
+              <div style={{ marginTop: 24, marginBottom: 24 }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem' }}>Description</h3>
+                <p style={{ color: '#4b5563', lineHeight: 1.6, whiteSpace: 'pre-wrap', backgroundColor: '#f9fafb', padding: 16, borderRadius: 8, margin: 0 }}>
                   {selectedAssignment.description || 'No description provided.'}
                 </p>
               </div>
-
               <div className="students-progress-section">
-                <h3>Student Progress ({selectedAssignment.submissions?.length || 0} students)</h3>
+                <h3>Student Submissions ({selectedAssignment.submissions?.length || 0})</h3>
                 <div className="students-list">
-                  {selectedAssignment.submissions && selectedAssignment.submissions.length > 0 ? (
+                  {selectedAssignment.submissions?.length > 0 ? (
                     selectedAssignment.submissions.map((submission) => (
                       <div key={submission.studentId} className="student-progress-item">
                         <div className="student-info">
-                          <div className="student-avatar">
-                            {submission.studentName?.charAt(0).toUpperCase()}
-                          </div>
+                          <div className="student-avatar">{submission.studentName?.charAt(0).toUpperCase()}</div>
                           <div className="student-details">
                             <span className="student-name">{submission.studentName}</span>
                             <span className="student-email">{submission.studentEmail}</span>
                           </div>
                         </div>
                         <div className="submission-info">
-                          <div className="submission-status">
-                            {getStatusBadge(submission.status)}
-                          </div>
-                          {submission.selfGrade !== undefined && (
-                            <div className="student-grade" style={{ fontWeight: 'bold', color: '#059669', marginLeft: '8px' }}>
-                              Self: {submission.selfGrade}/{selectedAssignment.possibleScore}
-                            </div>
+                          {getStatusBadge(submission.status)}
+                          {submission.score !== null && submission.score !== undefined && (
+                            <span style={{ fontWeight: 'bold', color: '#059669', marginLeft: 8 }}>
+                              Score: {submission.score}/{selectedAssignment.possibleScore}
+                            </span>
                           )}
-                          <div className="submission-time">
-                            {formatDateTime(submission.submittedAt)}
-                          </div>
+                          <div className="submission-time">{formatDateTime(submission.submittedAt)}</div>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="no-students">No students enrolled in this class yet.</p>
+                    <p className="no-students">No students enrolled yet.</p>
                   )}
                 </div>
               </div>
@@ -527,25 +402,11 @@ function Assignment() {
         </div>
       )}
 
-      {/* Notification */}
-      {notification && (
-        <Notification
-          message={notification.message}
-          type={notification.type}
-          onClose={() => setNotification(null)}
-        />
-      )}
-
-      {/* Confirm Dialog */}
+      {notification && <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
       {confirmDialog && (
-        <ConfirmDialog
-          title={confirmDialog.title}
-          message={confirmDialog.message}
-          onConfirm={confirmDialog.onConfirm}
-          onCancel={confirmDialog.onCancel}
-          confirmText={confirmDialog.confirmText}
-          type={confirmDialog.type}
-        />
+        <ConfirmDialog title={confirmDialog.title} message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm} onCancel={confirmDialog.onCancel}
+          confirmText={confirmDialog.confirmText} type={confirmDialog.type} />
       )}
     </div>
   )

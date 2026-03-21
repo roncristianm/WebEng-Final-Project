@@ -52,7 +52,7 @@ service cloud.firestore {
                     && request.resource.data.teacherId == request.auth.uid
                     && request.resource.data.type in ['Written Works', 'Performance Task', 'Quarterly Assessment']
                     && request.resource.data.keys().hasAny(['possibleScore'])
-                    && request.resource.data.possibleScore is int
+                    && request.resource.data.possibleScore is number
                     && request.resource.data.possibleScore > 0;
 
       allow read: if request.auth != null;
@@ -85,13 +85,13 @@ service cloud.firestore {
                          isTeacher()
                          || (
                            submissionId == request.auth.uid
-                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','submittedAt','selfGrade'])
+                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','submittedAt','selfGrade','score'])
                            && (
-                             !request.resource.data.keys().hasAny(['selfGrade'])
+                             !request.resource.data.keys().hasAny(['score'])
                              || (
-                               request.resource.data.selfGrade is number
-                               && request.resource.data.selfGrade >= 0
-                               && request.resource.data.selfGrade <= assignmentPossibleScore()
+                               request.resource.data.score is number
+                               && request.resource.data.score >= 0
+                               && request.resource.data.score <= assignmentPossibleScore()
                              )
                            )
                          )

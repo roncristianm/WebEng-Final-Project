@@ -1,40 +1,43 @@
-Sheets Backend
-----------------
+# Sheets Backend
 
-This small Express service provides a single endpoint to append rows to a Google Sheet using a Service Account.
+Express server that proxies Google Sheets API calls for the Nexxus BHSA app.
 
-Setup
+## Setup
 
-1. Install dependencies inside `sheets-backend`:
-
+1. Install dependencies:
 ```bash
 cd sheets-backend
 npm install
 ```
 
-2. Set environment variables (recommended via a `.env` file):
-
+2. Create a `.env` file (copy from `.env.example`):
 ```
-GOOGLE_SHEETS_CREDENTIALS={...json string of service account key...}
+GOOGLE_SHEETS_CREDENTIALS=<paste your entire service account JSON as a single line>
 PORT=4000
 ```
 
-The `GOOGLE_SHEETS_CREDENTIALS` should be the JSON content of the service account key, encoded as a single-line string. Do NOT commit the key to source control.
+To get the JSON as a single line, run:
+```bash
+cat your-credentials.json | tr -d '\n'
+```
 
 3. Start the server:
-
 ```bash
 node index.js
 ```
 
-Usage
+## Endpoints
 
-POST /append-grade
-Body: { sheetId: string, range?: string, values: array }
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| GET | `/read-grades?sheetId=&sheetName=` | Read all rows from a sheet |
+| GET | `/student-grades?sheetId=&studentId=&sheetName=` | Get one student's grade row |
+| POST | `/append-grade` | Append one or multiple rows |
+| PUT | `/update-cell` | Update a single cell by A1 range |
+| POST | `/add-student-column` | Add student name as a column header |
 
-Note: Current backend appends a single row per request. You can extend it to accept multiple rows (batch append) if needed.
+## Running alongside the frontend
 
-POST /add-student-column
-Body: { sheetId: string, studentName: string, sheetName?: string, headerRow?: number }
-
-This endpoint checks the header row for the student name (case-insensitive). If not present it writes the student name into the next empty column in the header row.
+The Vite frontend (port 3000) proxies `/sheets-api/*` → `http://localhost:4000/*`.
+So the frontend calls `/sheets-api/read-grades` which hits this server at `/read-grades`.
