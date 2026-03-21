@@ -163,8 +163,8 @@ function Assignment() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <h1>Assignments</h1>
+      <div className="section-header">
+        <h2>Assignments</h2>
         <button className="btn-create-assignment" onClick={() => setShowModal(true)}>+ Create Assignment</button>
       </div>
 

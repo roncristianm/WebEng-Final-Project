@@ -65,9 +65,9 @@ function Announcements() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
+      <div className="section-header">
         <div>
-          <h1>My Announcements</h1>
+          <h2>My Announcements</h2>
           <p className="page-subtitle">Manage announcements across your classes</p>
         </div>
         {/* Placeholder for Create button */}

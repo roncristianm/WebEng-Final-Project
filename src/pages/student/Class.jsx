@@ -104,8 +104,8 @@ function Class() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <h1>My Classes</h1>
+      <div className="section-header">
+        <h2>My Classes</h2>
         <p className="page-subtitle">View and manage your enrolled classes</p>
       </div>
 

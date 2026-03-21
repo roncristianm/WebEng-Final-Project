@@ -43,8 +43,8 @@ function Announcements() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <h1>Announcements</h1>
+      <div className="section-header">
+        <h2>Announcements</h2>
         <p className="page-subtitle">Stay updated with class announcements</p>
       </div>
 

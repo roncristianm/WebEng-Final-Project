@@ -49,8 +49,8 @@ function Grade() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <h1>Grades</h1>
+      <div className="section-header">
+        <h2>Grades</h2>
         <p className="page-subtitle">Your academic performance across all classes</p>
       </div>
 
