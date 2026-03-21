@@ -14,9 +14,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
-/**
- * Generate a random 6-character class code
- */
+const SHEETS_API = '/sheets-api'
+
 const generateClassCode = () => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let code = ''
@@ -26,21 +25,14 @@ const generateClassCode = () => {
   return code
 }
 
-/**
- * Check if a class code already exists
- */
 const classCodeExists = async (code) => {
   const q = query(collection(db, 'classes'), where('classCode', '==', code))
   const snapshot = await getDocs(q)
   return !snapshot.empty
 }
 
-/**
- * Create a new class (Teacher)
- */
-export const createClass = async (className, grade, section, teacherId, teacherName) => {
+export const createClass = async (className, grade, section, teacherId, teacherName, sheetId = '') => {
   try {
-    // Generate unique class code
     let classCode = generateClassCode()
     while (await classCodeExists(classCode)) {
       classCode = generateClassCode()
@@ -49,11 +41,12 @@ export const createClass = async (className, grade, section, teacherId, teacherN
     const classRef = doc(collection(db, 'classes'))
     await setDoc(classRef, {
       name: className,
-      grade: grade,
-      section: section,
-      teacherId: teacherId,
-      teacherName: teacherName,
-      classCode: classCode,
+      grade,
+      section,
+      teacherId,
+      teacherName,
+      classCode,
+      sheetId,
       createdAt: serverTimestamp(),
       studentCount: 0
     })
@@ -65,107 +58,93 @@ export const createClass = async (className, grade, section, teacherId, teacherN
   }
 }
 
-/**
- * Get all classes for a teacher
- */
 export const getTeacherClasses = async (teacherId) => {
   try {
     const q = query(collection(db, 'classes'), where('teacherId', '==', teacherId))
     const snapshot = await getDocs(q)
-    
     const classes = []
     snapshot.forEach((doc) => {
       classes.push({ id: doc.id, ...doc.data() })
     })
-    
-    return classes
+    return classes.sort((a, b) => a.name.localeCompare(b.name))
   } catch (error) {
     console.error('Error fetching teacher classes:', error)
     return []
   }
 }
 
-/**
- * Join a class (Student)
- */
-export const joinClass = async (classCode, studentId, studentName, studentEmail) => {
+export const joinClass = async (classCode, studentId, studentName, studentEmail, gender = 'Male') => {
   try {
     console.log('Attempting to join class with code:', classCode)
-    
-    // Find the class by code
+
     const q = query(collection(db, 'classes'), where('classCode', '==', classCode.toUpperCase()))
     const snapshot = await getDocs(q)
-    
-    if (snapshot.empty) {
-      console.log('Class not found')
-      return { success: false, error: 'Invalid class code' }
-    }
+
+    if (snapshot.empty) return { success: false, error: 'Invalid class code' }
 
     const classDoc = snapshot.docs[0]
     const classId = classDoc.id
     const classData = classDoc.data()
-    console.log('Found class:', classId, classData.name)
-    
-    // Check if student is already enrolled
+
+    // Check if already enrolled
     const studentRef = doc(db, 'classes', classId, 'students', studentId)
     const studentDoc = await getDoc(studentRef)
-    
-    if (studentDoc.exists()) {
-      console.log('Already enrolled')
-      return { success: false, error: 'You are already enrolled in this class' }
-    }
+    if (studentDoc.exists()) return { success: false, error: 'You are already enrolled in this class' }
 
-    console.log('Adding student to class...')
-    // Add student to the class
+    // Add student to Firestore
     await setDoc(studentRef, {
-      studentId: studentId,
+      studentId,
       name: studentName,
       email: studentEmail,
+      gender,
       joinedAt: serverTimestamp()
     })
-    
-    console.log('Student added successfully')
 
-    // Update student count using increment
+    // Add student to Google Sheet INPUT_DATA if sheetId exists
+    if (classData.sheetId) {
+      try {
+        const resp = await fetch(`${SHEETS_API}/add-student-to-sheet`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sheetId: classData.sheetId,
+            studentName,
+            gender
+          })
+        })
+        const result = await resp.json()
+        console.log('Sheet add-student result:', result)
+      } catch (sheetError) {
+        console.error('Failed to add student to sheet (non-critical):', sheetError)
+      }
+    }
+
+    // Update student count
     try {
-      console.log('Updating student count...')
-      await updateDoc(classDoc.ref, {
-        studentCount: increment(1)
-      })
-      console.log('Student count updated')
+      await updateDoc(classDoc.ref, { studentCount: increment(1) })
     } catch (countError) {
       console.error('Error updating count (non-critical):', countError)
-      // Don't fail the join if count update fails
     }
 
     return { success: true, classId, className: classData.name }
   } catch (error) {
     console.error('Error joining class:', error)
-    console.error('Error code:', error.code)
-    console.error('Error message:', error.message)
     return { success: false, error: error.message }
   }
 }
 
-/**
- * Get all classes a student is enrolled in
- */
 export const getStudentClasses = async (studentId) => {
   try {
     const classesRef = collection(db, 'classes')
     const allClassesSnapshot = await getDocs(classesRef)
-    
     const enrolledClasses = []
-    
     for (const classDoc of allClassesSnapshot.docs) {
       const studentRef = doc(db, 'classes', classDoc.id, 'students', studentId)
       const studentDoc = await getDoc(studentRef)
-      
       if (studentDoc.exists()) {
         enrolledClasses.push({ id: classDoc.id, ...classDoc.data() })
       }
     }
-    
     return enrolledClasses
   } catch (error) {
     console.error('Error fetching student classes:', error)
@@ -173,17 +152,11 @@ export const getStudentClasses = async (studentId) => {
   }
 }
 
-/**
- * Get class details by ID
- */
 export const getClassById = async (classId) => {
   try {
     const classRef = doc(db, 'classes', classId)
     const classDoc = await getDoc(classRef)
-    
-    if (classDoc.exists()) {
-      return { id: classDoc.id, ...classDoc.data() }
-    }
+    if (classDoc.exists()) return { id: classDoc.id, ...classDoc.data() }
     return null
   } catch (error) {
     console.error('Error fetching class:', error)
@@ -191,19 +164,14 @@ export const getClassById = async (classId) => {
   }
 }
 
-/**
- * Get students in a class
- */
 export const getClassStudents = async (classId) => {
   try {
     const studentsRef = collection(db, 'classes', classId, 'students')
     const snapshot = await getDocs(studentsRef)
-    
     const students = []
     snapshot.forEach((doc) => {
       students.push({ id: doc.id, ...doc.data() })
     })
-    
     return students
   } catch (error) {
     console.error('Error fetching class students:', error)
@@ -211,20 +179,12 @@ export const getClassStudents = async (classId) => {
   }
 }
 
-/**
- * Leave a class (Student)
- */
 export const leaveClass = async (classId, studentId) => {
   try {
     const studentRef = doc(db, 'classes', classId, 'students', studentId)
     await deleteDoc(studentRef)
-    
-    // Update student count using increment (negative)
     const classRef = doc(db, 'classes', classId)
-    await updateDoc(classRef, {
-      studentCount: increment(-1)
-    })
-    
+    await updateDoc(classRef, { studentCount: increment(-1) })
     return { success: true }
   } catch (error) {
     console.error('Error leaving class:', error)
@@ -232,25 +192,28 @@ export const leaveClass = async (classId, studentId) => {
   }
 }
 
-/**
- * Delete a class (Teacher)
- */
 export const deleteClass = async (classId) => {
   try {
-    // Delete all students in the class
     const studentsRef = collection(db, 'classes', classId, 'students')
     const studentsSnapshot = await getDocs(studentsRef)
-    
     const deletePromises = studentsSnapshot.docs.map(doc => deleteDoc(doc.ref))
     await Promise.all(deletePromises)
-    
-    // Delete the class
     const classRef = doc(db, 'classes', classId)
     await deleteDoc(classRef)
-    
     return { success: true }
   } catch (error) {
     console.error('Error deleting class:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export const updateClassSheetId = async (classId, sheetId) => {
+  try {
+    const classRef = doc(db, 'classes', classId)
+    await updateDoc(classRef, { sheetId })
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating class sheetId:', error)
     return { success: false, error: error.message }
   }
 }
