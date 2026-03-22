@@ -247,7 +247,6 @@ function TeacherClassDetail() {
             <button className="copy-code-btn" onClick={handleCopyCode}>Copy</button>
           </div>
         </div>
-        <div className="class-pic-placeholder">Pic</div>
       </div>
 
       {/* Tabs */}
