@@ -439,11 +439,9 @@ export default function TeacherClassDetail() {
   if (loading) return <div className="tcd-loading"><div className="tcd-spinner" /><p>Loading class…</p></div>
   if (!classData) return <div className="tcd-loading"><p>Class not found.</p></div>
 
-  // What "+ New" does per tab
-  const newAction = activeTab === 'assignments' ? () => openPostModal('assignments')
-                  : activeTab === 'materials'   ? () => openPostModal('materials')
-                  : activeTab === 'people'      ? null
-                  : () => openPostModal('announcements')
+  // What "+ New" does per tab (General shows picker with 3 options)
+  const newAction = activeTab === 'people'      ? null
+                  : () => openPickerOrModal(activeTab)
 
   return (
     <div className="tcd-page">

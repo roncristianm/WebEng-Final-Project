@@ -801,8 +801,15 @@
   .tcd-body { padding: 12px; }
   .tcd-feed-card-top { flex-direction: column; gap: 4px; }
 
-  .tcd-modal { border-radius: 16px 16px 0 0; }
-  .tcd-overlay { padding: 0; align-items: flex-end; }
+  .tcd-overlay {
+    padding: 16px;
+    align-items: center;
+  }
+  .tcd-modal {
+    border-radius: 16px;
+    max-height: 92vh;
+    width: 100%;
+  }
 }
 
 /* ── New-item Picker overlay ───────────────────────────────────────── */
@@ -813,7 +820,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 9999;
   padding: 20px;
   animation: tcd-fade-in 0.15s ease;
 }
@@ -894,15 +901,16 @@
   line-height: 1.4;
 }
 
-/* Mobile: picker slides up from bottom */
+/* Mobile: picker centered (same as desktop) */
 @media (max-width: 600px) {
   .tcd-picker-backdrop {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    padding: 16px;
+    z-index: 9999;
   }
   .tcd-picker {
-    border-radius: 20px 20px 0 0;
+    border-radius: 16px;
     max-width: 100%;
-    padding: 20px 20px 32px;
+    padding: 20px;
   }
 }
