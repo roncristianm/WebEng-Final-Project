@@ -2,43 +2,79 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { getClassById, getClassStudents } from '../../services/classService'
-import { getClassAssignments } from '../../services/assignmentService'
+import { getClassAssignments, createAssignmentSingle as createAssignment } from '../../services/assignmentService'
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
-import { sendAnnouncementNotification, sendNewMaterialNotification } from '../../services/emailService'
+import { sendAnnouncementNotification, sendNewMaterialNotification, sendNewAssignmentNotification } from '../../services/emailService'
 import { useAuth } from '../../context/AuthContext'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/ClassDetail.css'
 
+const TYPE_COLORS = {
+  'Written Works':        '#3b82f6',
+  'Performance Task':     '#10b981',
+  'Quarterly Assessment': '#f59e0b',
+}
+
 function TeacherClassDetail() {
   const [showOverdueOnly, setShowOverdueOnly] = useState(false)
   const [studentStatuses, setStudentStatuses] = useState({})
   const { classId } = useParams()
-  const navigate = useNavigate()
-  const [classData, setClassData] = useState(null)
-  const [assignments, setAssignments] = useState([])
-  const [announcements, setAnnouncements] = useState([])
-  const [students, setStudents] = useState([])
-  const [materials, setMaterials] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('general')
-  const [notification, setNotification] = useState(null)
-  const [showPostModal, setShowPostModal] = useState(false)
-  const [postType, setPostType] = useState('announcements')
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    description: '',
-    files: null
-  })
-  const [posting, setPosting] = useState(false)
-  const [confirmDialog, setConfirmDialog] = useState(null)
+  const navigate    = useNavigate()
   const { currentUser } = useAuth()
 
-  useEffect(() => {
-    loadClassData()
-  }, [classId])
+  const [classData,     setClassData]     = useState(null)
+  const [assignments,   setAssignments]   = useState([])
+  const [announcements, setAnnouncements] = useState([])
+  const [students,      setStudents]      = useState([])
+  const [materials,     setMaterials]     = useState([])
+  const [loading,       setLoading]       = useState(true)
+  const [activeTab,     setActiveTab]     = useState('general')
+  const [notification,  setNotification]  = useState(null)
+  const [confirmDialog, setConfirmDialog] = useState(null)
+  const [posting,       setPosting]       = useState(false)
+
+  // ── Unified Post Modal ──────────────────────────────────────────────────────
+  const [showPostModal, setShowPostModal] = useState(false)
+  const [postType,      setPostType]      = useState('announcement')
+
+  const getCurrentDate = () => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  }
+  const getCurrentTime = () => {
+    const now = new Date()
+    return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+  }
+
+  const [formData, setFormData] = useState({
+    title:               '',
+    content:             '',
+    description:         '',
+    type:                'Written Works',
+    quarter:             'Q1',
+    possibleScore:       100,
+    deadlineDate:        getCurrentDate(),
+    deadlineTime:        getCurrentTime(),
+    materialDescription: '',
+    files:               null,
+  })
+
+  const resetForm = () => setFormData({
+    title: '', content: '', description: '',
+    type: 'Written Works', quarter: 'Q1', possibleScore: 100,
+    deadlineDate: getCurrentDate(), deadlineTime: getCurrentTime(),
+    materialDescription: '', files: null,
+  })
+
+  const openPostModal = () => {
+    resetForm()
+    setPostType('announcement')
+    setShowPostModal(true)
+  }
+
+  useEffect(() => { loadClassData() }, [classId])
 
   const loadClassData = async () => {
     try {
@@ -47,9 +83,8 @@ function TeacherClassDetail() {
         getClassAssignments(classId),
         getClassAnnouncements(classId),
         getClassStudents(classId),
-        getClassMaterials(classId)
+        getClassMaterials(classId),
       ])
-      
       setClassData(classInfo)
       setAssignments(classAssignments)
       setAnnouncements(classAnnouncements)
@@ -58,11 +93,9 @@ function TeacherClassDetail() {
 
       const { getStudentAssignmentStatus } = await import('../../services/studentAssignmentStatus')
       const statuses = {}
-      await Promise.all(
-        classStudents.map(async (student) => {
-          statuses[student.id] = await getStudentAssignmentStatus(classId, student.id)
-        })
-      )
+      await Promise.all(classStudents.map(async (student) => {
+        statuses[student.id] = await getStudentAssignmentStatus(classId, student.id)
+      }))
       setStudentStatuses(statuses)
       setLoading(false)
     } catch (error) {
@@ -74,14 +107,7 @@ function TeacherClassDetail() {
   const formatDateTime = (timestamp) => {
     if (!timestamp) return ''
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-    const options = { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    }
-    return date.toLocaleDateString('en-US', options)
+    return date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })
   }
 
   const linkify = (text) => {
@@ -91,86 +117,86 @@ function TeacherClassDetail() {
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(classData.classCode)
-    setNotification({
-      message: 'Class code copied to clipboard!',
-      type: 'success'
-    })
+    setNotification({ message: 'Class code copied to clipboard!', type: 'success' })
   }
 
+  // ── Unified Post Handler ────────────────────────────────────────────────────
   const handleUnifiedPost = async (e) => {
     e.preventDefault()
     setPosting(true)
 
     try {
       let successMessage = ''
+      const studentEmails = students.filter(s => s.email).map(s => s.email)
+      const studentNames  = students.filter(s => s.email).map(s => s.name)
 
-      if (postType === 'announcements') {
+      if (postType === 'announcement') {
         if (!formData.title.trim() || !formData.content.trim()) {
           setNotification({ message: 'Please fill title and content', type: 'error' })
           return
         }
         const result = await createAnnouncement({
-          title:       formData.title.trim(),
-          content:     formData.content.trim(),
-          classId:     classId,
-          className:   classData.name,
-          teacherId:   currentUser.uid,
-          teacherName: currentUser.displayName || 'Teacher'
+          title: formData.title.trim(), content: formData.content.trim(),
+          classId, className: classData.name,
+          teacherId: currentUser.uid, teacherName: currentUser.displayName || 'Teacher',
         })
-        if (result.success) {
-          successMessage = 'Announcement posted!'
-
-          // Send email notification to all students (non-blocking)
-          const studentEmails = students.filter(s => s.email).map(s => s.email)
-          const studentNames  = students.filter(s => s.email).map(s => s.name)
-          if (studentEmails.length > 0) {
-            sendAnnouncementNotification({
-              to:          studentEmails,
-              studentName: studentNames,
-              teacherName: currentUser.displayName || 'Teacher',
-              className:   classData.name,
-              title:       formData.title.trim(),
-              content:     formData.content.trim(),
-            })
-          }
-        } else {
-          throw new Error(result.error)
+        if (!result.success) throw new Error(result.error)
+        successMessage = 'Announcement posted!'
+        if (studentEmails.length > 0) {
+          sendAnnouncementNotification({
+            to: studentEmails, studentName: studentNames,
+            teacherName: currentUser.displayName || 'Teacher',
+            className: classData.name, title: formData.title.trim(), content: formData.content.trim(),
+          })
         }
-      } else if (postType === 'materials') {
-        if (!formData.description.trim() || (!formData.files || formData.files.length === 0)) {
+
+      } else if (postType === 'assignment') {
+        if (!formData.title.trim() || !formData.description.trim() || !formData.deadlineDate || !formData.deadlineTime) {
+          setNotification({ message: 'Please fill all assignment fields', type: 'error' })
+          return
+        }
+        const deadline = `${formData.deadlineDate}T${formData.deadlineTime}`
+        const result = await createAssignment({
+          title: formData.title.trim(), description: formData.description.trim(),
+          classId, className: classData.name,
+          teacherId: currentUser.uid, teacherName: currentUser.displayName || 'Teacher',
+          type: formData.type, quarter: formData.quarter,
+          possibleScore: parseFloat(formData.possibleScore), deadline,
+        })
+        if (!result.success) throw new Error(result.error)
+        successMessage = 'Assignment created!'
+        if (studentEmails.length > 0) {
+          sendNewAssignmentNotification({
+            to: studentEmails, studentName: studentNames,
+            teacherName: currentUser.displayName || 'Teacher',
+            className: classData.name, title: formData.title.trim(),
+            description: formData.description.trim(), deadline,
+            type: formData.type, possibleScore: parseFloat(formData.possibleScore),
+          })
+        }
+
+      } else if (postType === 'material') {
+        if (!formData.materialDescription.trim() || !formData.files || formData.files.length === 0) {
           setNotification({ message: 'Please add description and at least one file', type: 'error' })
           return
         }
         const result = await createMaterial(
-          classId,
-          formData.description.trim(),
-          formData.files,
-          currentUser.uid,
-          currentUser.displayName
+          classId, formData.materialDescription.trim(),
+          formData.files, currentUser.uid, currentUser.displayName
         )
-        if (result.success) {
-          successMessage = 'Material posted successfully!'
-
-          // Send email notification to all students (non-blocking)
-          const studentEmails = students.filter(s => s.email).map(s => s.email)
-          const studentNames  = students.filter(s => s.email).map(s => s.name)
-          if (studentEmails.length > 0) {
-            sendNewMaterialNotification({
-              to:          studentEmails,
-              studentName: studentNames,
-              teacherName: currentUser.displayName || 'Teacher',
-              className:   classData.name,
-              description: formData.description.trim(),
-              fileCount:   formData.files.length,
-            })
-          }
-        } else {
-          throw new Error(result.error)
+        if (!result.success) throw new Error(result.error)
+        successMessage = 'Material posted!'
+        if (studentEmails.length > 0) {
+          sendNewMaterialNotification({
+            to: studentEmails, studentName: studentNames,
+            teacherName: currentUser.displayName || 'Teacher',
+            className: classData.name, description: formData.materialDescription.trim(),
+            fileCount: formData.files.length,
+          })
         }
       }
 
-      // Close modal and reload first, THEN show notification so it isn't lost
-      setFormData({ title: '', content: '', description: '', files: null })
+      resetForm()
       setShowPostModal(false)
       await loadClassData()
       setNotification({ message: successMessage, type: 'success' })
@@ -179,12 +205,6 @@ function TeacherClassDetail() {
     } finally {
       setPosting(false)
     }
-  }
-
-  const openPostModal = () => {
-    setPostType(activeTab)
-    setFormData({ title: '', content: '', description: '', files: null })
-    setShowPostModal(true)
   }
 
   const handleDeleteMaterial = async (materialId) => {
@@ -197,45 +217,7 @@ function TeacherClassDetail() {
     }
   }
 
-  const handleDeleteClass = () => {
-    setConfirmDialog({
-      title: 'Delete Class',
-      message: `Are you sure you want to delete "${classData.name}"? This action cannot be undone and all students, assignments, and materials will be permanently removed.`,
-      onConfirm: () => {
-        (async () => {
-          console.log('DeleteClass: Dialog confirmed, classId:', classId)
-          setConfirmDialog(null)
-          const result = await deleteClass(classId)
-          console.log('DeleteClass: Result:', result)
-          if (result.success) {
-            setNotification({
-              message: `Class "${classData.name}" deleted successfully`,
-              type: 'success'
-            })
-            navigate('/teacher-dashboard/class')
-          } else {
-            setNotification({
-              message: `Failed to delete class: ${result.error}`,
-              type: 'error'
-            })
-          }
-        })()
-      },
-      onCancel: () => setConfirmDialog(null),
-      confirmText: 'Delete Class',
-      type: 'danger'
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="page-container">
-        <div className="loading-container">
-          <p>Loading class...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <div className="page-container"><div className="loading-container"><p>Loading class...</p></div></div>
 
   if (!classData) {
     return (
@@ -252,7 +234,8 @@ function TeacherClassDetail() {
 
   return (
     <div className="class-detail-container">
-      {/* Gradient Header */}
+
+      {/* Header */}
       <div className="class-detail-header">
         <div className="class-header-content">
           <h1 className="class-detail-title">GRADE {classData.grade}</h1>
@@ -261,55 +244,58 @@ function TeacherClassDetail() {
           <div className="class-code-container">
             <span className="class-code-label theme-label">Class Code:</span>
             <code className="class-code-value theme-code">{classData.classCode}</code>
-            <button className="copy-code-btn" onClick={handleCopyCode}>
-              Copy
-            </button>
+            <button className="copy-code-btn" onClick={handleCopyCode}>Copy</button>
           </div>
         </div>
         <div className="class-pic-placeholder">Pic</div>
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tabs */}
       <div className="class-tabs-container">
         <div className="class-tabs-wrapper">
-          <button 
+          <button
             className="post-btn"
             onClick={openPostModal}
-            disabled={['activities', 'people'].includes(activeTab)}
+            disabled={activeTab === 'people'}
           >
-            Post
+            + Post
           </button>
-
           <div className="class-tabs">
-            <button className={`class-tab ${activeTab === 'general' ? 'active' : ''}`} onClick={() => setActiveTab('general')}>General</button>
-            <button className={`class-tab ${activeTab === 'assignments' ? 'active' : ''}`} onClick={() => setActiveTab('assignments')}>Assignments</button>
-            <button className={`class-tab ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => setActiveTab('announcements')}>Announcements</button>
-            <button className={`class-tab ${activeTab === 'materials' ? 'active' : ''}`} onClick={() => setActiveTab('materials')}>Materials</button>
-            <button className={`class-tab ${activeTab === 'people' ? 'active' : ''}`} onClick={() => setActiveTab('people')}>Members</button>
+            {['general','assignments','announcements','materials','people'].map(tab => (
+              <button key={tab} className={`class-tab ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
+                {tab === 'people' ? 'Members' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Tab Content */}
       <div className="class-content-wrapper">
         <div className="class-main-content">
+
           {activeTab === 'general' && (
             <div className="content-section">
               <h2>General</h2>
               {(() => {
                 const allItems = [
-                  ...announcements.map(ann => ({ ...ann, itemType: 'announcement', title: ann.title, content: ann.content, date: ann.createdAt })),
-                  ...materials.map(mat => ({ ...mat, itemType: 'material', title: mat.description, content: '', date: mat.createdAt })),
-                  ...assignments.map(ass => ({ ...ass, itemType: 'assignment', title: ass.title, content: ass.description, date: ass.deadline || ass.createdAt }))
-                ].filter(item => item.date)
-                  .sort((a, b) => (b.date.toMillis ? b.date.toMillis() : new Date(b.date).getTime()) - (a.date.toMillis ? a.date.toMillis() : new Date(a.date).getTime()))
+                  ...announcements.map(a => ({ ...a, itemType:'announcement', date: a.createdAt })),
+                  ...materials.map(m => ({ ...m, itemType:'material', title: m.description, content:'', date: m.createdAt })),
+                  ...assignments.map(a => ({ ...a, itemType:'assignment', date: a.deadline || a.createdAt })),
+                ].filter(i => i.date)
+                  .sort((a,b) => (b.date.toMillis?.() ?? new Date(b.date).getTime()) - (a.date.toMillis?.() ?? new Date(a.date).getTime()))
+
                 return allItems.length > 0 ? allItems.map(item => (
                   <div key={item.id} className="activity-card">
                     <div className="activity-header">
                       <div className="activity-icon"></div>
                       <div>
+                        <span style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1, color:
+                          item.itemType==='assignment' ? '#3b82f6' : item.itemType==='material' ? '#10b981' : '#f59e0b' }}>
+                          {item.itemType}
+                        </span>
                         <h3>{item.title}</h3>
-                        <p>{item.content}</p>
+                        <p>{item.content || item.description}</p>
                         <small>{formatDateTime(item.date)}</small>
                       </div>
                     </div>
@@ -345,9 +331,10 @@ function TeacherClassDetail() {
                   <div className="activity-header">
                     <div className="activity-icon"></div>
                     <div>
+                      <span style={{ fontSize:11, fontWeight:700, color: TYPE_COLORS[ass.type] || '#6b7280' }}>{ass.type}</span>
                       <h3>{ass.title}</h3>
                       <p>{ass.description}</p>
-                      <small>{formatDateTime(ass.deadline || ass.createdAt)}</small>
+                      <small>Due: {formatDateTime(ass.deadline)}</small>
                     </div>
                   </div>
                 </div>
@@ -368,11 +355,11 @@ function TeacherClassDetail() {
                     </div>
                     <button className="delete-btn" onClick={() => handleDeleteMaterial(material.id)}>Delete</button>
                   </div>
-                  {material.files && material.files.length > 0 && (
+                  {material.files?.length > 0 && (
                     <div>
                       <h4>Files ({material.files.length})</h4>
-                      {material.files.map((file, index) => (
-                        <a key={index} href={file.url} target="_blank" className="file-download">📄 {file.filename}</a>
+                      {material.files.map((file, i) => (
+                        <a key={i} href={file.url} target="_blank" className="file-download">📄 {file.filename}</a>
                       ))}
                     </div>
                   )}
@@ -387,29 +374,29 @@ function TeacherClassDetail() {
                 <h2 style={{marginBottom:0}}>Members ({students.length + 1})</h2>
                 <button
                   className={showOverdueOnly ? 'overdue-toggle-btn active' : 'overdue-toggle-btn'}
-                  style={{marginLeft:'8px',padding:'6px 16px',borderRadius:'8px',border:'1.5px solid #dc2626',background:showOverdueOnly ? '#dc2626' : 'white',color:showOverdueOnly ? 'white' : '#dc2626',fontWeight:600,cursor:'pointer'}}
+                  style={{marginLeft:'8px',padding:'6px 16px',borderRadius:'8px',border:'1.5px solid #dc2626',
+                    background:showOverdueOnly?'#dc2626':'white',color:showOverdueOnly?'white':'#dc2626',fontWeight:600,cursor:'pointer'}}
                   onClick={() => setShowOverdueOnly(v => !v)}
                 >
                   Overdue
                 </button>
               </div>
-              <div style={{marginBottom: '18px'}}>
-                <h3 style={{color: '#4f46e5', marginBottom: '8px'}}>Teacher</h3>
-                <div className="teacher-card">
-                  <strong>{classData.teacherName}</strong> (Teacher)
-                </div>
+              <div style={{marginBottom:'18px',marginTop:'16px'}}>
+                <h3 style={{color:'#4f46e5',marginBottom:'8px'}}>Teacher</h3>
+                <div className="teacher-card"><strong>{classData.teacherName}</strong> (Teacher)</div>
               </div>
               <div>
-                <h3 style={{color: '#4f46e5', marginBottom: '8px'}}>Students</h3>
+                <h3 style={{color:'#4f46e5',marginBottom:'8px'}}>Students</h3>
                 {students.length > 0 ? [...students]
-                  .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-                  .filter(student => !showOverdueOnly || (studentStatuses[student.id]?.overdue ?? 0) > 0)
+                  .sort((a,b) => (a.name||'').localeCompare(b.name||''))
+                  .filter(s => !showOverdueOnly || (studentStatuses[s.id]?.overdue ?? 0) > 0)
                   .map(student => (
                     <div key={student.id} className="student-card">
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                         <span>{student.name}</span>
                         <span className="student-assignment-status">
-                          Completed: {studentStatuses[student.id]?.completed ?? 0} Overdue: {studentStatuses[student.id]?.overdue ?? 0}
+                          Completed: {studentStatuses[student.id]?.completed ?? 0} &nbsp;
+                          Overdue: {studentStatuses[student.id]?.overdue ?? 0}
                         </span>
                       </div>
                     </div>
@@ -417,46 +404,198 @@ function TeacherClassDetail() {
               </div>
             </div>
           )}
+
         </div>
       </div>
 
-      {/* Post Modal */}
+      {/* ── Unified Post Modal ─────────────────────────────────────────────────── */}
       {showPostModal && (
         <div className="modal-overlay" onClick={() => setShowPostModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div
+            className="modal-content"
+            style={{ maxWidth:640, maxHeight:'90vh', overflowY:'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
             <div className="modal-header">
-              <h2>Post {postType === 'materials' ? 'Material' : 'Announcement'}</h2>
+              <h2>Create Post</h2>
               <button className="close-btn" onClick={() => setShowPostModal(false)}>×</button>
             </div>
+
+            {/* Post type selector tabs */}
+            <div style={{ display:'flex', borderBottom:'2px solid #f3f4f6', padding:'0 30px', background:'#fff', flexWrap:'wrap' }}>
+              {[
+                { key:'announcement', label:'Announcement' },
+                { key:'assignment',   label:'📝Assignment'   },
+                { key:'material',     label:'📎 Material'     },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setPostType(tab.key)}
+                  style={{
+                    background:'none', border:'none', padding:'14px 18px',
+                    fontWeight:600, fontSize:13, cursor:'pointer',
+                    color: postType === tab.key ? '#0038A8' : '#6b7280',
+                    borderBottom: postType === tab.key ? '3px solid #0038A8' : '3px solid transparent',
+                    marginBottom:'-2px', transition:'all 0.2s', whiteSpace:'nowrap',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             <form onSubmit={handleUnifiedPost}>
-              <div className="modal-body" style={{display: 'flex', flexDirection: 'column', gap: '18px', alignItems: 'stretch'}}>
-                {postType === 'announcements' ? (
+              <div className="modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
+
+                {/* ── ANNOUNCEMENT FIELDS ── */}
+                {postType === 'announcement' && (
                   <>
                     <div className="form-group">
                       <label>Title *</label>
-                      <input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
+                      <input
+                        value={formData.title}
+                        onChange={e => setFormData({...formData, title: e.target.value})}
+                        placeholder="e.g. No class tomorrow"
+                        required
+                      />
                     </div>
                     <div className="form-group">
                       <label>Content *</label>
-                      <textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} rows="4" required />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="form-group">
-                      <label>Description *</label>
-                      <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows="6" required />
-                    </div>
-                    <div className="form-group">
-                      <label>Files *</label>
-                      <input type="file" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png" onChange={e => setFormData({...formData, files: e.target.files})} required />
+                      <textarea
+                        value={formData.content}
+                        onChange={e => setFormData({...formData, content: e.target.value})}
+                        rows={5}
+                        placeholder="What do you want to announce?"
+                        required
+                      />
                     </div>
                   </>
                 )}
+
+                {/* ── ASSIGNMENT FIELDS ── */}
+                {postType === 'assignment' && (
+                  <>
+                    <div className="form-group">
+                      <label>Title *</label>
+                      <input
+                        value={formData.title}
+                        onChange={e => setFormData({...formData, title: e.target.value})}
+                        placeholder="e.g. Essay on Climate Change"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Instructions *</label>
+                      <textarea
+                        value={formData.description}
+                        onChange={e => setFormData({...formData, description: e.target.value})}
+                        rows={3}
+                        placeholder="Describe what students need to do"
+                        required
+                      />
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                      <div className="form-group">
+                        <label>Type *</label>
+                        <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} required>
+                          <option value="Written Works">Written Works (30%)</option>
+                          <option value="Performance Task">Performance Task (50%)</option>
+                          <option value="Quarterly Assessment">Quarterly Assessment (20%)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Quarter *</label>
+                        <select value={formData.quarter} onChange={e => setFormData({...formData, quarter: e.target.value})} required>
+                          <option value="Q1">1st Quarter</option>
+                          <option value="Q2">2nd Quarter</option>
+                          <option value="Q3">3rd Quarter</option>
+                          <option value="Q4">4th Quarter</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
+                      <div className="form-group">
+                        <label>Possible Score *</label>
+                        <input
+                          type="number"
+                          value={formData.possibleScore}
+                          onChange={e => setFormData({...formData, possibleScore: e.target.value})}
+                          min={1} max={1000}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Deadline Date *</label>
+                        <input
+                          type="date"
+                          value={formData.deadlineDate}
+                          onChange={e => setFormData({...formData, deadlineDate: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Time *</label>
+                        <input
+                          type="time"
+                          value={formData.deadlineTime}
+                          onChange={e => setFormData({...formData, deadlineTime: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* ── MATERIAL FIELDS ── */}
+                {postType === 'material' && (
+                  <>
+                    <div className="form-group">
+                      <label>Description *</label>
+                      <textarea
+                        value={formData.materialDescription}
+                        onChange={e => setFormData({...formData, materialDescription: e.target.value})}
+                        rows={4}
+                        placeholder="Describe the material. You can paste links here too."
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Files *</label>
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png"
+                        onChange={e => setFormData({...formData, files: e.target.files})}
+                        required
+                      />
+                      <small style={{ color:'#9ca3af', marginTop:4, display:'block' }}>
+                        Accepted: PDF, Word, PowerPoint, Excel, TXT, JPG, PNG
+                      </small>
+                    </div>
+                  </>
+                )}
+
               </div>
+
               <div className="modal-footer">
-                <button type="button" className="modal-btn-cancel modal-btn-red" style={{ flex: 1, minWidth: 0, marginRight: '10px' }} onClick={() => setShowPostModal(false)}>Cancel</button>
-                <button type="submit" className="modal-btn-post" style={{ flex: 1, minWidth: 0 }} disabled={posting}>{posting ? 'Posting...' : 'Post'}</button>
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  style={{ flex:1, minWidth:0, marginRight:10 }}
+                  onClick={() => setShowPostModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="modal-btn-post"
+                  style={{ flex:1, minWidth:0 }}
+                  disabled={posting}
+                >
+                  {posting ? 'Posting...' : `Post ${postType.charAt(0).toUpperCase() + postType.slice(1)}`}
+                </button>
               </div>
             </form>
           </div>
@@ -466,15 +605,11 @@ function TeacherClassDetail() {
       {notification && (
         <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />
       )}
-
       {confirmDialog && (
         <ConfirmDialog
-          title={confirmDialog.title}
-          message={confirmDialog.message}
-          onConfirm={confirmDialog.onConfirm}
-          onCancel={confirmDialog.onCancel}
-          confirmText={confirmDialog.confirmText}
-          type={confirmDialog.type}
+          title={confirmDialog.title} message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm} onCancel={confirmDialog.onCancel}
+          confirmText={confirmDialog.confirmText} type={confirmDialog.type}
         />
       )}
     </div>
