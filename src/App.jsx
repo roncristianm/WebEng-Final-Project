@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
 import LandingPage from './pages/homepage/LandingPage'
 import Signup from './pages/homepage/Signup'
+import PendingVerification from './pages/homepage/PendingVerification'
+import VerifyEmail from './pages/homepage/VerifyEmail'
 import ProtectedRoute from './components/ProtectedRoute'
 
 // Student imports
@@ -29,40 +31,31 @@ import './styles/App.css'
 
 function App() {
   const { currentUser, loading } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate                 = useNavigate()
+  const location                 = useLocation()
 
-  // Monitor navigation and validate authentication state
   useEffect(() => {
     if (loading) return
 
-    const protectedRoutes = ['/dashboard', '/teacher-dashboard']
-    const authRoutes = ['/login', '/signup', '/']
-    
-    const isProtectedRoute = protectedRoutes.some(route => 
-      location.pathname.startsWith(route)
-    )
-    const isAuthRoute = authRoutes.includes(location.pathname)
+    const protectedRoutes  = ['/dashboard', '/teacher-dashboard']
+    const isProtectedRoute = protectedRoutes.some(route => location.pathname.startsWith(route))
 
-    // If on protected route without auth, redirect to login
+    // Only kick unauthenticated users off protected routes.
+    // Verification checks are handled by ProtectedRoute and the individual auth pages.
     if (isProtectedRoute && !currentUser) {
       navigate('/login', { replace: true })
     }
-    // If on auth route with valid session, redirect to dashboard
-    else if (isAuthRoute && currentUser) {
-      // Prevent accessing login/signup when already authenticated
-      navigate('/dashboard', { replace: true })
-    }
   }, [currentUser, loading, location.pathname, navigate])
 
-  // Prevent browser back button from accessing protected pages after logout
   useEffect(() => {
     const handlePopState = () => {
-      if (!currentUser && (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/teacher-dashboard'))) {
+      if (!currentUser && (
+        location.pathname.startsWith('/dashboard') ||
+        location.pathname.startsWith('/teacher-dashboard')
+      )) {
         navigate('/login', { replace: true })
       }
     }
-
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [currentUser, location.pathname, navigate])
@@ -70,36 +63,43 @@ function App() {
   return (
     <div className="App">
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LandingPage />} />
+        {/* Public routes */}
+        <Route path="/"       element={<LandingPage />} />
+        <Route path="/login"  element={<LandingPage />} />
         <Route path="/signup" element={<Signup />} />
-        
+
+        {/* Email verification routes — no auth required */}
+        <Route path="/pending-verification" element={<PendingVerification />} />
+        <Route path="/verify"               element={<VerifyEmail />} />
+
+        {/* Student routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <StudentDashboard />
           </ProtectedRoute>
         }>
-          <Route index element={<StudentDashboardPage />} />
-          <Route path="class" element={<StudentClass />} />
+          <Route index                 element={<StudentDashboardPage />} />
+          <Route path="class"          element={<StudentClass />} />
           <Route path="class/:classId" element={<StudentClassDetail />} />
-          <Route path="announcements" element={<StudentAnnouncements />} />
-          <Route path="assignment" element={<StudentAssignment />} />
-          <Route path="grade" element={<StudentGrade />} />
-          <Route path="calendar" element={<StudentCalendar />} />
+          <Route path="announcements"  element={<StudentAnnouncements />} />
+          <Route path="assignment"     element={<StudentAssignment />} />
+          <Route path="grade"          element={<StudentGrade />} />
+          <Route path="calendar"       element={<StudentCalendar />} />
         </Route>
 
+        {/* Teacher routes */}
         <Route path="/teacher-dashboard" element={
           <ProtectedRoute>
             <TeacherDashboard />
           </ProtectedRoute>
         }>
-          <Route index element={<TeacherDashboardPage />} />
-          <Route path="class" element={<TeacherClass />} />
+          <Route index                 element={<TeacherDashboardPage />} />
+          <Route path="class"          element={<TeacherClass />} />
           <Route path="class/:classId" element={<TeacherClassDetail />} />
-          <Route path="announcements" element={<TeacherAnnouncements />} />
-          <Route path="assignment" element={<TeacherAssignment />} />
-          <Route path="grade" element={<TeacherGrade />} />
-          <Route path="calendar" element={<TeacherCalendar />} />
+          <Route path="announcements"  element={<TeacherAnnouncements />} />
+          <Route path="assignment"     element={<TeacherAssignment />} />
+          <Route path="grade"          element={<TeacherGrade />} />
+          <Route path="calendar"       element={<TeacherCalendar />} />
         </Route>
       </Routes>
     </div>
