@@ -1,12 +1,16 @@
 // src/pages/homepage/VerifyEmail.jsx
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { doc, getDocFromServer } from 'firebase/firestore'
+import { useAuth } from '../../context/AuthContext'
+import { db } from '../../config/firebase'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
 function VerifyEmail() {
   const [searchParams]          = useSearchParams()
   const navigate                = useNavigate()
+  const { currentUser }         = useAuth()
   const [status, setStatus]     = useState('loading')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -16,8 +20,25 @@ function VerifyEmail() {
 
     if (verified === 'true') {
       setStatus('success')
-      // Redirect to login — user needs to log in fresh after verifying
-      setTimeout(() => {
+      setTimeout(async () => {
+        // If user is logged in, check their role and redirect to correct dashboard
+        if (currentUser) {
+          try {
+            const userDoc  = await getDocFromServer(doc(db, 'users', currentUser.uid))
+            if (userDoc.exists()) {
+              const role = userDoc.data().role
+              if (role === 'teacher') {
+                navigate('/teacher-dashboard', { replace: true })
+              } else {
+                navigate('/dashboard', { replace: true })
+              }
+              return
+            }
+          } catch (err) {
+            console.error('VerifyEmail role check failed:', err)
+          }
+        }
+        // Not logged in — go to login
         navigate('/login', { replace: true })
       }, 3000)
     } else if (error) {
@@ -32,7 +53,23 @@ function VerifyEmail() {
     } else {
       navigate('/login', { replace: true })
     }
-  }, [searchParams, navigate])
+  }, [searchParams, navigate, currentUser])
+
+  const handleManualRedirect = async () => {
+    if (currentUser) {
+      try {
+        const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid))
+        if (userDoc.exists()) {
+          const role = userDoc.data().role
+          navigate(role === 'teacher' ? '/teacher-dashboard' : '/dashboard', { replace: true })
+          return
+        }
+      } catch (err) {
+        console.error('Manual redirect failed:', err)
+      }
+    }
+    navigate('/login', { replace: true })
+  }
 
   if (status === 'loading') {
     return (
@@ -65,13 +102,10 @@ function VerifyEmail() {
             </h2>
             <p style={{ color: '#6b7280', fontSize: '15px', lineHeight: 1.7, marginBottom: '24px' }}>
               Your email has been verified successfully.<br/>
-              Redirecting you to login...
+              Redirecting you to your dashboard...
             </p>
-            <button
-              className="btn-primary"
-              onClick={() => navigate('/login', { replace: true })}
-            >
-              Log In Now →
+            <button className="btn-primary" onClick={handleManualRedirect}>
+              Go to Dashboard →
             </button>
           </div>
         </div>
@@ -97,10 +131,7 @@ function VerifyEmail() {
           <p style={{ color: '#6b7280', fontSize: '15px', lineHeight: 1.7, marginBottom: '28px' }}>
             {errorMsg}
           </p>
-          <button
-            className="btn-primary"
-            onClick={() => navigate('/login', { replace: true })}
-          >
+          <button className="btn-primary" onClick={() => navigate('/login', { replace: true })}>
             Back to Login
           </button>
         </div>
