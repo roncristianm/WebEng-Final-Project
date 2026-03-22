@@ -1,0 +1,692 @@
+/* ─────────────────────────────────────────────────────────────
+   StudentClassDetail.css  —  Blue header, flat/clean design
+───────────────────────────────────────────────────────────── */
+
+.scd-page {
+  min-height: 100vh;
+  background: #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* ── Loading ── */
+.scd-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.scd-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0038A8;
+  border-radius: 50%;
+  animation: scd-spin 0.7s linear infinite;
+}
+
+@keyframes scd-spin { to { transform: rotate(360deg); } }
+
+.scd-back-btn {
+  background: #0038A8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ────────────────────────────────────────────────────────────
+   BLUE HEADER CARD
+─────────────────────────────────────────────────────────────*/
+.scd-header {
+  background: #0038A8;
+  padding: 20px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Back button — white on blue */
+.scd-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 7px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  cursor: pointer;
+  font-family: inherit;
+  width: fit-content;
+  transition: background 0.15s;
+}
+.scd-back:hover { background: rgba(255,255,255,0.25); }
+
+/* Inner row: info left, actions right */
+.scd-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.scd-header-info { flex: 1; min-width: 0; }
+
+/* Grade / Section eyebrow tags */
+.scd-header-eyebrow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.scd-header-eyebrow span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.scd-header-name {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+}
+
+.scd-header-teacher {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+}
+
+/* Right-side actions */
+.scd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Code pill — white on blue header */
+.scd-code-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,0.15);
+  border: 1.5px solid rgba(255,255,255,0.3);
+  border-radius: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.scd-code-pill:hover { background: rgba(255,255,255,0.25); }
+
+.scd-code-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: rgba(255,255,255,0.7);
+}
+
+.scd-code-val {
+  font-family: monospace;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 2.5px;
+}
+
+.scd-code-action {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255,255,255,0.2);
+  border-radius: 5px;
+  padding: 2px 8px;
+}
+
+/* Leave button — subtle danger on blue bg */
+.scd-leave-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239,68,68,0.15);
+  color: #fca5a5;
+  border: 1.5px solid rgba(239,68,68,0.35);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.scd-leave-btn:hover {
+  background: rgba(239,68,68,0.28);
+  border-color: rgba(239,68,68,0.6);
+  color: #fff;
+}
+
+/* ────────────────────────────────────────────────────────────
+   TAB BAR
+─────────────────────────────────────────────────────────────*/
+.scd-tabbar {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.scd-tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scd-tabs::-webkit-scrollbar { display: none; }
+
+.scd-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.scd-tab:hover { color: #334155; }
+.scd-tab--active { color: #0038A8; border-bottom-color: #0038A8; }
+.scd-tab-icon { display: flex; align-items: center; }
+
+/* ────────────────────────────────────────────────────────────
+   BODY — two-column layout
+─────────────────────────────────────────────────────────────*/
+.scd-body {
+  display: grid;
+  grid-template-columns: 1fr 272px;
+  gap: 24px;
+  padding: 28px 32px;
+  align-items: start;
+  flex: 1;
+  box-sizing: border-box;
+}
+
+.scd-section { display: flex; flex-direction: column; gap: 14px; }
+
+.scd-section-title {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scd-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.scd-empty {
+  background: #fff;
+  border: 1.5px dashed #e2e8f0;
+  border-radius: 12px;
+  padding: 36px 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+/* ────────────────────────────────────────────────────────────
+   FEED CARDS
+─────────────────────────────────────────────────────────────*/
+.scd-feed-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #0038A8;
+  border-radius: 12px;
+  padding: 16px 20px;
+  transition: box-shadow 0.15s;
+}
+.scd-feed-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
+.scd-feed-card--overdue { border-left-color: #ef4444; }
+
+.scd-feed-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.scd-feed-card-main { flex: 1; min-width: 0; }
+
+.scd-feed-title {
+  margin: 5px 0 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.scd-feed-meta {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.scd-feed-body {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.7;
+}
+.scd-feed-body p { margin: 0 0 6px; }
+.scd-feed-body p:last-child { margin: 0; }
+
+/* Chips */
+.scd-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.scd-chip--ann  { background: #dbeafe; color: #1d4ed8; }
+.scd-chip--asgn { background: #dcfce7; color: #15803d; }
+.scd-chip--mat  { background: #fef3c7; color: #92400e; }
+
+/* Assignment extras */
+.scd-asgn-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.scd-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.scd-badge--gray { background: #f1f5f9; color: #475569; }
+
+.scd-asgn-desc {
+  font-size: 0.85rem;
+  color: #475569;
+  margin: 0 0 8px;
+  line-height: 1.6;
+}
+
+.scd-asgn-time {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scd-overdue-tag {
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.scd-by {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  margin: 8px 0 0;
+}
+
+.scd-link { color: #0038A8; text-decoration: none; font-weight: 600; }
+.scd-link:hover { text-decoration: underline; }
+
+/* File pills */
+.scd-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.scd-file-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.scd-file-pill:hover { background: #eff6ff; border-color: #bfdbfe; color: #0038A8; }
+
+/* ────────────────────────────────────────────────────────────
+   PEOPLE TAB
+─────────────────────────────────────────────────────────────*/
+.scd-people-group {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.scd-people-group:last-child { margin-bottom: 0; }
+
+.scd-people-label {
+  margin: 0;
+  padding: 9px 16px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.scd-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.12s;
+}
+.scd-person:last-child { border-bottom: none; }
+.scd-person:hover { background: #f8fafc; }
+.scd-person--teacher { background: #f0f9ff; }
+.scd-person--teacher:hover { background: #e0f2fe; }
+
+.scd-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #e2e8f0;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.scd-avatar--blue { background: #dbeafe; color: #1d4ed8; }
+
+.scd-person-name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.scd-person-role {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+/* ────────────────────────────────────────────────────────────
+   SIDEBAR — Upcoming
+─────────────────────────────────────────────────────────────*/
+.scd-sidebar {
+  position: sticky;
+  top: 57px;
+}
+
+.scd-upcoming {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.scd-upcoming-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #475569;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.scd-upcoming-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.scd-upcoming-empty svg { opacity: 0.4; }
+
+.scd-upcoming-empty p {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.scd-up-list { display: flex; flex-direction: column; }
+
+.scd-up-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.12s;
+}
+.scd-up-item:last-child { border-bottom: none; }
+.scd-up-item:hover { background: #f8fafc; }
+.scd-up-item--over .scd-up-dot { background: #ef4444; }
+.scd-up-item--over .scd-up-date { color: #ef4444; }
+
+.scd-up-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0038A8;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.scd-up-content { flex: 1; min-width: 0; }
+
+.scd-up-title {
+  margin: 0 0 2px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scd-up-date {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  /* Collapse two-column grid into single column */
+  .scd-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  /* Sidebar sits above main, but is capped in height */
+  .scd-sidebar {
+    position: static;
+    order: -1;
+    width: 100%;
+  }
+
+  /* Upcoming card: fixed max-height, internal scroll */
+  .scd-upcoming {
+    max-height: 200px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .scd-up-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .scd-upcoming-empty {
+    padding: 16px;
+    flex-direction: row;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .scd-up-item {
+    border-right: none;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .scd-up-item:last-child { border-bottom: none; }
+}
+
+@media (max-width: 768px) {
+  .scd-header {
+    padding: 16px 18px 20px;
+  }
+
+  .scd-header-name { font-size: 1.25rem; }
+
+  .scd-header-actions {
+    width: 100%;
+    flex-direction: row;
+  }
+
+  .scd-code-pill { flex: 1; justify-content: center; }
+
+  .scd-tabbar { padding: 0 14px; }
+
+  .scd-tab {
+    padding: 12px 10px;
+    font-size: 0; /* hide text, show icon only */
+    gap: 0;
+  }
+
+  /* Show label again only as tooltip via title — icons only on mobile */
+  .scd-tab-label { display: none; }
+
+  .scd-tab-icon svg { width: 19px; height: 19px; }
+
+  /* Re-show active tab label */
+  .scd-tab--active .scd-tab-label {
+    display: inline;
+    font-size: 0.82rem;
+    margin-left: 6px;
+  }
+
+  .scd-body { padding: 14px; gap: 14px; }
+
+  .scd-feed-card { padding: 13px 14px; }
+
+  /* up-list already flex column from 900px rule */
+  /* scd-up-item borders handled in 900px block */
+}
+
+@media (max-width: 480px) {
+  .scd-header { padding: 14px 14px 18px; }
+  .scd-header-name { font-size: 1.1rem; }
+
+  .scd-header-actions { flex-direction: column; gap: 8px; }
+  .scd-code-pill, .scd-leave-btn { width: 100%; justify-content: center; }
+
+  .scd-tabbar { padding: 0 8px; }
+
+  .scd-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 11px 6px;
+  }
+
+  /* All mobile: icon only, active gets label */
+  .scd-tab-label { display: none; }
+  .scd-tab--active .scd-tab-label {
+    display: none; /* too narrow — keep icon only even active */
+  }
+
+  .scd-body { padding: 12px; }
+
+  .scd-feed-card-top { flex-direction: column; gap: 4px; }
+  .scd-feed-meta { font-size: 0.68rem; }
+}
