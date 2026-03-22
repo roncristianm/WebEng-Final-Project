@@ -9,16 +9,15 @@ import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
-
 function LandingPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail]         = useState('')
+  const [password, setPassword]   = useState('')
   const [rememberMe, setRememberMe] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
-  const { currentUser } = useAuth()
-  const { showNotification } = useNotification()
+  const [error, setError]         = useState('')
+  const [loading, setLoading]     = useState(false)
+  const navigate                  = useNavigate()
+  const { currentUser }           = useAuth()
+  const { showNotification }      = useNotification()
 
   // Redirect if already logged in
   useEffect(() => {
@@ -28,6 +27,10 @@ function LandingPage() {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
           if (userDoc.exists()) {
             const userData = userDoc.data()
+            if (!userData.emailVerified) {
+              navigate('/pending-verification', { replace: true })
+              return
+            }
             if (userData.role === 'teacher') {
               navigate('/teacher-dashboard', { replace: true })
             } else {
@@ -44,44 +47,40 @@ function LandingPage() {
     checkUserRole()
   }, [currentUser, navigate])
 
-  // Prevent back button to login page after authentication
   useEffect(() => {
-    const preventBackToLogin = () => {
-      window.history.pushState(null, '', window.location.href)
-    }
-    
-    window.addEventListener('popstate', preventBackToLogin)
-    preventBackToLogin()
-    
-    return () => window.removeEventListener('popstate', preventBackToLogin)
+    const preventBack = () => window.history.pushState(null, '', window.location.href)
+    window.addEventListener('popstate', preventBack)
+    preventBack()
+    return () => window.removeEventListener('popstate', preventBack)
   }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    
+
     try {
-      // Set persistence based on remember me checkbox
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence)
-      
-      // Sign in with email and password
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      console.log('User logged in successfully:', userCredential.user)
-      
-      // Fetch user role from Firestore
+
+      // Check Firestore for role and verification status
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
-      
+
       if (userDoc.exists()) {
         const userData = userDoc.data()
-        
-        // Show notification immediately
+
+        // Block unverified users — redirect to pending page
+        if (!userData.emailVerified) {
+          showNotification('Please verify your email before logging in.', 'error')
+          setTimeout(() => {
+            navigate('/pending-verification', { replace: true })
+          }, 1500)
+          setLoading(false)
+          return
+        }
+
         showNotification('Login successful!', 'success')
-        
-        // Clear history to prevent back button to login page
         window.history.pushState(null, '', window.location.href)
-        
-        // Wait for notification to be visible before redirecting
         setTimeout(() => {
           if (userData.role === 'student') {
             window.location.href = '/dashboard'
@@ -90,7 +89,7 @@ function LandingPage() {
           }
         }, 1500)
       } else {
-        // Fallback if user data doesn't exist
+        // Fallback if no Firestore doc
         showNotification('Login successful!', 'success')
         window.history.pushState(null, '', window.location.href)
         setTimeout(() => {
@@ -102,6 +101,7 @@ function LandingPage() {
       switch (error.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
+        case 'auth/invalid-credential':
           setError('Invalid email or password')
           break
         case 'auth/invalid-email':
@@ -121,7 +121,7 @@ function LandingPage() {
   return (
     <div className="auth-container">
       {error && (
-        <Notification 
+        <Notification
           message={error}
           type="error"
           onClose={() => setError('')}
@@ -137,43 +137,22 @@ function LandingPage() {
             <p className="brand-description">Bayan Ng Bayani, Bayani Ng Sining</p>
           </div>
         </div>
-        
+
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
               <label htmlFor="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-              />
+              <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" required />
             </div>
 
             <div className="form-group">
               <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-              />
+              <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
             </div>
 
             <div className="form-group checkbox-group">
-              <input
-                type="checkbox"
-                id="rememberMe"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <label htmlFor="rememberMe" className="checkbox-label">
-                Remember me
-              </label>
+              <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+              <label htmlFor="rememberMe" className="checkbox-label">Remember me</label>
             </div>
 
             <button type="submit" className="btn-primary" disabled={loading}>

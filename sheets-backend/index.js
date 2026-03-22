@@ -101,7 +101,7 @@ async function resolveTabNames(sheetId, sheets) {
     q4: find(['q4']),
   }
 
-  console.log(`✅ Resolved tab names:`, resolved)
+  console.log(`Resolved tab names:`, resolved)
   tabCache[sheetId] = resolved
   return resolved
 }
@@ -270,7 +270,7 @@ app.post('/add-student-to-sheet', async (req, res) => {
       requestBody: { valueInputOption: 'USER_ENTERED', data: updateData }
     })
 
-    console.log(`✅ Added "${studentName}" to INPUT DATA ${gender} section`)
+    console.log(` Added "${studentName}" to INPUT DATA ${gender} section`)
 
     // ── Also write names to all quarter sheets (Q1–Q4) ──────────────────────
     // The quarter sheets have the same MALE/FEMALE structure in col B starting at row 10 (index 9)
@@ -291,7 +291,7 @@ app.post('/add-student-to-sheet', async (req, res) => {
         }
 
         if (qMaleRow === -1) {
-          console.log(`⚠️ Could not find MALE section in ${quarterTab}, skipping`)
+          console.log(` Could not find MALE section in ${quarterTab}, skipping`)
           continue
         }
 
@@ -308,9 +308,9 @@ app.post('/add-student-to-sheet', async (req, res) => {
           requestBody: { valueInputOption: 'USER_ENTERED', data: qUpdateData }
         })
 
-        console.log(`✅ Synced names to ${quarterTab}`)
+        console.log(` Synced names to ${quarterTab}`)
       } catch (qErr) {
-        console.warn(`⚠️ Could not sync to ${quarterTab}:`, qErr.message)
+        console.warn(` Could not sync to ${quarterTab}:`, qErr.message)
       }
     }
 

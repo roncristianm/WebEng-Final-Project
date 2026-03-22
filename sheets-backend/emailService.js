@@ -211,6 +211,26 @@ function passwordResetTemplate({ name, resetLink }) {
   })
 }
 
+
+function emailVerificationTemplate({ name, verifyLink }) {
+  return baseTemplate({
+    title:     'Verify Your Nexxus Email',
+    preheader: 'Almost there! Verify your email to activate your Nexxus account.',
+    body: `
+      <h2>✉️ Verify Your Email</h2>
+      <p>Hi <strong>${name}</strong>,</p>
+      <p>Thanks for signing up for Nexxus! Please verify your email address to activate your account.</p>
+      <div class="btn-wrap"><a class="btn" href="${verifyLink}">Verify My Email →</a></div>
+      <hr class="divider"/>
+      <p class="meta">This link expires in <strong>24 hours</strong>. If you did not create a Nexxus account, you can safely ignore this email.</p>
+      <p class="meta" style="margin-top:8px;">
+        If the button doesn't work, copy this link:<br/>
+        <a href="${verifyLink}" style="color:${BRAND_COLOR};word-break:break-all;">${verifyLink}</a>
+      </p>
+    `,
+  })
+}
+
 // ── Send helpers ──────────────────────────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
   const fromEmail   = process.env.BREVO_FROM_EMAIL || process.env.BREVO_SMTP_LOGIN
@@ -246,4 +266,5 @@ module.exports = {
   deadlineReminderTemplate,
   newMaterialTemplate,
   passwordResetTemplate,
+  emailVerificationTemplate,
 }
