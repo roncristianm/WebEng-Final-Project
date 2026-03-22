@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { joinClass, getStudentClasses } from '../../services/classService'
 import { getStudentAssignments } from '../../services/assignmentService'
+import { getStudentAnnouncements } from '../../services/announcementService'
 import Notification from '../../components/Notification'
 import '../../styles/Dashboard.css'
 
@@ -12,6 +13,8 @@ function Dashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [classCode, setClassCode] = useState('')
   const [classes, setClasses] = useState([])
+  const [announcements, setAnnouncements] = useState([])
+  const [upcomingAssignments, setUpcomingAssignments] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
   const [completedCount, setCompletedCount] = useState(0)
   const [overdueCount, setOverdueCount] = useState(0)
@@ -20,91 +23,109 @@ function Dashboard() {
   const [notification, setNotification] = useState(null)
 
   useEffect(() => {
-    loadClasses()
+    loadDashboard()
   }, [])
 
-  const loadClasses = async () => {
-    if (auth.currentUser) {
-      const studentClasses = await getStudentClasses(auth.currentUser.uid)
-      setClasses(studentClasses)
-      
-      // Calculate stats
-      const classIds = studentClasses.map(cls => cls.id)
-      const studentAssignments = await getStudentAssignments(auth.currentUser.uid, classIds)
-      
-      const now = new Date()
-      const pending = studentAssignments.filter(a => {
-        if (!a.submission || a.submission.status === 'not_submitted') {
-          const deadline = new Date(a.deadline)
-          return deadline > now
-        }
-        return false
-      }).length
-      
-      const completed = studentAssignments.filter(a => a.submission?.status === 'done').length
-      const overdue = studentAssignments.filter(a => {
-        if (a.submission?.status === 'not_submitted') {
-          const deadline = new Date(a.deadline)
-          return deadline < now
-        }
-        return a.submission?.status === 'late'
-      }).length
-      
-      setPendingCount(pending)
-      setCompletedCount(completed)
-      setOverdueCount(overdue)
-      
-      setLoading(false)
-    }
+  const loadDashboard = async () => {
+    if (!auth.currentUser) return
+
+    const studentClasses = await getStudentClasses(auth.currentUser.uid)
+    setClasses(studentClasses)
+
+    const classIds = studentClasses.map(cls => cls.id)
+
+    // Load assignments + announcements in parallel
+    const [studentAssignments, studentAnnouncements] = await Promise.all([
+      getStudentAssignments(auth.currentUser.uid, classIds),
+      getStudentAnnouncements(auth.currentUser.uid),
+    ])
+
+    // Sort announcements newest first, take top 3 for dashboard preview
+    const sorted = [...studentAnnouncements].sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || 0
+      const bTime = b.createdAt?.toMillis?.() || 0
+      return bTime - aTime
+    })
+    setAnnouncements(sorted.slice(0, 3))
+
+    // Shared reference point for all time comparisons
+    const now = new Date()
+
+    // Upcoming assignments — not submitted, deadline in future, soonest first, top 3
+    const upcoming = studentAssignments
+      .filter(a => (a.submission?.status || 'not_submitted') === 'not_submitted' && new Date(a.deadline) > now)
+      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+    setUpcomingAssignments(upcoming.slice(0, 3))
+
+    // Assignment stats
+    let pending = 0, completed = 0, overdue = 0
+
+    studentAssignments.forEach(a => {
+      const status = a.submission?.status || 'not_submitted'
+      const deadline = new Date(a.deadline)
+      if (status === 'done') {
+        completed++
+      } else if (status === 'not_submitted' && deadline > now) {
+        pending++
+      } else if (status === 'not_submitted' && deadline < now) {
+        overdue++
+      } else if (status === 'late') {
+        overdue++
+      }
+    })
+
+    setPendingCount(pending)
+    setCompletedCount(completed)
+    setOverdueCount(overdue)
+    setLoading(false)
   }
 
-  const handleJoinClass = () => {
-    setShowJoinModal(true)
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return ''
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return date.toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+    })
   }
+
+  const handleJoinClass = () => setShowJoinModal(true)
 
   const handleJoinSubmit = async (e) => {
     e.preventDefault()
-    if (classCode.trim() && auth.currentUser) {
-      setJoining(true)
+    if (!classCode.trim() || !auth.currentUser) return
+    setJoining(true)
 
-      // Read gender from the user's Firestore profile (set during signup)
-      let userGender = 'Male'
-      try {
-        const { getDoc, doc } = await import('firebase/firestore')
-        const { db } = await import('../../config/firebase')
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
-        if (userDoc.exists()) {
-          const raw = userDoc.data().gender || 'male'
-          userGender = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() // "male" → "Male"
-        }
-      } catch (e) {
-        console.warn('Could not read user gender, defaulting to Male', e)
+    let userGender = 'Male'
+    try {
+      const { getDoc, doc } = await import('firebase/firestore')
+      const { db } = await import('../../config/firebase')
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
+      if (userDoc.exists()) {
+        const raw = userDoc.data().gender || 'male'
+        userGender = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
       }
-
-      const result = await joinClass(
-        classCode.trim(),
-        auth.currentUser.uid,
-        auth.currentUser.displayName || 'Student',
-        auth.currentUser.email,
-        userGender
-      )
-      
-      if (result.success) {
-        setShowJoinModal(false)
-        setClassCode('')
-        await loadClasses() // Reload classes
-        setNotification({
-          message: `Successfully joined "${result.className}"!`,
-          type: 'success'
-        })
-      } else {
-        setNotification({
-          message: `Failed to join class: ${result.error}`,
-          type: 'error'
-        })
-      }
-      setJoining(false)
+    } catch (e) {
+      console.warn('Could not read user gender, defaulting to Male', e)
     }
+
+    const result = await joinClass(
+      classCode.trim(),
+      auth.currentUser.uid,
+      auth.currentUser.displayName || 'Student',
+      auth.currentUser.email,
+      userGender
+    )
+
+    if (result.success) {
+      setShowJoinModal(false)
+      setClassCode('')
+      await loadDashboard()
+      setNotification({ message: `Successfully joined "${result.className}"!`, type: 'success' })
+    } else {
+      setNotification({ message: `Failed to join class: ${result.error}`, type: 'error' })
+    }
+    setJoining(false)
   }
 
   const handleCloseModal = () => {
@@ -112,13 +133,9 @@ function Dashboard() {
     setClassCode('')
   }
 
-  const handleClassClick = (classId) => {
-    navigate(`/dashboard/class/${classId}`)
-  }
-
   return (
     <div className="dashboard-page">
-      {/* Top Section - Student Name, Status Cards & Join Class Button */}
+      {/* Header */}
       <div className="dashboard-header">
         <div className="student-greeting">
           <h1>Welcome, {userName}!</h1>
@@ -150,9 +167,106 @@ function Dashboard() {
             View All
           </button>
         </div>
-        <div className="announcements-content">
-          <p className="empty-state">No announcements yet</p>
+
+        {loading ? (
+          <div className="announcements-content">
+            <p className="empty-state">Loading…</p>
+          </div>
+        ) : announcements.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {announcements.map(ann => (
+              <div key={ann.id} style={{
+                background: '#fff',
+                border: '1.5px solid #e5e7eb',
+                borderLeft: '4px solid #0038A8',
+                borderRadius: 10,
+                padding: '12px 16px',
+                cursor: 'pointer',
+              }} onClick={() => navigate('/dashboard/announcements')}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>
+                      {ann.title}
+                    </p>
+                    <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 6px',
+                      overflow: 'hidden', display: '-webkit-box',
+                      WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {ann.content}
+                    </p>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: '#0038A8', fontWeight: 600,
+                        background: '#eff6ff', padding: '2px 8px', borderRadius: 20 }}>
+                        {ann.className}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                        {formatDateTime(ann.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="announcements-content">
+            <p className="empty-state">No announcements yet</p>
+          </div>
+        )}
+      </div>
+
+      {/* Assignments Section */}
+      <div className="announcements-section">
+        <div className="section-header">
+          <h2>ASSIGNMENTS</h2>
+          <button className="btn-view-all" onClick={() => navigate('/dashboard/assignment')}>
+            View All
+          </button>
         </div>
+
+        {loading ? (
+          <div className="announcements-content">
+            <p className="empty-state">Loading…</p>
+          </div>
+        ) : upcomingAssignments.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {upcomingAssignments.map(ass => (
+              <div key={ass.id} style={{
+                background: '#fff',
+                border: '1.5px solid #e5e7eb',
+                borderLeft: '4px solid #0038A8',
+                borderRadius: 10,
+                padding: '12px 16px',
+                cursor: 'pointer',
+              }} onClick={() => navigate('/dashboard/assignment')}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>
+                      {ass.title}
+                    </p>
+                    <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 6px',
+                      overflow: 'hidden', display: '-webkit-box',
+                      WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {ass.description || 'No description provided'}
+                    </p>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: '#0038A8', fontWeight: 600,
+                        background: '#f0fdf4', padding: '2px 8px', borderRadius: 20 }}>
+                        {ass.className}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                        Due: {formatDateTime(ass.deadline)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="announcements-content">
+            <p className="empty-state">No upcoming assignments</p>
+          </div>
+        )}
       </div>
 
       {/* My Classes Section */}
@@ -176,10 +290,10 @@ function Dashboard() {
         ) : classes.length > 0 ? (
           <div className="classes-grid">
             {classes.slice(0, 4).map((classItem) => (
-              <div 
-                key={classItem.id} 
+              <div
+                key={classItem.id}
                 className="class-card"
-                onClick={() => handleClassClick(classItem.id)}
+                onClick={() => navigate(`/dashboard/class/${classItem.id}`)}
               >
                 <div className="class-card-header">
                   <h3>{classItem.name}</h3>
@@ -234,7 +348,6 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Notification */}
       {notification && (
         <Notification
           message={notification.message}
