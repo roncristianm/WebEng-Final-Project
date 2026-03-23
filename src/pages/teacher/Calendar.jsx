@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { getTeacherClasses } from '../../services/classService'
 import { getTeacherEvents } from '../../services/eventService'
@@ -40,6 +40,7 @@ function Calendar() {
 
   const [creating, setCreating] = useState(false)
   const [notification, setNotification] = useState(null)
+  const calendarRef = useRef(null)
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -167,32 +168,40 @@ function Calendar() {
     const daysInMonth = getDaysInMonth(currentDate)
     const firstDay = getFirstDayOfMonth(currentDate)
     const days = []
+    const maxVisibleEvents = window.innerWidth < 768 ? 2 : 3
+    const today = new Date()
+    const todayDayNum = today.getDate()
 
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>)
+      days.push(<div key={`empty-${i}`} className="calendar-day empty" id={`day-empty-${i}`}></div>)
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayEvents = getEventsForDate(day)
-      const today = new Date()
-      const isToday = day === today.getDate() && 
+      const isToday = day === todayDayNum && 
                       currentDate.getMonth() === today.getMonth() && 
                       currentDate.getFullYear() === today.getFullYear()
 
       days.push(
         <div 
           key={day} 
+          id={`calendar-day-${day}`}
           className={`calendar-day ${isToday ? 'today' : ''} clickable`}
           onClick={() => handleDayClick(day)}
+          onTouchStart={() => {}} 
+          role="button"
+          tabIndex={0}
+          aria-label={`Create event for day ${day}`}
+          data-day={day}
         >
           <div className="day-number">{day}</div>
           <div className="day-events">
-            {dayEvents.slice(0, 3).map(event => (
+            {dayEvents.slice(0, maxVisibleEvents).map(event => (
               <div key={event.id} className={`event-item ${event.type}`}>
-                {event.title.length > 20 ? `${event.title.slice(0, 20)}...` : event.title}
+                {event.title.length > 25 ? `${event.title.slice(0, 25)}...` : event.title}
               </div>
             ))}
-            {dayEvents.length > 3 && <div className="more-events">+{dayEvents.length - 3}</div>}
+            {dayEvents.length > maxVisibleEvents && <div className="more-events">+{dayEvents.length - maxVisibleEvents}</div>}
           </div>
         </div>
       )
@@ -200,6 +209,40 @@ function Calendar() {
 
     return days
   }
+
+  // Auto-scroll to today
+  useEffect(() => {
+    if (calendarRef.current && listMode === 'schedule' && viewMode === 'month') {
+      const timer = setTimeout(() => {
+        const todayElement = calendarRef.current?.querySelector('.calendar-day.today')
+        if (todayElement) {
+          todayElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          })
+        }
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [loading, currentDate, listMode, viewMode])
+
+  // Auto-scroll to today
+  useEffect(() => {
+    if (calendarRef.current && listMode === 'schedule' && viewMode === 'month') {
+      const timer = setTimeout(() => {
+        const todayElement = calendarRef.current?.querySelector('.calendar-day.today')
+        if (todayElement) {
+          todayElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          })
+        }
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [loading, currentDate, listMode, viewMode])
 
   if (loading) {
     return <div className="loading">Loading calendar...</div>
@@ -237,7 +280,7 @@ function Calendar() {
 
         {/* Month View */}
         {listMode === 'schedule' && viewMode === 'month' && (
-          <div className="calendar-grid">
+          <div className="calendar-grid" ref={calendarRef}>
             {dayNames.map(day => <div key={day} className="calendar-day-header">{day}</div>)}
             {renderCalendarDays()}
           </div>

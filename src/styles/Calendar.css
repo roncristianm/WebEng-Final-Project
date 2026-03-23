@@ -6,6 +6,10 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 1.5px solid #0038A8;
   max-width: 100%;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Calendar Header */
@@ -115,11 +119,63 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
+  gap: 2px;
   background: #e5e7eb;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: auto;
+  flex: 1;
+  min-height: 60vh;
+  max-height: 70vh;
+}
+
+@media (max-width: 768px) {
+  .calendar-grid {
+    display: flex !important;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 70vh;
+  }
+  
+  .calendar-day-header {
+    display: none;
+  }
+  
+  .calendar-day {
+    width: 100% !important;
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 0;
+    min-height: 140px;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  
+  .calendar-day:last-child {
+    border-bottom: none;
+  }
+  
+  .calendar-day.empty {
+    display: none;
+  }
+  
+  .day-number {
+    font-size: 18px !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin-bottom: 12px;
+    background: #f3f4f6;
+    border-radius: 12px;
+  }
+  
+  .calendar-day.today .day-number {
+    background: #0038A8 !important;
+    color: white !important;
+  }
+  
+  .day-events {
+    max-height: 90px !important;
+    gap: 8px;
+  }
 }
 
 .calendar-day-header {
@@ -528,7 +584,117 @@
   font-size: 14px;
 }
 
-/* Responsive */
+/* Enhanced Mobile Responsive Design */
+@media (max-width: 768px) {
+  .calendar-container {
+    padding: 24px;
+    margin: 0;
+    height: 90vh;
+  }
+  
+  .calendar-header {
+    flex-direction: column;
+    gap: 20px;
+    align-items: stretch;
+  }
+  
+  .calendar-nav {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .calendar-month {
+    font-size: 22px;
+    text-align: center;
+    order: 1;
+  }
+  
+  .list-mode-toggle, .view-toggle {
+    order: 2;
+    justify-content: center;
+  }
+  
+  .mode-btn, .toggle-btn {
+    padding: 12px 20px;
+    font-size: 15px;
+    min-height: 48px;
+  }
+  
+  .nav-btn {
+    padding: 12px 16px;
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  .calendar-day {
+    padding: 16px;
+  }
+  
+  .event-item {
+    font-size: 14px;
+    padding: 8px 12px;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-container {
+    padding: 20px 16px;
+  }
+  
+  .calendar-header {
+    gap: 16px;
+  }
+  
+  .mode-btn, .toggle-btn {
+    padding: 14px 16px;
+    font-size: 16px;
+    flex: 1;
+  }
+  
+  .list-mode-toggle {
+    gap: 4px;
+  }
+  
+  .calendar-day {
+    min-height: 110px;
+    padding: 10px 8px;
+  }
+  
+  .day-events {
+    max-height: 65px;
+  }
+}
+
+@media (max-width: 360px) {
+  .calendar-container {
+    padding: 16px 12px;
+  }
+  
+  .calendar-day {
+    min-height: 100px;
+    padding: 8px 6px;
+  }
+  
+  .day-number {
+    font-size: 18px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .calendar-day-header {
+    padding: 12px 4px;
+    font-size: 13px;
+  }
+  
+  .event-item {
+    font-size: 13px;
+    padding: 5px 8px;
+  }
+}
+
+/* Remove outdated 600px media query */
 @media (max-width: 600px) {
   .selected-classes {
     padding: 6px;
@@ -548,63 +714,6 @@
   
   .available-classes {
     max-height: 140px;
-  }
-}
-
-
-/* Responsive */
-@media (max-width: 768px) {
-  .calendar-container {
-    padding: 24px;
-  }
-  
-  .calendar-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .calendar-nav {
-    order: 3;
-    width: 100%;
-  }
-  
-  .calendar-month {
-    font-size: 20px;
-  }
-  
-  .list-mode-toggle, .view-toggle {
-    order: 2;
-  }
-  
-  .calendar-day {
-    min-height: 100px;
-  }
-}
-
-@media (max-width: 480px) {
-  .calendar-container {
-    padding: 16px;
-  }
-  
-  .calendar-day {
-    min-height: 80px;
-    padding: 6px;
-  }
-  
-  .day-events {
-    max-height: 50px;
-  }
-  
-  .type-tabs {
-    margin-bottom: 16px;
-  }
-  
-  .checkbox-label {
-    font-size: 13px;
-  }
-  
-  .class-checkboxes {
-    max-height: 150px;
   }
 }
 
