@@ -111,7 +111,6 @@
   font-weight: 600;
   color: #6b7280;
   cursor: pointer;
-
 }
 
 .tab-button.active {
@@ -257,14 +256,8 @@
   width: 100%;
 }
 
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-primary:active {
-  transform: scale(0.98);
-}
-
+.btn-primary:hover   { opacity: 0.9; }
+.btn-primary:active  { transform: scale(0.98); }
 .btn-primary:disabled {
   background: #9ca3af;
   cursor: not-allowed;
@@ -302,15 +295,81 @@
   cursor: pointer;
 }
 
-.auth-footer a:hover {
-  opacity: 0.8;
+.auth-footer a:hover { opacity: 0.8; }
+
+/* ── Forgot Password ────────────────────────────────────────── */
+
+/* sits below the password input, left-aligned */
+.lp-forgot-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0038A8;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  display: inline-block;
+  margin-top: 4px;
+  transition: opacity 0.15s;
+}
+.lp-forgot-btn:hover { opacity: 0.7; }
+
+/* reset password screen header */
+.lp-forgot-header  { margin-bottom: 20px; }
+.lp-forgot-title {
+  margin: 0 0 6px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1f2937;
+  font-family: 'Montserrat', -apple-system, sans-serif !important;
+}
+.lp-forgot-sub {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.5;
 }
 
-/* Responsive Design */
+/* success state after reset email sent */
+.lp-reset-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 0 8px;
+  gap: 14px;
+}
+.lp-reset-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: #dbeafe;
+  color: #0038A8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lp-reset-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  font-family: 'Montserrat', -apple-system, sans-serif !important;
+}
+.lp-reset-msg {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.6;
+  max-width: 300px;
+}
+.lp-reset-msg strong { color: #1f2937; font-weight: 700; }
+
+/* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  .auth-wrapper {
-    max-width: 100%;
-  }
+  .auth-wrapper { max-width: 100%; }
 
   .auth-header {
     flex-direction: column;
@@ -318,34 +377,17 @@
     gap: 16px;
   }
 
-  .auth-logo {
-    width: 60px;
-    height: 60px;
-  }
+  .auth-logo { width: 60px; height: 60px; }
 
-  .auth-text {
-    text-align: center;
-  }
+  .auth-text  { text-align: center; }
 
-  .brand-title {
-    font-size: 36px;
-  }
+  .brand-title       { font-size: 36px; }
+  .brand-description { font-size: 14px; }
 
-  .brand-description {
-    font-size: 14px;
-  }
+  .auth-card  { padding: 30px 24px; }
+  .form-title { font-size: 24px; }
 
-  .auth-card {
-    padding: 30px 24px;
-  }
-
-  .form-title {
-    font-size: 24px;
-  }
-
-  .form-group label {
-    font-size: 13px;
-  }
+  .form-group label { font-size: 13px; }
 
   .form-group input[type="text"],
   .form-group input[type="email"],
@@ -354,13 +396,7 @@
     font-size: 15px;
   }
 
-  .btn-primary {
-    padding: 12px 20px;
-    font-size: 15px;
-  }
+  .btn-primary { padding: 12px 20px; font-size: 15px; }
 
-  .tab-button {
-    padding: 10px 16px;
-    font-size: 14px;
-  }
+  .tab-button { padding: 10px 16px; font-size: 14px; }
 }

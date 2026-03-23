@@ -1,5 +1,28 @@
 // sheets-backend/emailRoutes.js
 const express = require('express')
+// Initialise Firebase Admin via verificationService (same pattern it already uses)
+const { initializeApp, cert, getApps } = require('firebase-admin/app')
+const { getAuth }                       = require('firebase-admin/auth')
+const fs   = require('fs')
+const path = require('path')
+
+function ensureAdminInit() {
+  if (getApps().length) return
+  let credential
+  const localKey = path.join(__dirname, 'credentials.json')
+  if (fs.existsSync(localKey)) {
+    credential = cert(JSON.parse(fs.readFileSync(localKey, 'utf8')))
+  } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
+    const raw = process.env.GOOGLE_SHEETS_CREDENTIALS
+    try { credential = cert(JSON.parse(raw)) }
+    catch { credential = cert(JSON.parse(raw.replace(/\\n/g, '\n'))) }
+  } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
+    credential = cert(JSON.parse(fs.readFileSync(process.env.GOOGLE_SHEETS_KEY_FILE, 'utf8')))
+  } else {
+    throw new Error('No Firebase Admin credentials found.')
+  }
+  initializeApp({ credential })
+}
 const router  = express.Router()
 const {
   sendEmail,
@@ -16,7 +39,6 @@ const {
   createVerificationToken,
   verifyToken,
   refreshVerificationToken,
-  getAdminUserData,
 } = require('./verificationService')
 
 // Wrap async handlers so errors are caught cleanly
@@ -123,9 +145,9 @@ router.post('/send-verification', wrap(async (req, res) => {
   if (!uid || !email || !name)
     return res.status(400).json({ success: false, error: 'uid, email, name are required' })
 
-  const token = await createVerificationToken(uid, email)
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000'
-  const verifyLink = `${backendUrl}/email/verify?token=${token}`
+  const token      = await createVerificationToken(uid, email)
+  const appUrl     = process.env.APP_URL || 'http://localhost:3000'
+  const verifyLink = `${appUrl}/verify?token=${token}`
 
   await sendEmail({
     to:      email,
@@ -143,9 +165,9 @@ router.post('/resend-verification', wrap(async (req, res) => {
   if (!uid || !email || !name)
     return res.status(400).json({ success: false, error: 'uid, email, name are required' })
 
-  const token = await refreshVerificationToken(uid, email)
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000'
-  const verifyLink = `${backendUrl}/email/verify?token=${token}`
+  const token      = await refreshVerificationToken(uid, email)
+  const appUrl     = process.env.APP_URL || 'http://localhost:3000'
+  const verifyLink = `${appUrl}/verify?token=${token}`
 
   await sendEmail({
     to:      email,
@@ -159,7 +181,6 @@ router.post('/resend-verification', wrap(async (req, res) => {
 // The link in the email points here. Verifies the token then redirects
 // back to the React app with a result param that VerifyEmail.jsx reads.
 router.get('/verify', wrap(async (req, res) => {
-  console.log('[verify] token:', req.query.token)
   const { token } = req.query
   const appUrl    = process.env.APP_URL || 'http://localhost:3000'
 
@@ -170,20 +191,6 @@ router.get('/verify', wrap(async (req, res) => {
   const result = await verifyToken(token)
 
   if (result.success) {
-    // Send welcome email now that user is verified
-    try {
-      const userData = await getAdminUserData(result.uid)
-      if (userData) {
-        await sendEmail({
-          to: result.email,
-          subject: `Welcome to Nexxus, ${userData.name}! 🎉`,
-          html: welcomeTemplate({ name: userData.name, role: userData.role }),
-        })
-      }
-    } catch (emailErr) {
-      console.error('[verify] Welcome email failed:', emailErr.message)
-    }
-
     return res.redirect(`${appUrl}/verify?verified=true`)
   }
 
@@ -198,6 +205,46 @@ router.post('/test', wrap(async (req, res) => {
   if (!to) return res.status(400).json({ success: false, error: 'to is required' })
   await sendEmail({ to, subject: '✅ Nexxus Email Test', html: welcomeTemplate({ name: 'Test User', role: 'student' }) })
   res.json({ success: true, message: `Test email sent to ${to}` })
+}))
+
+// ── POST /email/send-password-reset ──────────────────────────────────────────
+// Body: { email }
+// Generates a Firebase password reset link via Admin SDK,
+// then sends it through your custom branded email template.
+router.post('/send-password-reset', wrap(async (req, res) => {
+  const { email } = req.body
+  if (!email) return res.status(400).json({ success: false, error: 'email is required' })
+
+  // 1. Look up the user's display name via Admin SDK
+  ensureAdminInit()
+  let name = 'there'
+  try {
+    const userRecord = await getAuth().getUserByEmail(email)
+    if (userRecord.displayName) name = userRecord.displayName
+  } catch (err) {
+    // If user not found, Firebase Admin throws — treat as success (don't reveal existence)
+    if (err.code === 'auth/user-not-found') {
+      return res.json({ success: true, message: 'If that email exists, a reset link was sent.' })
+    }
+    throw err
+  }
+
+  // 2. Generate the reset link via Admin SDK
+  // Generate the Firebase reset link, extract the oobCode,
+  // then build a link to OUR page so user never sees Firebase's UI
+  const appUrl      = process.env.APP_URL || 'http://localhost:3000'
+  const firebaseLink = await getAuth().generatePasswordResetLink(email)
+  const oobCode      = new URL(firebaseLink).searchParams.get('oobCode')
+  const resetLink    = `${appUrl}/reset-password?oobCode=${oobCode}`
+
+  // 3. Send branded email
+  await sendEmail({
+    to:      email,
+    subject: '🔐 Reset Your Nexxus Password',
+    html:    passwordResetTemplate({ name, resetLink }),
+  })
+
+  res.json({ success: true })
 }))
 
 module.exports = router

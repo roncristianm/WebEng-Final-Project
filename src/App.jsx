@@ -6,6 +6,7 @@ import Signup from './pages/homepage/Signup'
 import PendingVerification from './pages/homepage/PendingVerification'
 import VerifyEmail from './pages/homepage/VerifyEmail'
 import ProtectedRoute from './components/ProtectedRoute'
+import ResetPassword from './pages/homepage/ResetPassword'
 
 // Student imports
 import StudentDashboard from './pages/student/StudentDashboard'
@@ -67,6 +68,7 @@ function App() {
         <Route path="/"       element={<LandingPage />} />
         <Route path="/login"  element={<LandingPage />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Email verification routes — no auth required */}
         <Route path="/pending-verification" element={<PendingVerification />} />
