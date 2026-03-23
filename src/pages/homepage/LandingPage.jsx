@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence, sendPasswordResetEmail } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
@@ -14,7 +14,10 @@ function LandingPage() {
   const [password, setPassword]   = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError]         = useState('')
-  const [loading, setLoading]     = useState(false)
+  const [loading,    setLoading]    = useState(false)
+  const [forgotMode,  setForgotMode]  = useState(false)
+  const [resetSent,   setResetSent]   = useState(false)
+  const [resetEmail,  setResetEmail]  = useState('')
   const navigate                  = useNavigate()
   const { currentUser }           = useAuth()
   const { showNotification }      = useNotification()
@@ -53,6 +56,27 @@ function LandingPage() {
     preventBack()
     return () => window.removeEventListener('popstate', preventBack)
   }, [])
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    console.log('Sending reset to:', resetEmail)
+    try {
+      await sendPasswordResetEmail(auth, resetEmail)
+      console.log('✅ sendPasswordResetEmail succeeded')
+      setResetSent(true)
+    } catch (err) {
+      console.error('❌ Reset error:', err.code, err.message)
+      switch (err.code) {
+        case 'auth/user-not-found':  setError('No account found with that email.'); break
+        case 'auth/invalid-email':   setError('Invalid email address.'); break
+        case 'auth/too-many-requests': setError('Too many attempts. Please wait a moment.'); break
+        default: setError('Failed to send reset email. Please try again.')
+      }
+    }
+    setLoading(false)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -139,30 +163,72 @@ function LandingPage() {
         </div>
 
         <div className="auth-card">
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" required />
-            </div>
+          {!forgotMode ? (
+            <>
+              <form onSubmit={handleSubmit} className="auth-form">
+                <div className="form-group">
+                  <label htmlFor="email">Email</label>
+                  <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" required />
+                </div>
 
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
-            </div>
+                <div className="form-group">
+                  <label htmlFor="password">Password</label>
+                  <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
+                  <button type="button" className="lp-forgot-btn" onClick={() => { setForgotMode(true); setError(''); setResetSent(false); setResetEmail(email) }}>
+                    Forgot password?
+                  </button>
+                </div>
 
-            <div className="form-group checkbox-group">
-              <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-              <label htmlFor="rememberMe" className="checkbox-label">Remember me</label>
-            </div>
+                <div className="form-group checkbox-group">
+                  <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                  <label htmlFor="rememberMe" className="checkbox-label">Remember me</label>
+                </div>
 
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Logging In...' : 'Log In'}
-            </button>
-          </form>
-
-          <div className="auth-footer">
-            <p>Don't have an account? <Link to="/signup">Sign Up</Link></p>
-          </div>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Logging In...' : 'Log In'}
+                </button>
+              </form>
+              <div className="auth-footer">
+                <p>Don't have an account? <Link to="/signup">Sign Up</Link></p>
+              </div>
+            </>
+          ) : (
+            <>
+              {!resetSent ? (
+                <form onSubmit={handleForgotPassword} className="auth-form">
+                  <div className="lp-forgot-header">
+                    <h2 className="lp-forgot-title">Reset Password</h2>
+                    <p className="lp-forgot-sub">Enter your email and we'll send you a reset link.</p>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="resetEmail">Email Address</label>
+                    <input type="email" id="resetEmail" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="Enter your email" autoFocus required />
+                  </div>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    {loading ? 'Sending…' : 'Send Reset Link'}
+                  </button>
+                </form>
+              ) : (
+                <div className="lp-reset-success">
+                  <div className="lp-reset-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </div>
+                  <h3 className="lp-reset-title">Check your inbox</h3>
+                  <p className="lp-reset-msg">A reset link was sent to <strong>{resetEmail}</strong>. Follow the instructions in the email to set a new password.</p>
+                </div>
+              )}
+              <div className="auth-footer">
+                <p>
+                  <button type="button" className="lp-forgot-btn" onClick={() => { setForgotMode(false); setError(''); setResetSent(false) }}>
+                    ← Back to Log In
+                  </button>
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
