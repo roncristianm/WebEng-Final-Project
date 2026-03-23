@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence, sendPasswordResetEmail } from 'firebase/auth'
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
@@ -61,19 +61,17 @@ function LandingPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    console.log('Sending reset to:', resetEmail)
     try {
-      await sendPasswordResetEmail(auth, resetEmail)
-      console.log('✅ sendPasswordResetEmail succeeded')
+      const res = await fetch('/sheets-api/email/send-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send reset email.')
       setResetSent(true)
     } catch (err) {
-      console.error('❌ Reset error:', err.code, err.message)
-      switch (err.code) {
-        case 'auth/user-not-found':  setError('No account found with that email.'); break
-        case 'auth/invalid-email':   setError('Invalid email address.'); break
-        case 'auth/too-many-requests': setError('Too many attempts. Please wait a moment.'); break
-        default: setError('Failed to send reset email. Please try again.')
-      }
+      setError(err.message || 'Failed to send reset email. Please try again.')
     }
     setLoading(false)
   }
