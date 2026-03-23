@@ -1,42 +1,51 @@
+import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { auth } from '../config/firebase'
 import { useNotification } from '../context/NotificationContext'
 import '../styles/Dashboard.css'
+import '../styles/Navbar.css'
 import bhsaLogo from '../assets/bhsa-logo.png'
+
+function LogoutModal({ onConfirm, onCancel }) {
+  return (
+    <div className="nb-modal-overlay" onClick={onCancel}>
+      <div className="nb-modal" onClick={e => e.stopPropagation()}>
+        <h3 className="nb-modal-title">Log Out</h3>
+        <p className="nb-modal-msg">Are you sure you want to log out?</p>
+        <div className="nb-modal-actions">
+          <button className="nb-modal-cancel" onClick={onCancel}>Cancel</button>
+          <button className="nb-modal-confirm" onClick={onConfirm}>Log Out</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
   const { showNotification } = useNotification()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
-  // Determine if user is on teacher dashboard
   const isTeacher = location.pathname.startsWith('/teacher-dashboard')
   const basePath = isTeacher ? '/teacher-dashboard' : '/dashboard'
 
-  const handleLogout = async () => {
+  const confirmLogout = async () => {
+    setShowLogoutModal(false)
     try {
       await signOut(auth)
-      console.log('User logged out successfully')
-      
-      // Show notification immediately
       showNotification('Logout successful!', 'success')
-      
-      // Clear browser history to prevent forward navigation
       window.history.pushState(null, '', '/login')
-      
-      // Clear cached data
       sessionStorage.clear()
       localStorage.removeItem('lastVisitedPage')
-      
-      // Wait for notification to be visible before redirecting
-      setTimeout(() => {
-        window.location.href = '/login'
-      }, 1500)
+      setTimeout(() => { window.location.href = '/login' }, 1500)
     } catch (error) {
       console.error('Logout error:', error)
     }
   }
+
+  const handleLogout = () => setShowLogoutModal(true)
 
   const isActive = (path) => {
     if (path === basePath) {
@@ -46,6 +55,7 @@ function Navbar() {
   }
 
   return (
+    <>
     <nav className="sidebar">
       <div className="sidebar-header">
         <img src={bhsaLogo} alt="BHSA Logo" className="sidebar-logo" />
@@ -142,6 +152,8 @@ function Navbar() {
         </button>
       </div>
     </nav>
+    {showLogoutModal && <LogoutModal onConfirm={confirmLogout} onCancel={() => setShowLogoutModal(false)} />}
+    </>
   )
 }
 
