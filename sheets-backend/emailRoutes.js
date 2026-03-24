@@ -146,8 +146,8 @@ router.post('/send-verification', wrap(async (req, res) => {
     return res.status(400).json({ success: false, error: 'uid, email, name are required' })
 
   const token      = await createVerificationToken(uid, email)
-  const appUrl     = process.env.APP_URL || 'http://localhost:3000'
-  const verifyLink = `${appUrl}/verify?token=${token}`
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000'
+  const verifyLink = `${backendUrl}/email/verify?token=${token}`
 
   await sendEmail({
     to:      email,
