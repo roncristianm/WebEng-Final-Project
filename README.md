@@ -1,122 +1,141 @@
-# Nexxus.BHSA
+# Nexxus · BHSA
 
-A modern web application for Bataan High School for the Arts, built with React, Vite, and Firebase.
+A role-based learning platform for Bataan High School for the Arts.
 
-## 📁 Project Structure
+This repo is a **Vite + React** single-page app backed by **Firebase (Auth, Firestore, Storage)**, plus two backend pieces:
+- **sheets-backend** (Express): Google Sheets integration + email flows (verification, password reset)
+- **functions** (Firebase Cloud Functions): automatic email notifications (Firestore triggers) + scheduled deadline reminders
+
+## Project structure (high-level)
 
 ```
-WebEng-Final-Project/
-├── public/
-│   └── vite.svg
-├── src/
-│   ├── components/      # Reusable React components
-│   ├── config/
-│   │   └── firebase.js  # Firebase configuration
-│   ├── context/         # React Context providers
-│   ├── hooks/           # Custom React hooks
-│   ├── pages/
-│   │   ├── Home.jsx
-│   │   └── Home.css
-│   ├── services/        # API and Firebase service functions
-│   ├── utils/           # Utility functions
-│   ├── App.jsx
-│   ├── App.css
-│   ├── main.jsx
-│   └── index.css
-├── .env.example         # Environment variables template
-├── .eslintrc.cjs        # ESLint configuration
-├── .gitignore
-├── index.html
-├── package.json
-├── vite.config.js
-└── README.md
+.
+├─ src/                  React app (pages, components, services)
+├─ sheets-backend/       Express API for Google Sheets + email routes
+├─ functions/            Firebase Cloud Functions (email notifications + scheduler)
+├─ firestore.rules       Firestore security rules
+├─ firebase.json         Firebase hosting + rules configuration
+└─ vite.config.js        Vite dev server + proxy (/sheets-api → localhost:4000)
 ```
 
-## 🚀 Getting Started
+## Local development
 
-### Prerequisites
+### Prereqs
+- Node.js 18+
+- A Firebase project with Auth + Firestore + Storage enabled
+- A Google Cloud service account JSON that can access:
+   - Google Sheets API for the class grade sheets
+   - Firebase Admin (used by the backend for verification/password reset helpers)
 
-- Node.js (v18 or higher)
-- npm or yarn
-- Firebase account
+### 1) Frontend (Vite)
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd WebEng-Final-Project
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up Firebase**
-   - Create a new Firebase project at [Firebase Console](https://console.firebase.google.com/)
-   - Enable Authentication, Firestore, and Storage services
-   - Copy your Firebase configuration
-
-4. **Configure environment variables**
-   - Copy `.env.example` to `.env`
-     ```bash
-     cp .env.example .env
-     ```
-   - Fill in your Firebase credentials in the `.env` file:
-     ```
-     VITE_FIREBASE_API_KEY=your_api_key
-     VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-     VITE_FIREBASE_PROJECT_ID=your_project_id
-     VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-     VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-     VITE_FIREBASE_APP_ID=your_app_id
-     ```
-
-5. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-   The app will open at `http://localhost:3000`
-
-## 📦 Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-## 🛠️ Tech Stack
-
-- **React 18** - UI library
-- **Vite** - Build tool and dev server
-- **Firebase** - Backend services (Auth, Firestore, Storage)
-- **React Router** - Client-side routing
-- **ESLint** - Code linting
-
-## 📝 Firebase Services Setup
-
-The project includes Firebase configuration for:
-
-- **Authentication** (`auth`) - User authentication
-- **Firestore** (`db`) - NoSQL database
-- **Storage** (`storage`) - File storage
-
-Import these services from `src/config/firebase.js`:
-
-```javascript
-import { auth, db, storage } from './config/firebase'
+```bash
+npm install
+npm run dev
 ```
 
-## 🎯 Next Steps
+Runs at `http://localhost:3000`.
 
-1. Set up your Firebase environment variables
-2. Create additional pages in `src/pages/`
-3. Build reusable components in `src/components/`
-4. Add authentication logic using Firebase Auth
-5. Create database operations in `src/services/`
-6. Implement custom hooks in `src/hooks/`
+### 2) Sheets backend (Express)
 
-## 📄 License
+In another terminal:
 
-This project is for educational purposes.
+```bash
+cd sheets-backend
+npm install
+npm run dev
+```
+
+Runs at `http://localhost:4000`.
+
+The frontend calls this backend via the Vite proxy:
+- Frontend uses `/sheets-api/...`
+- Vite proxies `/sheets-api` → `http://localhost:4000`
+
+### 3) Firebase Cloud Functions (optional for local)
+
+If you want to emulate the notification emails + scheduler locally:
+
+```bash
+cd functions
+npm install
+npm run serve
+```
+
+## Configuration
+
+### Firebase (frontend)
+
+Firebase client initialization is in `src/config/firebase.js`.
+
+If you fork this project, replace the Firebase config with your own Firebase project settings.
+
+### Sheets backend env vars
+
+The Express backend supports credentials via either a local file or env vars:
+
+- Credentials (pick one):
+   - `sheets-backend/credentials.json` (local dev only; do not commit)
+   - `GOOGLE_SHEETS_KEY_FILE` (path to a JSON file)
+   - `GOOGLE_SHEETS_CREDENTIALS` (service account JSON as a string)
+
+- URLs / CORS:
+   - `APP_URL` (comma-separated allowed origins; used for CORS + redirects)
+   - `BACKEND_URL` (used to build verification links in some flows)
+
+- Email (Brevo Transactional Email API):
+   - `BREVO_API_KEY`
+   - `BREVO_FROM_EMAIL` (optional; falls back to other values if omitted)
+
+### Cloud Functions env vars
+
+Cloud Functions send emails via Brevo SMTP. Configure these in the Functions environment (prefer Firebase Secrets, not committed `.env` files):
+
+- `BREVO_SMTP_LOGIN`
+- `BREVO_SMTP_KEY`
+- `BREVO_FROM_EMAIL` (optional)
+- `APP_URL` (base URL used in email links)
+
+## Key features (quick map)
+
+- Auth: signup/login, role-based dashboards (student/teacher)
+- Email verification required before dashboard access
+- Classes: create (teacher), join/leave (student), roster management
+- Assignments: create/edit/delete, per-student submission tracking, optional grade sync to Google Sheets
+- Announcements: create/delete, per-class feeds
+- Materials: upload files to Firebase Storage, link detection in descriptions
+- Calendar: consolidated assignment/announcement events
+- Automated emails:
+   - Firestore triggers (new assignment/announcement/material)
+   - Scheduled deadline reminders
+
+For a fuller inventory of services/endpoints, see FEATURE_LIST.md.
+
+## Scripts
+
+Frontend:
+- `npm run dev`
+- `npm run build`
+- `npm run preview`
+- `npm run lint`
+
+Sheets backend:
+- `npm run dev` (in `sheets-backend/`)
+- `npm start` (in `sheets-backend/`)
+
+Functions:
+- `npm run serve` (in `functions/`)
+- `npm run deploy` (in `functions/`)
+
+## Deployment notes
+
+- Frontend can be deployed to Firebase Hosting (see `firebase.json`) or Vercel (see `vercel.json`).
+- Deploy the sheets backend somewhere public (Railway/Render/etc). Then set `VITE_BACKEND_URL` in the frontend so it calls the backend directly in production.
+
+## Security note
+
+Do not commit secrets (service-account JSON, Brevo keys, SMTP passwords) to git. If any credentials were committed during development, rotate them.
+
+## License
+
+Educational project.
