@@ -5,7 +5,7 @@ import { joinClass, getStudentClasses } from '../../services/classService'
 import { getStudentAssignments } from '../../services/assignmentService'
 import { getStudentAnnouncements } from '../../services/announcementService'
 import Notification from '../../components/Notification'
-import '../../styles/StudentDashboard.css'
+import '../../styles/Studentdashboard.css'
 
 export default function Dashboard() {
   const navigate = useNavigate()

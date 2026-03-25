@@ -9,15 +9,36 @@ require('dotenv').config()
   const app = express()
   const PORT = process.env.PORT || 4000
 
-  app.use(bodyParser.json({ limit: '1mb' }))
-  app.use('/email', emailRoutes)
+  // ── CORS ───────────────────────────────────────────────────────────────────
+  // When the frontend is deployed (Vercel / Firebase Hosting), requests will be
+  // cross-origin. Allow only configured origins when APP_URL is provided.
+  const allowedOrigins = String(process.env.APP_URL || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*')
+    const origin = req.headers.origin
+    if (!origin) {
+      // Non-browser request (health checks, curl, etc.)
+      res.header('Access-Control-Allow-Origin', '*')
+    } else if (allowedOrigins.length === 0) {
+      res.header('Access-Control-Allow-Origin', '*')
+    } else if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin)
+    }
+
+    res.header('Vary', 'Origin')
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS')
-    res.header('Access-Control-Allow-Headers', 'Content-Type')
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+
     if (req.method === 'OPTIONS') return res.sendStatus(200)
     next()
   })
+
+  app.use(bodyParser.json({ limit: '1mb' }))
+  app.use('/email', emailRoutes)
+
 
 
 

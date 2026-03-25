@@ -8,6 +8,7 @@ import { useNotification } from '../../context/NotificationContext'
 import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
+import { SHEETS_EMAIL_API_BASE } from '../../config/sheetsBackend'
 
 function Signup() {
   const [name, setName]                       = useState('')
@@ -90,7 +91,7 @@ function Signup() {
 
       // Send verification email via sheets-backend
       try {
-        const res  = await fetch('/sheets-api/email/send-verification', {
+        const res  = await fetch(`${SHEETS_EMAIL_API_BASE}/send-verification`, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({

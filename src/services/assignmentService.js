@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
-const SHEETS_API = '/sheets-api'
+import { SHEETS_API_BASE as SHEETS_API } from '../config/sheetsBackend'
 
 export const createAssignmentSingle = async (assignmentData) => {
   try {
