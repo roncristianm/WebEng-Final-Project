@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/Modal.css';
 
 function CreateClassModal({ open, onClose, onCreate, creating }) {
   const [className, setClassName] = useState('');

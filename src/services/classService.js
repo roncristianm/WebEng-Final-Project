@@ -91,6 +91,7 @@ export const joinClass = async (classCode, studentId, studentName, studentEmail,
     const studentDoc = await getDoc(studentRef)
     if (studentDoc.exists()) return { success: false, error: 'You are already enrolled in this class' }
 
+
     // Add student to Firestore
     await setDoc(studentRef, {
       studentId,
@@ -99,6 +100,29 @@ export const joinClass = async (classCode, studentId, studentName, studentEmail,
       gender,
       joinedAt: serverTimestamp()
     })
+
+    // ── Add submission records for all existing assignments in this class ──
+    try {
+      const assignmentsQuery = query(collection(db, 'assignments'), where('classId', '==', classId))
+      const assignmentsSnapshot = await getDocs(assignmentsQuery)
+      const submissionPromises = assignmentsSnapshot.docs.map(async (assignmentDoc) => {
+        const submissionRef = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
+        const submissionSnap = await getDoc(submissionRef)
+        if (!submissionSnap.exists()) {
+          await setDoc(submissionRef, {
+            studentId,
+            studentName,
+            studentEmail,
+            status: 'not_submitted',
+            submittedAt: null,
+            score: null
+          })
+        }
+      })
+      await Promise.all(submissionPromises)
+    } catch (err) {
+      console.error('Error adding submissions for new student:', err)
+    }
 
     // Add student to Google Sheet INPUT_DATA if sheetId exists
     if (classData.sheetId) {
@@ -183,6 +207,18 @@ export const leaveClass = async (classId, studentId) => {
   try {
     const studentRef = doc(db, 'classes', classId, 'students', studentId)
     await deleteDoc(studentRef)
+    // Remove student's submissions from all assignments in this class
+    try {
+      const assignmentsQuery = query(collection(db, 'assignments'), where('classId', '==', classId))
+      const assignmentsSnapshot = await getDocs(assignmentsQuery)
+      const deletePromises = assignmentsSnapshot.docs.map(async (assignmentDoc) => {
+        const submissionRef = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
+        await deleteDoc(submissionRef)
+      })
+      await Promise.all(deletePromises)
+    } catch (err) {
+      console.error('Error removing student submissions on leave:', err)
+    }
     const classRef = doc(db, 'classes', classId)
     await updateDoc(classRef, { studentCount: increment(-1) })
     return { success: true }

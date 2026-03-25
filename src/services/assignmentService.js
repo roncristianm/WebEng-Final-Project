@@ -110,9 +110,18 @@ export const getClassAssignments = async (classId) => {
     const q = query(collection(db, 'assignments'), where('classId', '==', classId))
     const snapshot = await getDocs(q)
     const assignments = []
-    snapshot.forEach((doc) => {
-      assignments.push({ id: doc.id, ...doc.data() })
-    })
+    for (const assignmentDoc of snapshot.docs) {
+      const assignmentData = { id: assignmentDoc.id, ...assignmentDoc.data() }
+      // Fetch submissions for this assignment
+      const submissionsRef = collection(db, 'assignments', assignmentDoc.id, 'submissions')
+      const submissionsSnapshot = await getDocs(submissionsRef)
+      const submissions = []
+      submissionsSnapshot.forEach((subDoc) => {
+        submissions.push({ id: subDoc.id, ...subDoc.data() })
+      })
+      assignmentData.submissions = submissions
+      assignments.push(assignmentData)
+    }
     assignments.sort((a, b) => {
       const aTime = a.createdAt?.toMillis?.() || 0
       const bTime = b.createdAt?.toMillis?.() || 0
