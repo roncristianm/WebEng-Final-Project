@@ -601,6 +601,249 @@ require('dotenv').config()
     }
   })
 
+  // ── Update assignment in sheet (called when teacher edits an assignment) ──────
+  // Handles ALL combinations:
+  //   • possibleScore changed   → update HPS cell only
+  //   • type changed            → move HPS + all student scores to new column; clear old column
+  //   • quarter changed         → clear old quarter tab column; write to new quarter tab column
+  //   • type + quarter changed  → combination of the above
+  //
+  // POST body: {
+  //   sheetId,
+  //   old: { type, quarter, itemNumber, possibleScore },
+  //   new: { type, quarter, itemNumber, possibleScore },
+  //   studentScores: [{ studentName, score }]   // all graded submissions
+  // }
+  app.post('/update-assignment-in-sheet', async (req, res) => {
+    try {
+      const { sheetId, old: oldA, new: newA, studentScores = [] } = req.body
+
+      if (!sheetId || !oldA || !newA)
+        return res.status(400).json({ error: 'sheetId, old, and new are required' })
+
+      const sheets = getSheetsClient()
+      const tabs   = await resolveTabNames(sheetId, sheets)
+
+      const SHEET_HPS_ROW = 10
+
+      // Helper: read header rows for a given quarter tab
+      async function getHeaders(quarter) {
+        const sheetName = getQuarterTab(tabs, quarter)
+        if (!sheetName) return null
+        const r = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `${sheetName}!A8:AZ9`
+        })
+        const rows = r.data.values || []
+        return { sheetName, groupHeaderRow: rows[0] || [], subHeaderRow: rows[1] || [] }
+      }
+
+      // Helper: read all rows for a quarter tab (needed to find student row indices)
+      async function getAllRows(sheetName) {
+        const r = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+        return r.data.values || []
+      }
+
+      const typeChanged    = oldA.type    !== newA.type
+      const quarterChanged = oldA.quarter !== newA.quarter
+      const scoreChanged   = oldA.possibleScore !== newA.possibleScore
+      const somethingMoved = typeChanged || quarterChanged
+
+      // ── Step 1: resolve OLD column ───────────────────────────────────────────
+      const oldHeaders = await getHeaders(oldA.quarter)
+      if (!oldHeaders) return res.status(400).json({ error: `Cannot find tab for old quarter ${oldA.quarter}` })
+
+      const oldColIndex = resolveColumnByItemNumber(
+        oldHeaders.groupHeaderRow, oldHeaders.subHeaderRow,
+        oldA.type, oldA.itemNumber
+      )
+      if (oldColIndex === -1)
+        return res.status(400).json({ error: `Cannot resolve old column for ${oldA.type} item ${oldA.itemNumber}` })
+
+      const oldColLetter = columnToLetter(oldColIndex + 1)
+
+      // ── Step 2: resolve NEW column ───────────────────────────────────────────
+      const newHeaders = quarterChanged ? await getHeaders(newA.quarter) : oldHeaders
+      if (!newHeaders) return res.status(400).json({ error: `Cannot find tab for new quarter ${newA.quarter}` })
+
+      const newColIndex = resolveColumnByItemNumber(
+        newHeaders.groupHeaderRow, newHeaders.subHeaderRow,
+        newA.type, newA.itemNumber
+      )
+      if (newColIndex === -1)
+        return res.status(400).json({ error: `Cannot resolve new column for ${newA.type} item ${newA.itemNumber}` })
+
+      const newColLetter = columnToLetter(newColIndex + 1)
+
+      const batchClear = []   // cells to blank out
+      const batchWrite = []   // cells to write new values
+
+      // ── Step 3: clear old HPS cell ───────────────────────────────────────────
+      batchClear.push({
+        range: `${oldHeaders.sheetName}!${oldColLetter}${SHEET_HPS_ROW}`,
+        values: [['']]
+      })
+
+      // ── Step 4: write new HPS cell ───────────────────────────────────────────
+      batchWrite.push({
+        range: `${newHeaders.sheetName}!${newColLetter}${SHEET_HPS_ROW}`,
+        values: [[newA.possibleScore]]
+      })
+
+      // ── Step 5: move student scores if type or quarter changed ───────────────
+      if (somethingMoved && studentScores.length > 0) {
+        const oldAllRows = await getAllRows(oldHeaders.sheetName)
+        const newAllRows = quarterChanged
+          ? await getAllRows(newHeaders.sheetName)
+          : oldAllRows
+
+        for (const { studentName, score } of studentScores) {
+          if (score === null || score === undefined) continue
+
+          // Find student row in OLD tab
+          let oldRowIdx = -1
+          for (let i = 11; i < oldAllRows.length; i++) {
+            if (String(oldAllRows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+              oldRowIdx = i; break
+            }
+          }
+          if (oldRowIdx === -1) continue
+
+          // Clear the old cell
+          batchClear.push({
+            range: `${oldHeaders.sheetName}!${oldColLetter}${oldRowIdx + 1}`,
+            values: [['']]
+          })
+
+          // Find student row in NEW tab (same tab if only type changed)
+          let newRowIdx = oldRowIdx
+          if (quarterChanged) {
+            newRowIdx = -1
+            for (let i = 11; i < newAllRows.length; i++) {
+              if (String(newAllRows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+                newRowIdx = i; break
+              }
+            }
+            if (newRowIdx === -1) continue   // student not in new quarter tab
+          }
+
+          // Write score to new cell
+          batchWrite.push({
+            range: `${newHeaders.sheetName}!${newColLetter}${newRowIdx + 1}`,
+            values: [[score]]
+          })
+        }
+      } else if (!somethingMoved && scoreChanged) {
+        // Only possibleScore changed — HPS write above is sufficient, scores don't move
+        console.log(`Only possibleScore changed (${oldA.possibleScore} → ${newA.possibleScore}), updating HPS only`)
+      }
+
+      // ── Step 6: execute batch clear then batch write ─────────────────────────
+      if (batchClear.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: batchClear }
+        })
+        console.log(`Cleared ${batchClear.length} old cells`)
+      }
+
+      if (batchWrite.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: batchWrite }
+        })
+        console.log(`Wrote ${batchWrite.length} new cells`)
+      }
+
+      const moved = batchWrite.length - 1   // minus the HPS write
+      console.log(`✅ update-assignment-in-sheet: type=${oldA.type}→${newA.type}, quarter=${oldA.quarter}→${newA.quarter}, col=${oldColLetter}→${newColLetter}, ${moved} scores moved`)
+      res.json({
+        success: true,
+        oldCell:  `${oldHeaders.sheetName}!${oldColLetter}`,
+        newCell:  `${newHeaders.sheetName}!${newColLetter}`,
+        scoresMoved: moved
+      })
+
+    } catch (err) {
+      console.error('update-assignment-in-sheet error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Clear a student's score cells when they leave or are removed ─────────────
+  // POST body: {
+  //   sheetId,
+  //   studentName,
+  //   assignments: [{ type, quarter, itemNumber }]
+  // }
+  app.post('/clear-student-scores', async (req, res) => {
+    try {
+      const { sheetId, studentName, assignments } = req.body
+      if (!sheetId || !studentName || !Array.isArray(assignments) || assignments.length === 0)
+        return res.status(400).json({ error: 'sheetId, studentName, and assignments array are required' })
+
+      const sheets   = getSheetsClient()
+      const tabs     = await resolveTabNames(sheetId, sheets)
+
+      // Group assignments by quarter so we only fetch each tab's rows once
+      const byQuarter = {}
+      for (const a of assignments) {
+        const q = a.quarter || 'Q1'
+        if (!byQuarter[q]) byQuarter[q] = []
+        byQuarter[q].push(a)
+      }
+
+      const clearData = []
+
+      for (const [quarter, qAssignments] of Object.entries(byQuarter)) {
+        const sheetName = getQuarterTab(tabs, quarter)
+        if (!sheetName) continue
+
+        // Read headers + all rows for this tab
+        const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+        const rows     = response.data.values || []
+
+        const groupHeaderRow = rows[7] || []
+        const subHeaderRow   = rows[8] || []
+
+        // Find the student's row index
+        let studentRowIdx = -1
+        for (let i = 11; i < rows.length; i++) {
+          if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+            studentRowIdx = i; break
+          }
+        }
+        if (studentRowIdx === -1) continue   // student not found in this tab
+
+        // For each assignment, resolve the column and queue a clear
+        for (const a of qAssignments) {
+          const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, a.type, a.itemNumber)
+          if (colIndex === -1) continue
+          clearData.push({
+            range:  `${sheetName}!${columnToLetter(colIndex + 1)}${studentRowIdx + 1}`,
+            values: [['']]
+          })
+        }
+      }
+
+      if (clearData.length === 0) {
+        return res.json({ success: true, message: 'No cells to clear', cleared: 0 })
+      }
+
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody:   { valueInputOption: 'USER_ENTERED', data: clearData }
+      })
+
+      console.log(`✅ clear-student-scores: cleared ${clearData.length} cells for "${studentName}"`)
+      res.json({ success: true, cleared: clearData.length, studentName })
+
+    } catch (err) {
+      console.error('clear-student-scores error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   // ── Append grade rows ────────────────────────────────────────────────────────
   app.post('/append-grade', async (req, res) => {
     try {

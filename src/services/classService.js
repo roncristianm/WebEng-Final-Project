@@ -205,20 +205,55 @@ export const getClassStudents = async (classId) => {
 
 export const leaveClass = async (classId, studentId) => {
   try {
-    const studentRef = doc(db, 'classes', classId, 'students', studentId)
+    const studentRef  = doc(db, 'classes', classId, 'students', studentId)
+    const studentSnap = await getDoc(studentRef)
+    const studentName = studentSnap.exists() ? studentSnap.data().name : null
+
     await deleteDoc(studentRef)
-    // Remove student's submissions from all assignments in this class
+
+    // Remove student's Firestore submissions and collect scored ones for sheet cleanup
+    const scoredAssignments = []
     try {
-      const assignmentsQuery = query(collection(db, 'assignments'), where('classId', '==', classId))
+      const assignmentsQuery    = query(collection(db, 'assignments'), where('classId', '==', classId))
       const assignmentsSnapshot = await getDocs(assignmentsQuery)
-      const deletePromises = assignmentsSnapshot.docs.map(async (assignmentDoc) => {
-        const submissionRef = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
-        await deleteDoc(submissionRef)
+      const deletePromises      = assignmentsSnapshot.docs.map(async (assignmentDoc) => {
+        const submissionRef  = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
+        const submissionSnap = await getDoc(submissionRef)
+        if (submissionSnap.exists()) {
+          const sub   = submissionSnap.data()
+          const aData = assignmentDoc.data()
+          if (sub.score !== null && sub.score !== undefined) {
+            scoredAssignments.push({
+              type:       aData.type,
+              quarter:    aData.quarter || 'Q1',
+              itemNumber: aData.itemNumber,
+            })
+          }
+          await deleteDoc(submissionRef)
+        }
       })
       await Promise.all(deletePromises)
     } catch (err) {
       console.error('Error removing student submissions on leave:', err)
     }
+
+    // Clear the student's score cells from Google Sheets
+    if (studentName && scoredAssignments.length > 0) {
+      try {
+        const classDoc = await getDoc(doc(db, 'classes', classId))
+        const sheetId  = classDoc.exists() ? classDoc.data().sheetId : null
+        if (sheetId) {
+          await fetch('/sheets-api/clear-student-scores', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ sheetId, studentName, assignments: scoredAssignments })
+          })
+        }
+      } catch (sheetErr) {
+        console.error('Error clearing student from sheet (non-critical):', sheetErr)
+      }
+    }
+
     const classRef = doc(db, 'classes', classId)
     await updateDoc(classRef, { studentCount: increment(-1) })
     return { success: true }
@@ -226,6 +261,11 @@ export const leaveClass = async (classId, studentId) => {
     console.error('Error leaving class:', error)
     return { success: false, error: error.message }
   }
+}
+
+// Teacher removes a student — same logic as leaveClass
+export const removeStudent = async (classId, studentId) => {
+  return leaveClass(classId, studentId)
 }
 
 export const deleteClass = async (classId) => {

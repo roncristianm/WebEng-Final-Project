@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
-import { getClassById, getClassStudents, deleteClass } from '../../services/classService'
+import { getClassById, getClassStudents, deleteClass, removeStudent } from '../../services/classService'
 import { getClassAssignments, createAssignmentSingle, getAssignmentById } from '../../services/assignmentService'
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
@@ -445,6 +445,26 @@ export default function TeacherClassDetail() {
   const handleDeleteAnn        = (id, t) => confirmDelete('Delete Announcement', `Delete "${t}"?`,         async () => { setConfirmDialog(null); const { deleteAnnouncement } = await import('../../services/announcementService'); const r = await deleteAnnouncement(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
   const handleDeleteClass      = () => confirmDelete('Delete Class',          `Delete "${classData?.name}"? All data will be permanently removed.`, async () => { setConfirmDialog(null); const r = await deleteClass(classId); if (r.success) navigate('/teacher-dashboard/class'); else setNotification({ message: r.error, type: 'error' }) })
 
+  const handleRemoveStudent = (student) => {
+    setConfirmDialog({
+      title:       'Remove Student',
+      message:     `Remove "${student.name}" from this class? Their scores will be cleared from the grade sheet.`,
+      onConfirm:   async () => {
+        setConfirmDialog(null)
+        const r = await removeStudent(classId, student.id)
+        if (r.success) {
+          setNotification({ message: `${student.name} removed from class`, type: 'success' })
+          loadClassData()
+        } else {
+          setNotification({ message: `Error: ${r.error}`, type: 'error' })
+        }
+      },
+      onCancel:    () => setConfirmDialog(null),
+      confirmText: 'Remove',
+      type:        'danger',
+    })
+  }
+
   const feed = [
     ...announcements.map(a => ({ ...a, _type: 'announcement', _date: a.createdAt })),
     ...materials.map(m    => ({ ...m, _type: 'material',      _date: m.createdAt })),
@@ -673,6 +693,13 @@ export default function TeacherClassDetail() {
                               <span className="tcd-stat-pill tcd-stat-pill--green">{Icons.check} {st?.completed ?? 0} done</span>
                               {(st?.overdue ?? 0) > 0 && <span className="tcd-stat-pill tcd-stat-pill--red">{Icons.alert} {st.overdue} overdue</span>}
                             </div>
+                            <button
+                              onClick={() => handleRemoveStudent(s)}
+                              title="Remove student"
+                              style={{ marginLeft: 'auto', background: 'none', border: '1px solid #fca5a5', borderRadius: 6, color: '#ef4444', fontSize: 12, padding: '3px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              Remove
+                            </button>
                           </div>
                         )
                       })
