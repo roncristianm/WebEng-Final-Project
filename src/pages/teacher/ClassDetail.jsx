@@ -428,7 +428,7 @@ export default function TeacherClassDetail() {
     setEditSaving(true)
     let result
     if (editType === 'announcement') result = await updateAnnouncement(editTarget.id, fields)
-    else if (editType === 'assignment')   result = await updateAssignment(editTarget.id, fields)
+    else if (editType === 'assignment')   result = await updateAssignment(editTarget.id, fields, editTarget)
     else if (editType === 'material')     result = await updateMaterial(editTarget.id, fields)
     setEditSaving(false)
     if (result?.success) {

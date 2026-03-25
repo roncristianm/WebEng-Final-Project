@@ -211,8 +211,7 @@ export const leaveClass = async (classId, studentId) => {
 
     await deleteDoc(studentRef)
 
-    // Remove student's Firestore submissions and collect scored ones for sheet cleanup
-    const scoredAssignments = []
+    // Remove student's Firestore submissions
     try {
       const assignmentsQuery    = query(collection(db, 'assignments'), where('classId', '==', classId))
       const assignmentsSnapshot = await getDocs(assignmentsQuery)
@@ -220,15 +219,6 @@ export const leaveClass = async (classId, studentId) => {
         const submissionRef  = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
         const submissionSnap = await getDoc(submissionRef)
         if (submissionSnap.exists()) {
-          const sub   = submissionSnap.data()
-          const aData = assignmentDoc.data()
-          if (sub.score !== null && sub.score !== undefined) {
-            scoredAssignments.push({
-              type:       aData.type,
-              quarter:    aData.quarter || 'Q1',
-              itemNumber: aData.itemNumber,
-            })
-          }
           await deleteDoc(submissionRef)
         }
       })
@@ -250,14 +240,12 @@ export const leaveClass = async (classId, studentId) => {
             body:    JSON.stringify({ sheetId, studentName, gender: studentSnap.exists() ? (studentSnap.data().gender || 'Male') : 'Male' })
           }).catch(e => console.error('Error removing student from INPUT DATA (non-critical):', e))
 
-          // Also clear scored cells if any
-          if (scoredAssignments.length > 0) {
-            await fetch(`${SHEETS_API}/clear-student-scores`, {
-              method:  'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body:    JSON.stringify({ sheetId, studentName, assignments: scoredAssignments })
-            }).catch(e => console.error('Error clearing student scores (non-critical):', e))
-          }
+          // Remove student row from all Q1–Q4 grade tabs and shift remaining rows up
+          await fetch(`${SHEETS_API}/remove-student-from-quarter-sheets`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ sheetId, studentName, quarters: ['Q1', 'Q2', 'Q3', 'Q4'] })
+          }).catch(e => console.error('Error removing student row from quarter sheets (non-critical):', e))
         }
       } catch (sheetErr) {
         console.error('Error updating sheet on student leave (non-critical):', sheetErr)

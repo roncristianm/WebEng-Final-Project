@@ -845,6 +845,86 @@ require('dotenv').config()
     }
   })
 
+  // ── Remove student row from all quarter grade tabs and shift names up ────────
+  app.post('/remove-student-from-quarter-sheets', async (req, res) => {
+    try {
+      const { sheetId, studentName, quarters = ['Q1', 'Q2', 'Q3', 'Q4'] } = req.body
+      if (!sheetId || !studentName)
+        return res.status(400).json({ error: 'sheetId and studentName required' })
+
+      const sheets  = getSheetsClient()
+      const tabs    = await resolveTabNames(sheetId, sheets)
+
+      // Get the real sheet IDs (numeric sheetId per tab) for deleteRows requests
+      const meta = await sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties'
+      })
+      const sheetProps = meta.data.sheets.map(s => s.properties)
+
+      const results = []
+
+      for (const quarter of quarters) {
+        const sheetName = getQuarterTab(tabs, quarter)
+        if (!sheetName) continue
+
+        // Read all rows from the quarter tab
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: sheetName
+        })
+        const rows = response.data.values || []
+
+        // Find student row (names start at row index 11, i.e. row 12 in sheet)
+        let studentRowIdx = -1
+        for (let i = 11; i < rows.length; i++) {
+          if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+            studentRowIdx = i
+            break
+          }
+        }
+        if (studentRowIdx === -1) {
+          results.push({ quarter, status: 'not found' })
+          continue
+        }
+
+        // Find the numeric sheetId for this tab (needed for deleteRows)
+        const cleanName = sheetName.replace(/^'|'$/g, '')
+        const tabProp = sheetProps.find(p => p.title === cleanName)
+        if (!tabProp) {
+          results.push({ quarter, status: 'tab not found in sheet metadata' })
+          continue
+        }
+        const tabSheetId = tabProp.sheetId
+
+        // Delete the student row using batchUpdate deleteDimension
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId:    tabSheetId,
+                  dimension:  'ROWS',
+                  startIndex: studentRowIdx,     // 0-based
+                  endIndex:   studentRowIdx + 1  // exclusive
+                }
+              }
+            }]
+          }
+        })
+
+        console.log(`✅ Removed row ${studentRowIdx + 1} for "${studentName}" from ${quarter} tab`)
+        results.push({ quarter, status: 'removed', rowIndex: studentRowIdx + 1 })
+      }
+
+      res.json({ success: true, studentName, results })
+    } catch (err) {
+      console.error('remove-student-from-quarter-sheets error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   // ── Append grade rows ────────────────────────────────────────────────────────
   app.post('/append-grade', async (req, res) => {
     try {
