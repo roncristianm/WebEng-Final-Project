@@ -216,7 +216,7 @@ function AssignmentModal({ assignment, submission, onClose, onSubmit, submitting
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" style={{ paddingBottom: 32 }}>
           {/* Info row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
             {[
