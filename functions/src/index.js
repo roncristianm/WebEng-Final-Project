@@ -265,11 +265,11 @@ exports.deadlineReminderScheduler = onSchedule(
 
     const pending = await getPendingDeadlines(25)
 
-    // Only fire at the two reminder windows — prevents hourly spam
+    // Only fire at exactly 24h and 12h before deadline
     const toRemind = pending.filter(
       (item) =>
-        (item.hoursLeft >= 20 && item.hoursLeft <= 24) ||
-        (item.hoursLeft >= 4  && item.hoursLeft <= 6)
+        (item.hoursLeft >= 23 && item.hoursLeft <= 25) || // 1 day left (24h window)
+        (item.hoursLeft >= 11 && item.hoursLeft <= 13)    // 12h left (12h window)
     )
 
     if (!toRemind.length) {
