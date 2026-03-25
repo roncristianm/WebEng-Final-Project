@@ -19,8 +19,18 @@ export const createAssignmentSingle = async (assignmentData) => {
     const {
       title, description, classId, className,
       teacherId, teacherName, type, deadline,
-      possibleScore, quarter = 'Q1', itemNumber = 1
+      possibleScore, quarter = 'Q1'
     } = assignmentData
+
+    // Find the next itemNumber for this type and quarter in this class
+    const q = query(
+      collection(db, 'assignments'),
+      where('classId', '==', classId),
+      where('type', '==', type),
+      where('quarter', '==', quarter)
+    )
+    const snapshot = await getDocs(q)
+    const itemNumber = snapshot.size + 1
 
     const assignmentRef = doc(collection(db, 'assignments'))
     await setDoc(assignmentRef, {
