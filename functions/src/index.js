@@ -48,7 +48,7 @@ setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 })
 
 // ── Helper: resolve APP_URL with fallback ─────────────────────────────────────
 function appUrl() {
-  return process.env.APP_URL || 'https://nexxus-65975.web.app'
+  return process.env.APP_URL || 'https://bhsanexxus.vercel.app'
 }
 
 // ── CORS helper for HTTP functions ────────────────────────────────────────────
