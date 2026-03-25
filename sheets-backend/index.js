@@ -568,6 +568,82 @@ require('dotenv').config()
     }
   })
 
+  // ── Delete assignment column from sheet (clear HPS + all scores) ───────────
+  app.post('/delete-assignment-from-sheet', async (req, res) => {
+    try {
+      const {
+        sheetId,
+        assignmentType,
+        assignmentId,
+        itemNumber,
+        quarter = 'Q1'
+      } = req.body
+
+      if (!sheetId || !assignmentType)
+        return res.status(400).json({ error: 'sheetId and assignmentType are required' })
+
+      if (itemNumber === undefined && itemNumber === null && !assignmentId)
+        return res.status(400).json({ error: 'Either itemNumber or assignmentId is required' })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      // Read headers + HPS row for column resolution.
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!A8:AZ10`
+      })
+      const headerRows     = headerResp.data.values || []
+      const groupHeaderRow = headerRows[0] || []
+      const subHeaderRow   = headerRows[1] || []
+      const hpsRow         = headerRows[2] || []
+
+      let colIndex = -1
+
+      if (itemNumber !== undefined && itemNumber !== null) {
+        colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+        if (colIndex === -1)
+          return res.status(400).json({
+            error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column. ` +
+                   `Verify the sheet has numbered slots 1–10 in the correct section.`
+          })
+      } else {
+        // Legacy fallback: find the slot that has the assignmentId stored in HPS row.
+        let keyword
+        if      (assignmentType === 'Written Works')        keyword = 'written'
+        else if (assignmentType === 'Performance Task')     keyword = 'performance'
+        else if (assignmentType === 'Quarterly Assessment') keyword = 'quarterly'
+        else return res.status(400).json({ error: `Unknown assignmentType: ${assignmentType}` })
+
+        const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+        for (const c of itemCols) {
+          if (String(hpsRow[c] || '').trim() === String(assignmentId)) { colIndex = c; break }
+        }
+        if (colIndex === -1)
+          return res.status(404).json({
+            error: 'Could not locate assignment column to clear (missing itemNumber and no legacy assignmentId pin found).'
+          })
+      }
+
+      const SHEET_HPS_ROW = 10
+      const colLetter     = columnToLetter(colIndex + 1)
+      const clearRange    = `${sheetName}!${colLetter}${SHEET_HPS_ROW}:${colLetter}`
+
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: sheetId,
+        range: clearRange
+      })
+
+      console.log(`✅ delete-assignment-from-sheet: cleared ${clearRange} for ${assignmentType} #${itemNumber ?? '?'} (${quarter})`)
+      res.json({ success: true, clearedRange: clearRange, assignmentType, itemNumber: itemNumber ?? null, quarter })
+    } catch (err) {
+      console.error('delete-assignment-from-sheet error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   // ── Update assignment in sheet ───────────────────────────────────────────────
   app.post('/update-assignment-in-sheet', async (req, res) => {
     try {

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { getClassById, getClassStudents, deleteClass, removeStudent } from '../../services/classService'
-import { getClassAssignments, createAssignmentSingle, getAssignmentById } from '../../services/assignmentService'
+import { getClassAssignments, createAssignmentSingle, getAssignmentById, deleteAssignment } from '../../services/assignmentService'
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
 import { updateAnnouncement, updateAssignment, updateMaterial } from '../../services/editService'
@@ -111,24 +111,28 @@ function FeedCard({ title, meta, chip, overdue, onDelete, onEdit, onClick, child
               View →
             </span>
           )}
-          {onEdit && (
-            <button
-              className="tcd-icon-btn"
-              onClick={e => { e.stopPropagation(); onEdit() }}
-              title="Edit"
-              style={{ color: '#0038A8' }}
-            >
-              {Icons.edit}
-            </button>
-          )}
-          {onDelete && (
-            <button
-              className="tcd-icon-btn tcd-icon-btn--danger"
-              onClick={e => { e.stopPropagation(); onDelete() }}
-              title="Delete"
-            >
-              {Icons.trash}
-            </button>
+          {(onEdit || onDelete) && (
+            <div className="tcd-feed-actions">
+              {onEdit && (
+                <button
+                  className="tcd-icon-btn"
+                  onClick={e => { e.stopPropagation(); onEdit() }}
+                  title="Edit"
+                  style={{ color: '#0038A8' }}
+                >
+                  {Icons.edit}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  className="tcd-icon-btn tcd-icon-btn--danger"
+                  onClick={e => { e.stopPropagation(); onDelete() }}
+                  title="Delete"
+                >
+                  {Icons.trash}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -485,6 +489,7 @@ export default function TeacherClassDetail() {
   const confirmDelete = (title, message, onConfirm) => setConfirmDialog({ title, message, onConfirm, onCancel: () => setConfirmDialog(null), confirmText: 'Delete', type: 'danger' })
   const handleDeleteMaterial   = (id) => confirmDelete('Delete Material',     'Delete this material?',    async () => { setConfirmDialog(null); const r = await deleteMaterial(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
   const handleDeleteAnn        = (id, t) => confirmDelete('Delete Announcement', `Delete "${t}"?`,         async () => { setConfirmDialog(null); const { deleteAnnouncement } = await import('../../services/announcementService'); const r = await deleteAnnouncement(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
+  const handleDeleteAsgn       = (id, t) => confirmDelete('Delete Assignment', `Delete "${t}"?`,           async () => { setConfirmDialog(null); const r = await deleteAssignment(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
   const handleDeleteClass      = () => confirmDelete('Delete Class',          `Delete "${classData?.name}"? All data will be permanently removed.`, async () => { setConfirmDialog(null); const r = await deleteClass(classId); if (r.success) navigate('/teacher-dashboard/class'); else setNotification({ message: r.error, type: 'error' }) })
 
   const handleRemoveStudent = (student) => {
@@ -603,6 +608,7 @@ export default function TeacherClassDetail() {
                       <FeedCard key={item.id} chip="assignment" title={item.title} meta={`Due ${fmtDate(item.deadline)}`}
                         overdue={isOD(item.deadline)}
                         onEdit={() => openEdit('assignment', item)}
+                        onDelete={() => handleDeleteAsgn(item.id, item.title)}
                         onClick={() => handleOpenAssignment(item)}
                       >
                         {item.description && <p>{item.description?.length > 100 ? item.description.slice(0, 100) + '…' : item.description}</p>}
@@ -648,6 +654,7 @@ export default function TeacherClassDetail() {
                     <FeedCard key={a.id} title={a.title} meta={`Due ${fmtDate(a.deadline)}`}
                       overdue={isOD(a.deadline)}
                       onEdit={() => openEdit('assignment', a)}
+                      onDelete={() => handleDeleteAsgn(a.id, a.title)}
                       onClick={() => handleOpenAssignment(a)}
                     >
                       <div className="tcd-asgn-meta">

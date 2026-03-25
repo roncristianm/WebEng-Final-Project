@@ -339,6 +339,9 @@
   flex-shrink: 0;
 }
 
+/* Stack Edit/Delete without moving them into the body */
+.tcd-feed-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+
 .tcd-feed-meta {
   font-size: 0.72rem;
   color: #94a3b8;
@@ -356,6 +359,7 @@
 }
 .tcd-feed-body p { margin: 0 0 6px; }
 .tcd-feed-body p:last-child { margin: 0; }
+
 
 /* Icon button */
 .tcd-icon-btn {

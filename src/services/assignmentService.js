@@ -192,6 +192,40 @@ export const getAssignmentById = async (assignmentId) => {
 
 export const deleteAssignment = async (assignmentId) => {
   try {
+    // Fetch assignment details first (needed for sheet cleanup)
+    const assignmentSnap = await getDoc(doc(db, 'assignments', assignmentId))
+
+    // If the class has a sheetId, clear the assignment column (HPS + all scores)
+    if (assignmentSnap.exists()) {
+      const assignment = assignmentSnap.data()
+      try {
+        const classSnap = await getDoc(doc(db, 'classes', assignment.classId))
+        const sheetId = classSnap.exists() ? classSnap.data().sheetId : null
+        if (sheetId) {
+          const resp = await fetch(`${SHEETS_API}/delete-assignment-from-sheet`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sheetId,
+              assignmentType: assignment.type,
+              assignmentId,
+              itemNumber: assignment.itemNumber,
+              quarter: assignment.quarter || 'Q1'
+            })
+          })
+
+          if (!resp.ok) {
+            const text = await resp.text().catch(() => '')
+            throw new Error(text || `Sheets delete failed (${resp.status})`)
+          }
+        }
+      } catch (sheetErr) {
+        // Treat sheet cleanup as required when a sheet exists.
+        console.error('Failed to delete assignment from sheet:', sheetErr)
+        return { success: false, error: `Failed to delete from Google Sheet: ${sheetErr.message}` }
+      }
+    }
+
     const submissionsRef = collection(db, 'assignments', assignmentId, 'submissions')
     const submissionsSnapshot = await getDocs(submissionsRef)
     const deletePromises = submissionsSnapshot.docs.map(doc => deleteDoc(doc.ref))
