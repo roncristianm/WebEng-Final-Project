@@ -1,9 +1,7 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -12,46 +10,131 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
-    // Validate user data fields
-    function isValidUserData() {
-      let requiredFields = ['name', 'email', 'gender', 'role', 'createdAt'];
-      let allowedRoles = ['student', 'teacher'];
-      let allowedGenders = ['male', 'female'];
-      
-      return request.resource.data.keys().hasAll(requiredFields) &&
-             request.resource.data.name is string &&
-             request.resource.data.name.size() > 0 &&
-             request.resource.data.email is string &&
-             request.resource.data.email.matches('.*@.*\\..*') &&
-             request.resource.data.gender in allowedGenders &&
-             request.resource.data.role in allowedRoles &&
-             request.resource.data.createdAt is timestamp;
-    }
-    
-    // Users collection rules
     match /users/{userId} {
-      // Allow read if authenticated and it's the user's own document
-      allow read: if isAuthenticated() && isOwner(userId);
-      
-      // Allow create during signup with valid data
-      allow create: if isAuthenticated() && 
-                      isOwner(userId) && 
-                      isValidUserData();
-      
-      // Allow update only by the user themselves, protecting critical fields
-      allow update: if isAuthenticated() && 
-                      isOwner(userId) &&
-                      request.resource.data.email == resource.data.email &&
-                      request.resource.data.role == resource.data.role &&
-                      request.resource.data.createdAt == resource.data.createdAt;
-      
-      // Prevent deletion of user documents
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId)
+                    && request.resource.data.keys().hasAll(['name', 'email', 'role', 'gender', 'createdAt'])
+                    && request.resource.data.role in ['student', 'teacher'];
+      allow update: if isAuthenticated() && isOwner(userId)
+                    && request.resource.data.role == resource.data.role;
       allow delete: if false;
     }
     
-    // Default deny all other collections
+    match /classes/{classId} {
+      allow create: if isAuthenticated() 
+                    && request.resource.data.teacherId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['name', 'teacherId', 'teacherName', 'classCode', 'createdAt']);
+      allow read: if isAuthenticated();
+      allow list: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                       (resource.data.teacherId == request.auth.uid ||
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentCount']));
+      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      
+      match /students/{studentId} {
+        allow create: if isAuthenticated() && studentId == request.auth.uid;
+        allow read: if isAuthenticated();
+        allow delete: if isAuthenticated() && 
+                         (get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid ||
+                          studentId == request.auth.uid);
+      }
+    }
+    
+    match /assignments/{assignmentId} {
+      // Helper: check if requestor is the teacher for this assignment
+      function isTeacher() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid;
+      }
+
+      // Create: only the teacher may create assignments. Require possibleScore > 0.
+      allow create: if request.auth != null
+                    && request.resource.data.teacherId == request.auth.uid
+                    && request.resource.data.type in ['Written Works', 'Performance Task', 'Quarterly Assessment']
+                    && request.resource.data.keys().hasAny(['possibleScore'])
+                    && request.resource.data.possibleScore is number
+                    && request.resource.data.possibleScore > 0;
+
+      allow read: if request.auth != null;
+      // Only teacher may update or delete assignment documents
+      allow update: if request.auth != null && isTeacher();
+      allow delete: if request.auth != null && isTeacher();
+
+      match /submissions/{submissionId} {
+        // Helper to read assignment's possibleScore
+        function assignmentPossibleScore() {
+          return get(/databases/$(database)/documents/assignments/$(assignmentId)).data.possibleScore;
+        }
+
+        // Create: student may create their own submission (or teacher may create for student)
+        allow create: if request.auth != null
+                      && (
+                        submissionId == request.auth.uid
+                        || get(/databases/$(database)/documents/assignments/$(assignmentId)).data.teacherId == request.auth.uid
+                      )
+                      && request.resource.data.keys().hasAll(['studentId','studentName','studentEmail','status','submittedAt'])
+                      && request.resource.data.studentId == submissionId;
+
+        allow read: if request.auth != null;
+
+        // Update rules:
+        // - Teacher may update any submission fields (grade, feedback, official status)
+        // - Student may only update limited fields: status, submittedAt, optional selfGrade
+        //   and if provided, selfGrade must be a number between 0 and assignmentPossibleScore()
+        allow update: if request.auth != null && (
+                         isTeacher()
+                         || (
+                           submissionId == request.auth.uid
+                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','submittedAt','selfGrade','score'])
+                           && (
+                             !request.resource.data.keys().hasAny(['score'])
+                             || (
+                               request.resource.data.score is number
+                               && request.resource.data.score >= 0
+                               && request.resource.data.score <= assignmentPossibleScore()
+                             )
+                           )
+                         )
+                       );
+
+        // Delete: only teacher or the student themselves
+        allow delete: if request.auth != null && (
+                         isTeacher() || submissionId == request.auth.uid
+                       );
+      }
+    }
+    
+    match /grades/{gradeId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+    }
+    
+    match /announcements/{announcementId} {
+      allow create: if isAuthenticated() && request.resource.data.teacherId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+    }
+    
+    match /materials/{materialId} {
+      allow create: if isAuthenticated() && request.resource.data.teacherId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+    }
+    
+    match /calendar/{eventId} {
+      allow create: if isAuthenticated() && request.resource.data.teacherId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+    }
+    
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+
