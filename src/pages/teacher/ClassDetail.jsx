@@ -37,6 +37,35 @@ const TYPE_COLORS = { 'Written Works': '#3b82f6', 'Performance Task': '#10b981',
 const TABS = ['general', 'assignments', 'announcements', 'materials', 'people']
 const TAB_LABELS = { general: 'General', assignments: 'Assignments', announcements: 'Announcements', materials: 'Materials', people: 'Members' }
 
+function toJSDate(v) {
+  if (!v) return null
+  if (typeof v?.toDate === 'function') return v.toDate()
+  if (v instanceof Date) return v
+
+  if (typeof v === 'string') {
+    const mDateTime = v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    if (mDateTime) {
+      const [, y, mo, d, h, mi] = mDateTime
+      return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), 0, 0)
+    }
+    const mDateOnly = v.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (mDateOnly) {
+      const [, y, mo, d] = mDateOnly
+      return new Date(Number(y), Number(mo) - 1, Number(d), 0, 0, 0, 0)
+    }
+  }
+
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function toEpochMs(v) {
+  if (!v) return 0
+  if (typeof v?.toMillis === 'function') return v.toMillis()
+  const d = toJSDate(v)
+  return d ? d.getTime() : 0
+}
+
 function fmt(ts) { if (!ts) return ''; const d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) }
 function fmtDate(ts) { if (!ts) return ''; const d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
 function fmtTime(ts) { if (!ts) return ''; const d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
@@ -482,15 +511,16 @@ export default function TeacherClassDetail() {
     ...announcements.map(a => ({ ...a, _type: 'announcement', _date: a.createdAt })),
     ...materials.map(m    => ({ ...m, _type: 'material',      _date: m.createdAt })),
     ...assignments.map(a  => ({ ...a, _type: 'assignment',    _date: a.createdAt || a.deadline })),
-  ].filter(i => i._date).sort((a, b) => {
-    const ta = a._date.toMillis ? a._date.toMillis() : new Date(a._date).getTime()
-    const tb = b._date.toMillis ? b._date.toMillis() : new Date(b._date).getTime()
-    return tb - ta
-  })
+  ].filter(i => i._date).sort((a, b) => toEpochMs(b._date) - toEpochMs(a._date))
 
   const upcoming = assignments
-    .filter(a => { if (!a.deadline) return false; const d = a.deadline.toDate ? a.deadline.toDate() : new Date(a.deadline); return d > new Date() })
-    .sort((a, b) => { const da = a.deadline.toDate ? a.deadline.toDate() : new Date(a.deadline); const db = b.deadline.toDate ? b.deadline.toDate() : new Date(b.deadline); return da - db })
+    .filter(a => {
+      const d = toJSDate(a.deadline)
+      if (!d) return false
+      // Only show genuinely upcoming work (e.g. if today is the 26th, items dated the 25th won't appear).
+      return d > new Date()
+    })
+    .sort((a, b) => toEpochMs(a.deadline) - toEpochMs(b.deadline))
 
   if (loading) return <div className="tcd-loading"><div className="tcd-spinner" /><p>Loading class…</p></div>
   if (!classData) return <div className="tcd-loading"><p>Class not found.</p></div>
