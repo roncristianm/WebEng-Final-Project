@@ -5,7 +5,7 @@ import { auth } from '../../config/firebase'
 import { createClass, getTeacherClasses, getClassStudents } from '../../services/classService'
 import { sendNewAssignmentNotification } from '../../services/emailService'
 import Notification from '../../components/Notification'
-import '../../styles/TeacherDashboard.css'
+import '../../styles/Teacherdashboard.css'
 
 /* ── Custom dropdown — avoids the OS-native ugly select ── */
 function CustomSelect({ value, onChange, options, placeholder }) {

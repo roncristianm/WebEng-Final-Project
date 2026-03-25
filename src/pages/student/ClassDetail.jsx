@@ -7,7 +7,7 @@ import { getClassAnnouncements } from '../../services/announcementService'
 import { getStudentAssignments } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/StudentClassDetail.css'
+import '../../styles/Studentclassdetail.css'
 
 const TABS = ['general', 'assignments', 'announcements', 'people']
 const TAB_LABELS = {

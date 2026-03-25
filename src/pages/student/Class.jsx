@@ -4,7 +4,7 @@ import { auth } from '../../config/firebase'
 import { getStudentClasses, leaveClass } from '../../services/classService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/StudentClass.css'
+import '../../styles/Studentclass.css'
 
 /* Deterministic gradient per class based on name */
 const GRADIENTS = [

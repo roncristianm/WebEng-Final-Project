@@ -7,7 +7,7 @@ import { getTeacherClasses, deleteClass } from '../../services/classService'
 import { getOverdueCount } from '../../services/overdueService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/TeacherClass.css'
+import '../../styles/Teacherclass.css'
 
 /* ── Same deterministic gradient system as student side ── */
 const GRADIENTS = [
