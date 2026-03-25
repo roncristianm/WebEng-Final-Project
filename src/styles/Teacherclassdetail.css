@@ -539,6 +539,10 @@
 }
 .tcd-stat-pill--green { background: #dcfce7; color: #15803d; }
 .tcd-stat-pill--red   { background: #fef2f2; color: #dc2626; }
+.tcd-stat-pill--gray  { background: #f1f5f9; color: #475569; }
+
+/* Submission stats shown on assignment cards */
+.tcd-submission-stats { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 
 /* ────────────────────────────────────────────────────────────
    SIDEBAR

@@ -43,6 +43,19 @@ function fmtTime(ts) { if (!ts) return ''; const d = ts.toDate ? ts.toDate() : n
 function isOD(dl) { if (!dl) return false; const d = dl.toDate ? dl.toDate() : new Date(dl); return d < new Date() }
 function linkify(t = '') { return t.replace(/https?:\/\/[^\s<>"']+/gi, u => `<a href="${u}" target="_blank" rel="noopener" class="tcd-link">${u}</a>`) }
 
+function submissionStats(submissions = []) {
+  let done = 0
+  let late = 0
+  let pending = 0
+  for (const s of submissions || []) {
+    if (!s) continue
+    if (s.status === 'done' || s.status === 'submitted') done++
+    else if (s.status === 'late') late++
+    else if (s.status === 'not_submitted') pending++
+  }
+  return { done, late, pending }
+}
+
 function TypeChip({ type }) {
   const m = { announcement: ['Announcement','tcd-chip--ann'], assignment: ['Assignment','tcd-chip--asgn'], material: ['Material','tcd-chip--mat'] }
   const [label, cls] = m[type] || []
@@ -554,13 +567,23 @@ export default function TeacherClassDetail() {
                       </FeedCard>
                     )
                     if (item._type === 'assignment') return (
+                      (() => {
+                        const stats = submissionStats(item.submissions)
+                        return (
                       <FeedCard key={item.id} chip="assignment" title={item.title} meta={`Due ${fmtDate(item.deadline)}`}
                         overdue={isOD(item.deadline)}
                         onEdit={() => openEdit('assignment', item)}
                         onClick={() => handleOpenAssignment(item)}
                       >
                         {item.description && <p>{item.description?.length > 100 ? item.description.slice(0, 100) + '…' : item.description}</p>}
+                        <div className="tcd-submission-stats">
+                          <span className="tcd-stat-pill tcd-stat-pill--green">{Icons.check} {stats.done} done</span>
+                          <span className="tcd-stat-pill tcd-stat-pill--red">{Icons.alert} {stats.late} late</span>
+                          <span className="tcd-stat-pill tcd-stat-pill--gray">{stats.pending} pending</span>
+                        </div>
                       </FeedCard>
+                        )
+                      })()
                     )
                     if (item._type === 'material') return (
                       <FeedCard key={item.id} chip="material" title={item.description?.slice(0, 80) || 'Material'} meta={fmt(item.createdAt)}
@@ -589,7 +612,9 @@ export default function TeacherClassDetail() {
               </div>
               {assignments.length === 0
                 ? <div className="tcd-empty">No assignments yet.</div>
-                : assignments.map(a => (
+                : assignments.map(a => {
+                    const stats = submissionStats(a.submissions)
+                    return (
                     <FeedCard key={a.id} title={a.title} meta={`Due ${fmtDate(a.deadline)}`}
                       overdue={isOD(a.deadline)}
                       onEdit={() => openEdit('assignment', a)}
@@ -601,12 +626,18 @@ export default function TeacherClassDetail() {
                         {a.possibleScore && <span className="tcd-badge tcd-badge--gray">{a.possibleScore} pts</span>}
                       </div>
                       {a.description && <p className="tcd-asgn-desc">{a.description?.length > 100 ? a.description.slice(0, 100) + '…' : a.description}</p>}
+                      <div className="tcd-submission-stats">
+                        <span className="tcd-stat-pill tcd-stat-pill--green">{Icons.check} {stats.done} done</span>
+                        <span className="tcd-stat-pill tcd-stat-pill--red">{Icons.alert} {stats.late} late</span>
+                        <span className="tcd-stat-pill tcd-stat-pill--gray">{stats.pending} pending</span>
+                      </div>
                       <p className="tcd-asgn-time">
                         {fmtDate(a.deadline)} at {fmtTime(a.deadline)}
                         {isOD(a.deadline) && <span className="tcd-overdue-tag">Overdue</span>}
                       </p>
                     </FeedCard>
-                  ))
+                    )
+                  })
               }
             </div>
           )}
@@ -666,7 +697,7 @@ export default function TeacherClassDetail() {
               <div className="tcd-section-header">
                 <h2 className="tcd-section-title">Members <span className="tcd-count">{students.length + 1}</span></h2>
                 <button className={`tcd-overdue-toggle ${showOverdueOnly ? 'tcd-overdue-toggle--active' : ''}`} onClick={() => setShowOverdueOnly(v => !v)}>
-                  {Icons.alert} Overdue only
+                  {Icons.alert} Late
                 </button>
               </div>
               <div className="tcd-people-group">
