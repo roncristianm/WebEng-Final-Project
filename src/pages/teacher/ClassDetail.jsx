@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { getClassById, getClassStudents, deleteClass } from '../../services/classService'
-import { getClassAssignments, createAssignmentSingle } from '../../services/assignmentService'
+import { getClassAssignments, createAssignmentSingle, getAssignmentById } from '../../services/assignmentService'
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
 import { useAuth } from '../../context/AuthContext'
@@ -105,6 +105,12 @@ const Icons = {
   ),
 }
 
+const TYPE_COLORS = {
+  'Written Works': '#3b82f6',
+  'Performance Task': '#10b981',
+  'Quarterly Assessment': '#f59e0b'
+}
+
 const TABS = ['general', 'assignments', 'announcements', 'materials', 'people']
 const TAB_LABELS = {
   general: 'General', assignments: 'Assignments',
@@ -141,9 +147,13 @@ function TypeChip({ type }) {
   return <span className={`tcd-chip ${cls}`}>{label}</span>
 }
 
-function FeedCard({ title, meta, chip, overdue, onDelete, children }) {
+function FeedCard({ title, meta, chip, overdue, onDelete, onClick, children }) {
   return (
-    <div className={`tcd-feed-card ${overdue ? 'tcd-feed-card--overdue' : ''}`}>
+    <div
+      className={`tcd-feed-card ${overdue ? 'tcd-feed-card--overdue' : ''}`}
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : {}}
+    >
       <div className="tcd-feed-top">
         <div className="tcd-feed-main">
           {chip && <TypeChip type={chip} />}
@@ -151,8 +161,17 @@ function FeedCard({ title, meta, chip, overdue, onDelete, children }) {
         </div>
         <div className="tcd-feed-right">
           {meta && <span className="tcd-feed-meta">{meta}</span>}
+          {onClick && (
+            <span style={{ fontSize: 11, color: '#0038A8', fontWeight: 700, background: '#eff6ff', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+              View →
+            </span>
+          )}
           {onDelete && (
-            <button className="tcd-icon-btn tcd-icon-btn--danger" onClick={onDelete} title="Delete">
+            <button
+              className="tcd-icon-btn tcd-icon-btn--danger"
+              onClick={e => { e.stopPropagation(); onDelete() }}
+              title="Delete"
+            >
               {Icons.trash}
             </button>
           )}
@@ -163,7 +182,7 @@ function FeedCard({ title, meta, chip, overdue, onDelete, children }) {
   )
 }
 
-/* ── New-item picker (used on General tab) ── */
+/* ── New-item picker ── */
 function NewPicker({ onPick, onClose }) {
   return (
     <div className="tcd-picker-backdrop" onClick={onClose}>
@@ -210,13 +229,11 @@ function NewPicker({ onPick, onClose }) {
   )
 }
 
-
 function PostModal({ postType, formData, setFormData, posting, onClose, onSubmit }) {
   const isAnn  = postType === 'announcements'
   const isAsgn = postType === 'assignments'
   const title  = isAnn ? 'New Announcement' : isAsgn ? 'New Assignment' : 'New Material'
-
-  const today = new Date().toLocaleDateString('en-CA')
+  const today  = new Date().toLocaleDateString('en-CA')
   const nowTime = new Date().toTimeString().slice(0,5)
 
   return (
@@ -230,71 +247,37 @@ function PostModal({ postType, formData, setFormData, posting, onClose, onSubmit
           <div className="tcd-modal-body">
             {isAnn && (
               <>
-                <div className="tcd-field">
-                  <label>Title *</label>
-                  <input value={formData.title} onChange={e => setFormData(f => ({ ...f, title: e.target.value }))} placeholder="Announcement title" required />
-                </div>
-                <div className="tcd-field">
-                  <label>Content *</label>
-                  <textarea value={formData.content} onChange={e => setFormData(f => ({ ...f, content: e.target.value }))} rows={4} placeholder="Write your announcement…" required />
-                </div>
+                <div className="tcd-field"><label>Title *</label><input value={formData.title} onChange={e => setFormData(f => ({ ...f, title: e.target.value }))} placeholder="Announcement title" required /></div>
+                <div className="tcd-field"><label>Content *</label><textarea value={formData.content} onChange={e => setFormData(f => ({ ...f, content: e.target.value }))} rows={4} placeholder="Write your announcement…" required /></div>
               </>
             )}
             {isAsgn && (
               <>
-                <div className="tcd-field">
-                  <label>Title *</label>
-                  <input value={formData.title} onChange={e => setFormData(f => ({ ...f, title: e.target.value }))} placeholder="Assignment title" required />
-                </div>
-                <div className="tcd-field">
-                  <label>Description *</label>
-                  <textarea value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Instructions…" required />
-                </div>
-                <div className="tcd-field">
-                  <label>Type *</label>
+                <div className="tcd-field"><label>Title *</label><input value={formData.title} onChange={e => setFormData(f => ({ ...f, title: e.target.value }))} placeholder="Assignment title" required /></div>
+                <div className="tcd-field"><label>Description *</label><textarea value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Instructions…" required /></div>
+                <div className="tcd-field"><label>Type *</label>
                   <select value={formData.type || 'Written Works'} onChange={e => setFormData(f => ({ ...f, type: e.target.value }))} required>
-                    <option>Written Works</option>
-                    <option>Performance Task</option>
-                    <option>Quarterly Assessment</option>
+                    <option>Written Works</option><option>Performance Task</option><option>Quarterly Assessment</option>
                   </select>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="tcd-field">
-                    <label>Quarter *</label>
+                  <div className="tcd-field"><label>Quarter *</label>
                     <select value={formData.quarter || 'Q1'} onChange={e => setFormData(f => ({ ...f, quarter: e.target.value }))} required>
-                      <option value="Q1">Q1</option>
-                      <option value="Q2">Q2</option>
-                      <option value="Q3">Q3</option>
-                      <option value="Q4">Q4</option>
+                      <option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
                     </select>
                   </div>
-                  <div className="tcd-field">
-                    <label>Possible Score *</label>
-                    <input type="number" min="1" value={formData.possibleScore || 100} onChange={e => setFormData(f => ({ ...f, possibleScore: e.target.value }))} required />
-                  </div>
+                  <div className="tcd-field"><label>Possible Score *</label><input type="number" min="1" value={formData.possibleScore || 100} onChange={e => setFormData(f => ({ ...f, possibleScore: e.target.value }))} required /></div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="tcd-field">
-                    <label>Deadline Date *</label>
-                    <input type="date" defaultValue={today} onChange={e => setFormData(f => ({ ...f, deadlineDate: e.target.value }))} required />
-                  </div>
-                  <div className="tcd-field">
-                    <label>Deadline Time *</label>
-                    <input type="time" defaultValue={nowTime} onChange={e => setFormData(f => ({ ...f, deadlineTime: e.target.value }))} required />
-                  </div>
+                  <div className="tcd-field"><label>Deadline Date *</label><input type="date" defaultValue={today} onChange={e => setFormData(f => ({ ...f, deadlineDate: e.target.value }))} required /></div>
+                  <div className="tcd-field"><label>Deadline Time *</label><input type="time" defaultValue={nowTime} onChange={e => setFormData(f => ({ ...f, deadlineTime: e.target.value }))} required /></div>
                 </div>
               </>
             )}
             {!isAnn && !isAsgn && (
               <>
-                <div className="tcd-field">
-                  <label>Description *</label>
-                  <textarea value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} rows={5} placeholder="Describe this material or paste a link…" required />
-                </div>
-                <div className="tcd-field">
-                  <label>Files *</label>
-                  <input type="file" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png" onChange={e => setFormData(f => ({ ...f, files: e.target.files }))} required />
-                </div>
+                <div className="tcd-field"><label>Description *</label><textarea value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} rows={5} placeholder="Describe this material or paste a link…" required /></div>
+                <div className="tcd-field"><label>Files *</label><input type="file" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png" onChange={e => setFormData(f => ({ ...f, files: e.target.files }))} required /></div>
               </>
             )}
           </div>
@@ -308,28 +291,191 @@ function PostModal({ postType, formData, setFormData, posting, onClose, onSubmit
   )
 }
 
+/* ── Assignment Detail Modal (Teacher — read-only + submissions) ── */
+function AssignmentDetailModal({ assignment, onClose }) {
+  const typeColor = TYPE_COLORS[assignment.type] || '#6b7280'
+  const submissions = assignment.submissions || []
+  const stats = {
+    done: submissions.filter(s => s.status === 'done').length,
+    late: submissions.filter(s => s.status === 'late').length,
+    notSubmitted: submissions.filter(s => s.status === 'not_submitted').length,
+  }
+  const [filter, setFilter] = useState('all')
+
+  const getStatusBadge = (status) => {
+    const b = { done: { text: 'Done', color: '#10b981' }, late: { text: 'Late', color: '#ef4444' }, not_submitted: { text: 'Pending', color: '#6b7280' } }
+    const badge = b[status] || b.not_submitted
+    return <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: '0.8rem', fontWeight: 600, backgroundColor: `${badge.color}20`, color: badge.color }}>{badge.text}</span>
+  }
+
+  const filtered = filter === 'all' ? submissions : submissions.filter(s => s.status === filter)
+
+  return (
+    <div className="tcd-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="tcd-modal" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
+        <div className="tcd-modal-header">
+          <div style={{ flex: 1 }}>
+            <h2 className="tcd-modal-title">{assignment.title}</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
+              <span style={{ color: typeColor, fontWeight: 600 }}>{assignment.type}</span>
+              {assignment.quarter && <> · {assignment.quarter}</>}
+            </p>
+          </div>
+          <button className="tcd-icon-btn" onClick={onClose}>{Icons.close}</button>
+        </div>
+
+        <div className="tcd-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* Info grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+            {[
+              { label: 'Deadline', value: `${fmtDate(assignment.deadline)} ${fmtTime(assignment.deadline)}` },
+              { label: 'Possible Score', value: `${assignment.possibleScore} pts` },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ background: '#f8fafc', borderRadius: 9, padding: '11px 14px', border: '1px solid #e2e8f0' }}>
+                <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>{label}</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Description */}
+          {assignment.description && (
+            <div style={{ marginBottom: 18 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Description</p>
+              <p style={{ margin: 0, background: '#f9fafb', borderRadius: 9, padding: '13px 15px', fontSize: 14, color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                {assignment.description}
+              </p>
+            </div>
+          )}
+
+          {/* Submission stats */}
+          <div style={{ marginBottom: 14 }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Submissions</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              {[
+                { key: 'all',           label: 'All',     count: submissions.length, color: '#475569' },
+                { key: 'done',          label: 'Done',    count: stats.done,          color: '#10b981' },
+                { key: 'late',          label: 'Late',    count: stats.late,          color: '#ef4444' },
+                { key: 'not_submitted', label: 'Pending', count: stats.notSubmitted,  color: '#6b7280' },
+              ].map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  style={{
+                    padding: '6px 14px',
+                    border: `2px solid ${filter === f.key ? f.color : `${f.color}30`}`,
+                    background: filter === f.key ? f.color : '#fff',
+                    color: filter === f.key ? '#fff' : f.color,
+                    borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'inherit',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+
+            {filtered.length === 0 ? (
+              <p style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>No students in this category.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {filtered.map(sub => (
+                  <div key={sub.studentId} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '12px 14px', background: '#f8fafc', borderRadius: 9,
+                    border: '1px solid #e2e8f0', gap: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10, background: '#dbeafe', color: '#1d4ed8',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 800, fontSize: 14, flexShrink: 0
+                      }}>
+                        {sub.studentName?.[0]?.toUpperCase()}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.studentName}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.studentEmail}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                      {getStatusBadge(sub.status)}
+                      {sub.score != null && (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#059669' }}>
+                          {sub.score}/{assignment.possibleScore}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="tcd-modal-footer">
+          <button className="tcd-btn tcd-btn--primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Announcement Detail Modal (Teacher) ── */
+function AnnouncementDetailModal({ announcement, onClose }) {
+  return (
+    <div className="tcd-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="tcd-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+        <div className="tcd-modal-header">
+          <div style={{ flex: 1 }}>
+            <h2 className="tcd-modal-title">{announcement.title}</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>{announcement.className}</p>
+          </div>
+          <button className="tcd-icon-btn" onClick={onClose}>{Icons.close}</button>
+        </div>
+        <div className="tcd-modal-body">
+          <p style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>
+            Posted {fmt(announcement.createdAt)}
+          </p>
+          <div style={{ background: '#f9fafb', borderRadius: 10, padding: '16px 18px', color: '#374151', lineHeight: 1.75, fontSize: 15, whiteSpace: 'pre-wrap' }}>
+            {announcement.content}
+          </div>
+        </div>
+        <div className="tcd-modal-footer">
+          <button className="tcd-btn tcd-btn--primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TeacherClassDetail() {
   const { classId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useAuth()
 
-  const [classData,       setClassData]       = useState(null)
-  const [assignments,     setAssignments]     = useState([])
-  const [announcements,   setAnnouncements]   = useState([])
-  const [students,        setStudents]        = useState([])
-  const [materials,       setMaterials]       = useState([])
-  const [studentStatuses, setStudentStatuses] = useState({})
-  const [loading,         setLoading]         = useState(true)
-  const [activeTab,       setActiveTab]       = useState('general')
-  const [notification,    setNotification]    = useState(null)
-  const [confirmDialog,   setConfirmDialog]   = useState(null)
-  const [copied,          setCopied]          = useState(false)
-  const [showOverdueOnly, setShowOverdueOnly] = useState(false)
-  const [showPostModal,   setShowPostModal]   = useState(false)
-  const [postType,        setPostType]        = useState('announcements')
-  const [posting,         setPosting]         = useState(false)
-  const [formData,        setFormData]        = useState({ title: '', content: '', description: '', files: null })
-  const [showNewPicker,   setShowNewPicker]   = useState(false)
+  const [classData,           setClassData]           = useState(null)
+  const [assignments,         setAssignments]         = useState([])
+  const [announcements,       setAnnouncements]       = useState([])
+  const [students,            setStudents]            = useState([])
+  const [materials,           setMaterials]           = useState([])
+  const [studentStatuses,     setStudentStatuses]     = useState({})
+  const [loading,             setLoading]             = useState(true)
+  const [activeTab,           setActiveTab]           = useState('general')
+  const [notification,        setNotification]        = useState(null)
+  const [confirmDialog,       setConfirmDialog]       = useState(null)
+  const [copied,              setCopied]              = useState(false)
+  const [showOverdueOnly,     setShowOverdueOnly]     = useState(false)
+  const [showPostModal,       setShowPostModal]       = useState(false)
+  const [postType,            setPostType]            = useState('announcements')
+  const [posting,             setPosting]             = useState(false)
+  const [formData,            setFormData]            = useState({ title: '', content: '', description: '', files: null })
+  const [showNewPicker,       setShowNewPicker]       = useState(false)
+
+  // Detail modals
+  const [selectedAssignment,   setSelectedAssignment]   = useState(null)
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
+  const [loadingDetail,        setLoadingDetail]        = useState(false)
 
   useEffect(() => { loadClassData() }, [classId])
 
@@ -352,16 +498,23 @@ export default function TeacherClassDetail() {
 
   const openPostModal = (type) => { setPostType(type); setFormData({ title: '', content: '', description: '', files: null }); setShowPostModal(true) }
   const openPickerOrModal = (tab) => {
-    if (tab === 'general') { setShowNewPicker(true) }
-    else if (tab === 'assignments') { openPostModal('assignments') }
-    else if (tab === 'materials') { openPostModal('materials') }
-    else { openPostModal('announcements') }
-  }
-  const handlePickerChoice = (type) => {
-    setShowNewPicker(false)
-    if (type === 'assignments') openPostModal('assignments')
-    else if (type === 'materials') openPostModal('materials')
+    if (tab === 'general') setShowNewPicker(true)
+    else if (tab === 'assignments') openPostModal('assignments')
+    else if (tab === 'materials') openPostModal('materials')
     else openPostModal('announcements')
+  }
+  const handlePickerChoice = (type) => { setShowNewPicker(false); if (type === 'assignments') openPostModal('assignments'); else if (type === 'materials') openPostModal('materials'); else openPostModal('announcements') }
+
+  // Open assignment detail with full submission data
+  const handleOpenAssignment = async (assignment) => {
+    setLoadingDetail(true)
+    try {
+      const full = await getAssignmentById(assignment.id)
+      setSelectedAssignment(full || assignment)
+    } catch {
+      setSelectedAssignment(assignment)
+    }
+    setLoadingDetail(false)
   }
 
   const handlePost = async (e) => {
@@ -376,16 +529,10 @@ export default function TeacherClassDetail() {
         if (!formData.title.trim() || !formData.description.trim()) { setNotification({ message: 'Please fill title and description', type: 'error' }); return }
         const deadline = `${formData.deadlineDate || new Date().toLocaleDateString('en-CA')}T${formData.deadlineTime || '23:59'}`
         const r = await createAssignmentSingle({
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          classId,
-          className: classData.name,
-          teacherId: currentUser.uid,
-          teacherName: currentUser.displayName || 'Teacher',
-          type: formData.type || 'Written Works',
-          quarter: formData.quarter || 'Q1',
-          possibleScore: parseFloat(formData.possibleScore) || 100,
-          deadline,
+          title: formData.title.trim(), description: formData.description.trim(), classId,
+          className: classData.name, teacherId: currentUser.uid, teacherName: currentUser.displayName || 'Teacher',
+          type: formData.type || 'Written Works', quarter: formData.quarter || 'Q1',
+          possibleScore: parseFloat(formData.possibleScore) || 100, deadline,
         })
         if (r.success) setNotification({ message: 'Assignment created!', type: 'success' })
         else throw new Error(r.error)
@@ -401,26 +548,9 @@ export default function TeacherClassDetail() {
   }
 
   const confirmDelete = (title, message, onConfirm) => setConfirmDialog({ title, message, onConfirm, onCancel: () => setConfirmDialog(null), confirmText: 'Delete', type: 'danger' })
-
-  const handleDeleteMaterial = (id) => confirmDelete('Delete Material', 'Delete this material?', async () => {
-    setConfirmDialog(null); const r = await deleteMaterial(id)
-    if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() }
-    else setNotification({ message: r.error, type: 'error' })
-  })
-
-  const handleDeleteAnn = (id, t) => confirmDelete('Delete Announcement', `Delete "${t}"?`, async () => {
-    setConfirmDialog(null)
-    const { deleteAnnouncement } = await import('../../services/announcementService')
-    const r = await deleteAnnouncement(id)
-    if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() }
-    else setNotification({ message: r.error, type: 'error' })
-  })
-
-  const handleDeleteClass = () => confirmDelete('Delete Class', `Delete "${classData?.name}"? All data will be permanently removed.`, async () => {
-    setConfirmDialog(null); const r = await deleteClass(classId)
-    if (r.success) navigate('/teacher-dashboard/class')
-    else setNotification({ message: r.error, type: 'error' })
-  })
+  const handleDeleteMaterial = (id) => confirmDelete('Delete Material', 'Delete this material?', async () => { setConfirmDialog(null); const r = await deleteMaterial(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
+  const handleDeleteAnn = (id, t) => confirmDelete('Delete Announcement', `Delete "${t}"?`, async () => { setConfirmDialog(null); const { deleteAnnouncement } = await import('../../services/announcementService'); const r = await deleteAnnouncement(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
+  const handleDeleteClass = () => confirmDelete('Delete Class', `Delete "${classData?.name}"? All data will be permanently removed.`, async () => { setConfirmDialog(null); const r = await deleteClass(classId); if (r.success) navigate('/teacher-dashboard/class'); else setNotification({ message: r.error, type: 'error' }) })
 
   const feed = [
     ...announcements.map(a => ({ ...a, _type: 'announcement', _date: a.createdAt })),
@@ -439,9 +569,7 @@ export default function TeacherClassDetail() {
   if (loading) return <div className="tcd-loading"><div className="tcd-spinner" /><p>Loading class…</p></div>
   if (!classData) return <div className="tcd-loading"><p>Class not found.</p></div>
 
-  // What "+ New" does per tab (General shows picker with 3 options)
-  const newAction = activeTab === 'people'      ? null
-                  : () => openPickerOrModal(activeTab)
+  const newAction = activeTab === 'people' ? null : () => openPickerOrModal(activeTab)
 
   return (
     <div className="tcd-page">
@@ -482,11 +610,9 @@ export default function TeacherClassDetail() {
         </div>
       </div>
 
-      {/* ── FAB — mobile only, fixed bottom-right ── */}
+      {/* ── FAB ── */}
       {newAction && (
-        <button className="tcd-fab" onClick={newAction} aria-label="New">
-          {Icons.plus}
-        </button>
+        <button className="tcd-fab" onClick={newAction} aria-label="New">{Icons.plus}</button>
       )}
 
       {/* ── BODY ── */}
@@ -502,20 +628,29 @@ export default function TeacherClassDetail() {
                   {Icons.plus} New
                 </button>
               </div>
-              {feed.length === 0 ? <div className="tcd-empty">Nothing posted yet.</div>
+              {feed.length === 0
+                ? <div className="tcd-empty">Nothing posted yet.</div>
                 : feed.map(item => {
                     if (item._type === 'announcement') return (
-                      <FeedCard key={item.id} chip="announcement" title={item.title} meta={fmt(item.createdAt)} onDelete={() => handleDeleteAnn(item.id, item.title)}>
-                        <p>{item.content}</p>
+                      <FeedCard key={item.id} chip="announcement" title={item.title} meta={fmt(item.createdAt)}
+                        onDelete={() => handleDeleteAnn(item.id, item.title)}
+                        onClick={() => setSelectedAnnouncement(item)}
+                      >
+                        <p>{item.content?.length > 120 ? item.content.slice(0, 120) + '…' : item.content}</p>
                       </FeedCard>
                     )
                     if (item._type === 'assignment') return (
-                      <FeedCard key={item.id} chip="assignment" title={item.title} meta={`Due ${fmtDate(item.deadline)}`} overdue={isOD(item.deadline)}>
-                        {item.description && <p>{item.description}</p>}
+                      <FeedCard key={item.id} chip="assignment" title={item.title} meta={`Due ${fmtDate(item.deadline)}`}
+                        overdue={isOD(item.deadline)}
+                        onClick={() => handleOpenAssignment(item)}
+                      >
+                        {item.description && <p>{item.description?.length > 100 ? item.description.slice(0, 100) + '…' : item.description}</p>}
                       </FeedCard>
                     )
                     if (item._type === 'material') return (
-                      <FeedCard key={item.id} chip="material" title={item.description?.slice(0, 80) || 'Material'} meta={fmt(item.createdAt)} onDelete={() => handleDeleteMaterial(item.id)}>
+                      <FeedCard key={item.id} chip="material" title={item.description?.slice(0, 80) || 'Material'} meta={fmt(item.createdAt)}
+                        onDelete={() => handleDeleteMaterial(item.id)}
+                      >
                         {item.files?.length > 0 && (
                           <div className="tcd-files">
                             {item.files.map((f, i) => <a key={i} href={f.url} target="_blank" rel="noopener" className="tcd-file-pill">{Icons.materials} {f.filename}</a>)}
@@ -534,19 +669,21 @@ export default function TeacherClassDetail() {
             <div className="tcd-section">
               <div className="tcd-section-header">
                 <h2 className="tcd-section-title">Assignments <span className="tcd-count">{assignments.length}</span></h2>
-                <button className="tcd-btn tcd-btn--primary tcd-btn--sm tcd-desktop-only" onClick={() => openPostModal('assignments')}>
-                  {Icons.plus} New
-                </button>
+                <button className="tcd-btn tcd-btn--primary tcd-btn--sm tcd-desktop-only" onClick={() => openPostModal('assignments')}>{Icons.plus} New</button>
               </div>
-              {assignments.length === 0 ? <div className="tcd-empty">No assignments yet.</div>
+              {assignments.length === 0
+                ? <div className="tcd-empty">No assignments yet.</div>
                 : assignments.map(a => (
-                    <FeedCard key={a.id} title={a.title} meta={`Due ${fmtDate(a.deadline)}`} overdue={isOD(a.deadline)}>
+                    <FeedCard key={a.id} title={a.title} meta={`Due ${fmtDate(a.deadline)}`}
+                      overdue={isOD(a.deadline)}
+                      onClick={() => handleOpenAssignment(a)}
+                    >
                       <div className="tcd-asgn-meta">
                         <span className="tcd-badge">{a.type}</span>
                         <span className="tcd-badge tcd-badge--gray">{a.quarter}</span>
                         {a.possibleScore && <span className="tcd-badge tcd-badge--gray">{a.possibleScore} pts</span>}
                       </div>
-                      {a.description && <p className="tcd-asgn-desc">{a.description}</p>}
+                      {a.description && <p className="tcd-asgn-desc">{a.description?.length > 100 ? a.description.slice(0, 100) + '…' : a.description}</p>}
                       <p className="tcd-asgn-time">
                         {fmtDate(a.deadline)} at {fmtTime(a.deadline)}
                         {isOD(a.deadline) && <span className="tcd-overdue-tag">Overdue</span>}
@@ -562,14 +699,16 @@ export default function TeacherClassDetail() {
             <div className="tcd-section">
               <div className="tcd-section-header">
                 <h2 className="tcd-section-title">Announcements <span className="tcd-count">{announcements.length}</span></h2>
-                <button className="tcd-btn tcd-btn--primary tcd-btn--sm tcd-desktop-only" onClick={() => openPostModal('announcements')}>
-                  {Icons.plus} New
-                </button>
+                <button className="tcd-btn tcd-btn--primary tcd-btn--sm tcd-desktop-only" onClick={() => openPostModal('announcements')}>{Icons.plus} New</button>
               </div>
-              {announcements.length === 0 ? <div className="tcd-empty">No announcements yet.</div>
+              {announcements.length === 0
+                ? <div className="tcd-empty">No announcements yet.</div>
                 : announcements.map(a => (
-                    <FeedCard key={a.id} title={a.title} meta={fmt(a.createdAt)} onDelete={() => handleDeleteAnn(a.id, a.title)}>
-                      <p>{a.content}</p>
+                    <FeedCard key={a.id} title={a.title} meta={fmt(a.createdAt)}
+                      onDelete={() => handleDeleteAnn(a.id, a.title)}
+                      onClick={() => setSelectedAnnouncement(a)}
+                    >
+                      <p>{a.content?.length > 120 ? a.content.slice(0, 120) + '…' : a.content}</p>
                     </FeedCard>
                   ))
               }
@@ -581,11 +720,10 @@ export default function TeacherClassDetail() {
             <div className="tcd-section">
               <div className="tcd-section-header">
                 <h2 className="tcd-section-title">Materials <span className="tcd-count">{materials.length}</span></h2>
-                <button className="tcd-btn tcd-btn--primary tcd-btn--sm tcd-desktop-only" onClick={() => openPostModal('materials')}>
-                  {Icons.plus} New
-                </button>
+                <button className="tcd-btn tcd-btn--primary tcd-btn--sm tcd-desktop-only" onClick={() => openPostModal('materials')}>{Icons.plus} New</button>
               </div>
-              {materials.length === 0 ? <div className="tcd-empty">No materials yet.</div>
+              {materials.length === 0
+                ? <div className="tcd-empty">No materials yet.</div>
                 : materials.map(m => (
                     <FeedCard key={m.id} title="Material" meta={fmt(m.createdAt)} onDelete={() => handleDeleteMaterial(m.id)}>
                       {m.description && <p dangerouslySetInnerHTML={{ __html: linkify(m.description) }} />}
@@ -610,7 +748,6 @@ export default function TeacherClassDetail() {
                   {Icons.alert} Overdue only
                 </button>
               </div>
-
               <div className="tcd-people-group">
                 <p className="tcd-people-label">Teacher</p>
                 <div className="tcd-person tcd-person--teacher">
@@ -618,7 +755,6 @@ export default function TeacherClassDetail() {
                   <div><p className="tcd-person-name">{classData.teacherName}</p><p className="tcd-person-role">Teacher</p></div>
                 </div>
               </div>
-
               <div className="tcd-people-group">
                 <p className="tcd-people-label">Students — {students.length}</p>
                 {students.length === 0
@@ -649,27 +785,46 @@ export default function TeacherClassDetail() {
         <aside className="tcd-sidebar">
           <div className="tcd-upcoming">
             <h3 className="tcd-upcoming-title">{Icons.calendar} Upcoming</h3>
-            {upcoming.length === 0 ? (
-              <div className="tcd-upcoming-empty">{Icons.empty}<p>No upcoming work</p></div>
-            ) : (
-              <div className="tcd-up-list">
-                {upcoming.map(a => (
-                  <div key={a.id} className={`tcd-up-item ${isOD(a.deadline) ? 'tcd-up-item--over' : ''}`}>
-                    <div className="tcd-up-dot" />
-                    <div className="tcd-up-content">
-                      <p className="tcd-up-title">{a.title}</p>
-                      <p className="tcd-up-date">{fmtDate(a.deadline)} · {fmtTime(a.deadline)}</p>
+            {upcoming.length === 0
+              ? <div className="tcd-upcoming-empty">{Icons.empty}<p>No upcoming work</p></div>
+              : (
+                <div className="tcd-up-list">
+                  {upcoming.map(a => (
+                    <div key={a.id} className={`tcd-up-item ${isOD(a.deadline) ? 'tcd-up-item--over' : ''}`}
+                      style={{ cursor: 'pointer' }} onClick={() => handleOpenAssignment(a)}>
+                      <div className="tcd-up-dot" />
+                      <div className="tcd-up-content">
+                        <p className="tcd-up-title">{a.title}</p>
+                        <p className="tcd-up-date">{fmtDate(a.deadline)} · {fmtTime(a.deadline)}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )
+            }
           </div>
         </aside>
       </div>
 
+      {/* ── Pickers / Post Modals ── */}
       {showNewPicker && <NewPicker onPick={handlePickerChoice} onClose={() => setShowNewPicker(false)} />}
       {showPostModal && <PostModal postType={postType} formData={formData} setFormData={setFormData} posting={posting} onClose={() => setShowPostModal(false)} onSubmit={handlePost} />}
+
+      {/* ── Assignment Detail Modal ── */}
+      {loadingDetail && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div className="tcd-spinner" />
+        </div>
+      )}
+      {selectedAssignment && !loadingDetail && (
+        <AssignmentDetailModal assignment={selectedAssignment} onClose={() => setSelectedAssignment(null)} />
+      )}
+
+      {/* ── Announcement Detail Modal ── */}
+      {selectedAnnouncement && (
+        <AnnouncementDetailModal announcement={selectedAnnouncement} onClose={() => setSelectedAnnouncement(null)} />
+      )}
+
       {notification && <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
       {confirmDialog && <ConfirmDialog title={confirmDialog.title} message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={confirmDialog.onCancel} confirmText={confirmDialog.confirmText} type={confirmDialog.type} />}
     </div>
