@@ -237,20 +237,30 @@ export const leaveClass = async (classId, studentId) => {
       console.error('Error removing student submissions on leave:', err)
     }
 
-    // Clear the student's score cells from Google Sheets
-    if (studentName && scoredAssignments.length > 0) {
+    // Remove student from INPUT DATA tab and clear their score cells from Google Sheets
+    if (studentName) {
       try {
         const classDoc = await getDoc(doc(db, 'classes', classId))
         const sheetId  = classDoc.exists() ? classDoc.data().sheetId : null
         if (sheetId) {
-          await fetch('/sheets-api/clear-student-scores', {
+          // Remove student name from INPUT DATA tab (removes name and shifts list up)
+          await fetch(`${SHEETS_API}/remove-student-from-sheet`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ sheetId, studentName, assignments: scoredAssignments })
-          })
+            body:    JSON.stringify({ sheetId, studentName, gender: studentSnap.exists() ? (studentSnap.data().gender || 'Male') : 'Male' })
+          }).catch(e => console.error('Error removing student from INPUT DATA (non-critical):', e))
+
+          // Also clear scored cells if any
+          if (scoredAssignments.length > 0) {
+            await fetch(`${SHEETS_API}/clear-student-scores`, {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ sheetId, studentName, assignments: scoredAssignments })
+            }).catch(e => console.error('Error clearing student scores (non-critical):', e))
+          }
         }
       } catch (sheetErr) {
-        console.error('Error clearing student from sheet (non-critical):', sheetErr)
+        console.error('Error updating sheet on student leave (non-critical):', sheetErr)
       }
     }
 

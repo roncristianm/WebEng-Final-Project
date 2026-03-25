@@ -271,9 +271,6 @@ require('dotenv').config()
   })
 
   // ── Shared: find item columns for a section ──────────────────────────────────
-  // Returns 0-based column indices sorted by their numbered sub-header (1–10),
-  // scoped to the section whose group-header contains `typeKeyword`.
-  // itemCols[0] = item 1, itemCols[1] = item 2, etc.
   function findItemColumns(groupHeaderRow, subHeaderRow, typeKeyword) {
     let sectionStart = -1
     for (let c = 0; c < groupHeaderRow.length; c++) {
@@ -297,7 +294,6 @@ require('dotenv').config()
     return itemCols.map(x => x.col)
   }
 
-  // Resolve 0-based column index using assignment type + 1-based itemNumber.
   function resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber) {
     let keyword
     if      (assignmentType === 'Written Works')        keyword = 'written'
@@ -308,14 +304,13 @@ require('dotenv').config()
     const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
     if (itemCols.length === 0) return -1
 
-    // QA only has one slot — always use first column regardless of itemNumber
     if (assignmentType === 'Quarterly Assessment') return itemCols[0]
 
-    const idx = itemNumber - 1   // itemNumber is 1-based
+    const idx = itemNumber - 1
     return (idx >= 0 && idx < itemCols.length) ? itemCols[idx] : -1
   }
 
-  // ── Set Highest Possible Score (call this when a teacher creates an assignment)
+  // ── Set Highest Possible Score ───────────────────────────────────────────────
   app.post('/set-highest-possible-score', async (req, res) => {
     try {
       const { sheetId, assignmentType, itemNumber, possibleScore, quarter = 'Q1' } = req.body
@@ -330,7 +325,6 @@ require('dotenv').config()
       const sheetName = getQuarterTab(tabs, quarter)
       if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
 
-      // Only read the two header rows — avoids pulling the whole sheet
       const headerResp = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: `${sheetName}!A8:AJ9`
@@ -346,7 +340,7 @@ require('dotenv').config()
                  `Check the sheet has numbered slots 1–10 in the correct section.`
         })
 
-      const SHEET_HPS_ROW = 10   // row 10 = HIGHEST POSSIBLE SCORE (1-based)
+      const SHEET_HPS_ROW = 10
       const colLetter     = columnToLetter(colIndex + 1)
       const hpsCell       = `${sheetName}!${colLetter}${SHEET_HPS_ROW}`
 
@@ -366,10 +360,7 @@ require('dotenv').config()
     }
   })
 
-  // ── Repair HPS row (fixes misplaced possible scores from old empty-slot logic) ─
-  // POST body: { sheetId, quarter, assignments: [{ assignmentType, itemNumber, possibleScore }] }
-  // Clears the entire HPS row for the section(s) touched, then rewrites each
-  // assignment to the correct itemNumber column.  Safe to call multiple times.
+  // ── Repair HPS row ───────────────────────────────────────────────────────────
   app.post('/repair-hps', async (req, res) => {
     try {
       const { sheetId, quarter = 'Q1', assignments } = req.body
@@ -382,7 +373,6 @@ require('dotenv').config()
       const sheetName = getQuarterTab(tabs, quarter)
       if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
 
-      // Read header rows to resolve column positions
       const headerResp = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: `${sheetName}!A8:AZ9`
@@ -393,8 +383,6 @@ require('dotenv').config()
 
       const SHEET_HPS_ROW = 10
 
-      // Collect all item columns touched by these assignments and clear them first
-      // (prevents stale values from the old empty-slot scan from lingering)
       const sectionsToClear = new Set(assignments.map(a => {
         if (a.assignmentType === 'Written Works')        return 'written'
         if (a.assignmentType === 'Performance Task')     return 'performance'
@@ -421,7 +409,6 @@ require('dotenv').config()
         console.log(`Cleared ${clearData.length} HPS cells before repair`)
       }
 
-      // Now write each assignment to the correct column
       const writeData = []
       const results   = []
       for (const a of assignments) {
@@ -455,6 +442,7 @@ require('dotenv').config()
       res.status(500).json({ error: err.message })
     }
   })
+
   app.post('/record-score', async (req, res) => {
     try {
       const {
@@ -476,22 +464,11 @@ require('dotenv').config()
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
       const rows     = response.data.values || []
 
-      // ── Sheet layout (1-based rows in Google Sheets):
-      //   Row 8  → group headers: WRITTEN WORKS (30%) | PERFORMANCE TASKS (50%) | QUARTERLY ASSESSMENT (20%)
-      //   Row 9  → sub-headers  : 1, 2, 3 … 10, Total, PS, WS   (per section)
-      //   Row 10 → HIGHEST POSSIBLE SCORE
-      //   Row 11 → MALE / FEMALE section label
-      //   Row 12+→ student data
+      const groupHeaderRow = rows[7] || []
+      const subHeaderRow   = rows[8] || []
+      const hpsRow         = rows[9] || []
+      const SHEET_HPS_ROW  = 10
 
-      const groupHeaderRow = rows[7] || []   // 0-based index 7  = sheet row 8
-      const subHeaderRow   = rows[8] || []   // 0-based index 8  = sheet row 9
-      const hpsRow         = rows[9] || []   // 0-based index 9  = sheet row 10
-      const SHEET_HPS_ROW  = 10              // 1-based sheet row for HPS
-
-      // ── Resolve the target column ─────────────────────────────────────────────
-      // Primary path: use itemNumber (stored on the Firestore assignment doc).
-      // itemNumber is 1-based and directly encodes the column position within its
-      // section, so "Written Works item 3" always lands in the 3rd WW column.
       let colIndex = -1
 
       if (itemNumber !== undefined && itemNumber !== null) {
@@ -504,8 +481,6 @@ require('dotenv').config()
         console.log(`Column resolved by itemNumber ${itemNumber} → col ${colIndex} (${columnToLetter(colIndex + 1)})`)
 
       } else {
-        // ── Fallback: legacy empty-slot scan (no itemNumber supplied) ────────────
-        // Keeps backward-compatibility with old submissions that predate itemNumber.
         console.warn(`⚠️  No itemNumber for assignmentId="${assignmentId}". Using legacy empty-slot scan.`)
 
         let keyword
@@ -518,13 +493,11 @@ require('dotenv').config()
         if (itemCols.length === 0)
           return res.status(400).json({ error: `Could not find ${assignmentType} item columns in sheet` })
 
-        // Check if this assignmentId is already pinned to a column via HPS row
         for (const c of itemCols) {
           if (String(hpsRow[c] || '').trim() === String(assignmentId)) { colIndex = c; break }
         }
 
         if (colIndex === -1) {
-          // Find the first empty slot (HPS blank or numeric, student cell blank)
           let targetRowForScan = -1
           for (let i = 11; i < rows.length; i++) {
             if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
@@ -541,7 +514,6 @@ require('dotenv').config()
           if (colIndex === -1)
             return res.status(400).json({ error: `All slots for ${assignmentType} are already used` })
 
-          // Pin this assignmentId to the slot via the HPS row
           const colLetterLeg = columnToLetter(colIndex + 1)
           const hpsValueLeg  = possibleScore !== undefined ? possibleScore : assignmentId
           await sheets.spreadsheets.values.update({
@@ -554,7 +526,6 @@ require('dotenv').config()
         }
       }
 
-      // ── Find student row ──────────────────────────────────────────────────────
       let targetRowIndex = -1
       for (let i = 11; i < rows.length; i++) {
         if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
@@ -564,9 +535,6 @@ require('dotenv').config()
       if (targetRowIndex === -1)
         return res.status(404).json({ error: `Student "${studentName}" not found in ${sheetName}` })
 
-      // ── Safety-fill HPS if not already set ───────────────────────────────────
-      // /set-highest-possible-score should have already written this when the
-      // assignment was created.  This is just a safety net for the first submission.
       if (possibleScore !== undefined) {
         const currentHPS = String(hpsRow[colIndex] || '').trim()
         if (!currentHPS || isNaN(Number(currentHPS))) {
@@ -581,7 +549,6 @@ require('dotenv').config()
         }
       }
 
-      // ── Write the student score ───────────────────────────────────────────────
       const colLetter = columnToLetter(colIndex + 1)
       const cellRange = `${sheetName}!${colLetter}${targetRowIndex + 1}`
 
@@ -601,19 +568,7 @@ require('dotenv').config()
     }
   })
 
-  // ── Update assignment in sheet (called when teacher edits an assignment) ──────
-  // Handles ALL combinations:
-  //   • possibleScore changed   → update HPS cell only
-  //   • type changed            → move HPS + all student scores to new column; clear old column
-  //   • quarter changed         → clear old quarter tab column; write to new quarter tab column
-  //   • type + quarter changed  → combination of the above
-  //
-  // POST body: {
-  //   sheetId,
-  //   old: { type, quarter, itemNumber, possibleScore },
-  //   new: { type, quarter, itemNumber, possibleScore },
-  //   studentScores: [{ studentName, score }]   // all graded submissions
-  // }
+  // ── Update assignment in sheet ───────────────────────────────────────────────
   app.post('/update-assignment-in-sheet', async (req, res) => {
     try {
       const { sheetId, old: oldA, new: newA, studentScores = [] } = req.body
@@ -626,7 +581,6 @@ require('dotenv').config()
 
       const SHEET_HPS_ROW = 10
 
-      // Helper: read header rows for a given quarter tab
       async function getHeaders(quarter) {
         const sheetName = getQuarterTab(tabs, quarter)
         if (!sheetName) return null
@@ -638,7 +592,6 @@ require('dotenv').config()
         return { sheetName, groupHeaderRow: rows[0] || [], subHeaderRow: rows[1] || [] }
       }
 
-      // Helper: read all rows for a quarter tab (needed to find student row indices)
       async function getAllRows(sheetName) {
         const r = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
         return r.data.values || []
@@ -649,7 +602,6 @@ require('dotenv').config()
       const scoreChanged   = oldA.possibleScore !== newA.possibleScore
       const somethingMoved = typeChanged || quarterChanged
 
-      // ── Step 1: resolve OLD column ───────────────────────────────────────────
       const oldHeaders = await getHeaders(oldA.quarter)
       if (!oldHeaders) return res.status(400).json({ error: `Cannot find tab for old quarter ${oldA.quarter}` })
 
@@ -662,7 +614,6 @@ require('dotenv').config()
 
       const oldColLetter = columnToLetter(oldColIndex + 1)
 
-      // ── Step 2: resolve NEW column ───────────────────────────────────────────
       const newHeaders = quarterChanged ? await getHeaders(newA.quarter) : oldHeaders
       if (!newHeaders) return res.status(400).json({ error: `Cannot find tab for new quarter ${newA.quarter}` })
 
@@ -675,22 +626,19 @@ require('dotenv').config()
 
       const newColLetter = columnToLetter(newColIndex + 1)
 
-      const batchClear = []   // cells to blank out
-      const batchWrite = []   // cells to write new values
+      const batchClear = []
+      const batchWrite = []
 
-      // ── Step 3: clear old HPS cell ───────────────────────────────────────────
       batchClear.push({
         range: `${oldHeaders.sheetName}!${oldColLetter}${SHEET_HPS_ROW}`,
         values: [['']]
       })
 
-      // ── Step 4: write new HPS cell ───────────────────────────────────────────
       batchWrite.push({
         range: `${newHeaders.sheetName}!${newColLetter}${SHEET_HPS_ROW}`,
         values: [[newA.possibleScore]]
       })
 
-      // ── Step 5: move student scores if type or quarter changed ───────────────
       if (somethingMoved && studentScores.length > 0) {
         const oldAllRows = await getAllRows(oldHeaders.sheetName)
         const newAllRows = quarterChanged
@@ -700,7 +648,6 @@ require('dotenv').config()
         for (const { studentName, score } of studentScores) {
           if (score === null || score === undefined) continue
 
-          // Find student row in OLD tab
           let oldRowIdx = -1
           for (let i = 11; i < oldAllRows.length; i++) {
             if (String(oldAllRows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
@@ -709,13 +656,11 @@ require('dotenv').config()
           }
           if (oldRowIdx === -1) continue
 
-          // Clear the old cell
           batchClear.push({
             range: `${oldHeaders.sheetName}!${oldColLetter}${oldRowIdx + 1}`,
             values: [['']]
           })
 
-          // Find student row in NEW tab (same tab if only type changed)
           let newRowIdx = oldRowIdx
           if (quarterChanged) {
             newRowIdx = -1
@@ -724,21 +669,18 @@ require('dotenv').config()
                 newRowIdx = i; break
               }
             }
-            if (newRowIdx === -1) continue   // student not in new quarter tab
+            if (newRowIdx === -1) continue
           }
 
-          // Write score to new cell
           batchWrite.push({
             range: `${newHeaders.sheetName}!${newColLetter}${newRowIdx + 1}`,
             values: [[score]]
           })
         }
       } else if (!somethingMoved && scoreChanged) {
-        // Only possibleScore changed — HPS write above is sufficient, scores don't move
         console.log(`Only possibleScore changed (${oldA.possibleScore} → ${newA.possibleScore}), updating HPS only`)
       }
 
-      // ── Step 6: execute batch clear then batch write ─────────────────────────
       if (batchClear.length > 0) {
         await sheets.spreadsheets.values.batchUpdate({
           spreadsheetId: sheetId,
@@ -755,7 +697,7 @@ require('dotenv').config()
         console.log(`Wrote ${batchWrite.length} new cells`)
       }
 
-      const moved = batchWrite.length - 1   // minus the HPS write
+      const moved = batchWrite.length - 1
       console.log(`✅ update-assignment-in-sheet: type=${oldA.type}→${newA.type}, quarter=${oldA.quarter}→${newA.quarter}, col=${oldColLetter}→${newColLetter}, ${moved} scores moved`)
       res.json({
         success: true,
@@ -771,11 +713,6 @@ require('dotenv').config()
   })
 
   // ── Clear a student's score cells when they leave or are removed ─────────────
-  // POST body: {
-  //   sheetId,
-  //   studentName,
-  //   assignments: [{ type, quarter, itemNumber }]
-  // }
   app.post('/clear-student-scores', async (req, res) => {
     try {
       const { sheetId, studentName, assignments } = req.body
@@ -785,7 +722,6 @@ require('dotenv').config()
       const sheets   = getSheetsClient()
       const tabs     = await resolveTabNames(sheetId, sheets)
 
-      // Group assignments by quarter so we only fetch each tab's rows once
       const byQuarter = {}
       for (const a of assignments) {
         const q = a.quarter || 'Q1'
@@ -799,23 +735,20 @@ require('dotenv').config()
         const sheetName = getQuarterTab(tabs, quarter)
         if (!sheetName) continue
 
-        // Read headers + all rows for this tab
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
         const rows     = response.data.values || []
 
         const groupHeaderRow = rows[7] || []
         const subHeaderRow   = rows[8] || []
 
-        // Find the student's row index
         let studentRowIdx = -1
         for (let i = 11; i < rows.length; i++) {
           if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
             studentRowIdx = i; break
           }
         }
-        if (studentRowIdx === -1) continue   // student not found in this tab
+        if (studentRowIdx === -1) continue
 
-        // For each assignment, resolve the column and queue a clear
         for (const a of qAssignments) {
           const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, a.type, a.itemNumber)
           if (colIndex === -1) continue
@@ -840,6 +773,74 @@ require('dotenv').config()
 
     } catch (err) {
       console.error('clear-student-scores error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Remove student from INPUT DATA sheet ────────────────────────────────────
+  app.post('/remove-student-from-sheet', async (req, res) => {
+    try {
+      const { sheetId, studentName, gender = 'Male' } = req.body
+      if (!sheetId || !studentName) return res.status(400).json({ error: 'sheetId and studentName required' })
+
+      const sheets = getSheetsClient()
+      const tabs = await resolveTabNames(sheetId, sheets)
+      const sheetName = tabs.inputData
+
+      if (!sheetName) return res.status(400).json({ error: 'Could not find INPUT DATA tab in this sheet.' })
+
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+      const rows = response.data.values || []
+
+      let maleHeaderRow = -1, femaleHeaderRow = -1
+      for (let i = 0; i < rows.length; i++) {
+        const val = String(rows[i][1] || '').trim().toUpperCase()
+        if (val === 'MALE') maleHeaderRow = i
+        if (val === 'FEMALE') femaleHeaderRow = i
+      }
+
+      if (maleHeaderRow === -1) return res.status(400).json({ error: 'Could not find MALE section in INPUT DATA tab.' })
+
+      const isMale = gender.toUpperCase() === 'MALE'
+      const sectionStart = isMale ? maleHeaderRow + 1 : (femaleHeaderRow > -1 ? femaleHeaderRow + 1 : maleHeaderRow + 1)
+      const sectionEnd = isMale
+        ? (femaleHeaderRow > -1 ? femaleHeaderRow : rows.length)
+        : rows.length
+
+      let names = []
+      let found = false
+      for (let i = sectionStart; i < sectionEnd; i++) {
+        const name = String(rows[i][1] || '').trim()
+        if (name) {
+          if (name.toLowerCase() === studentName.trim().toLowerCase()) {
+            found = true
+          } else {
+            names.push(name)
+          }
+        }
+      }
+
+      if (!found) return res.json({ success: true, message: 'Student not found in sheet (already removed or never added)' })
+
+      const sectionRowCount = sectionEnd - sectionStart
+
+      const updateData = []
+      for (let i = 0; i < sectionRowCount; i++) {
+        updateData.push({
+          range: `${sheetName}!B${sectionStart + i + 1}`,
+          values: [[i < names.length ? names[i] : '']]
+        })
+      }
+
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: { valueInputOption: 'USER_ENTERED', data: updateData }
+      })
+
+      console.log(`Removed "${studentName}" from INPUT DATA ${gender} section`)
+      res.json({ success: true, message: `Removed ${studentName} from INPUT DATA` })
+    } catch (err) {
+      console.error('remove-student-from-sheet error', err.message)
       res.status(500).json({ error: err.message })
     }
   })
