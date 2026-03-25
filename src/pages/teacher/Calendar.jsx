@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { getTeacherClasses } from '../../services/classService'
+import { getTeacherClasses, getClassStudents } from '../../services/classService'
 import { getTeacherEvents } from '../../services/eventService'
 import { createAnnouncementMulti } from '../../services/announcementService'
 import { createAssignmentMulti } from '../../services/assignmentService'
+import { sendAnnouncementNotification, sendNewAssignmentNotification } from '../../services/emailService'
 import Notification from '../../components/Notification'
 import '../../styles/Calendar.css'
 
@@ -135,7 +136,10 @@ function Calendar() {
           createdAt: clickedDateStr,
           description: formData.description,
           type: formData.type,
-          deadline
+          deadline,
+          // Required by Firestore write path (undefined values will fail)
+          possibleScore: 100,
+          quarter: 'Q1'
         })
       } else {
         result = await createAnnouncementMulti([formData.classId], {
@@ -147,6 +151,42 @@ function Calendar() {
       if (result.success) {
         setNotification({ message: `${createType} created successfully!`, type: 'success' })
         setShowCreateModal(false)
+
+        // Fire-and-forget email notifications (never blocks success UI)
+        try {
+          const classStudents = await getClassStudents(formData.classId)
+          const withEmail = classStudents.filter(s => s.email)
+          const emails = withEmail.map(s => s.email)
+          const names = withEmail.map(s => s.name)
+          if (emails.length) {
+            if (createType === 'assignment') {
+              const deadline = `${formData.deadlineDate}T${formData.deadlineTime}`
+              sendNewAssignmentNotification({
+                to: emails,
+                studentName: names,
+                teacherName: currentUser.displayName || 'Teacher',
+                className: selectedClass?.name || 'Unknown Class',
+                title: formData.title,
+                description: formData.description,
+                deadline,
+                type: formData.type,
+                possibleScore: 100,
+              })
+            } else {
+              sendAnnouncementNotification({
+                to: emails,
+                studentName: names,
+                teacherName: currentUser.displayName || 'Teacher',
+                className: selectedClass?.name || 'Unknown Class',
+                title: formData.title,
+                content: formData.content,
+              })
+            }
+          }
+        } catch (emailErr) {
+          console.error('[Calendar] Email notification failed:', emailErr.message)
+        }
+
         resetForm()
         await loadData()
       } else {

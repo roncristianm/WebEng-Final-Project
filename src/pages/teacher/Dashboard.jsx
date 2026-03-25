@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import CreateClassModal from '../../components/CreateClassModal'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
-import { createClass, getTeacherClasses } from '../../services/classService'
+import { createClass, getTeacherClasses, getClassStudents } from '../../services/classService'
+import { sendNewAssignmentNotification } from '../../services/emailService'
 import Notification from '../../components/Notification'
 import '../../styles/TeacherDashboard.css'
 
@@ -126,6 +127,29 @@ export default function Dashboard() {
       if (result.success) {
         setShowAssignModal(false)
         setNotification({ message: 'Assignment created successfully!', type: 'success' })
+
+        // Fire-and-forget email notifications (never blocks success UI)
+        try {
+          const classStudents = await getClassStudents(assignForm.classId)
+          const withEmail = classStudents.filter(s => s.email)
+          const emails = withEmail.map(s => s.email)
+          const names = withEmail.map(s => s.name)
+          if (emails.length) {
+            sendNewAssignmentNotification({
+              to: emails,
+              studentName: names,
+              teacherName: auth.currentUser.displayName || 'Teacher',
+              className: selectedClass?.name || '',
+              title: assignForm.title,
+              description: assignForm.description,
+              deadline,
+              type: assignForm.type,
+              possibleScore: parseFloat(assignForm.possibleScore) || 100,
+            })
+          }
+        } catch (emailErr) {
+          console.error('[Dashboard] Email notification failed:', emailErr.message)
+        }
       } else {
         setNotification({ message: `Error: ${result.error}`, type: 'error' })
       }

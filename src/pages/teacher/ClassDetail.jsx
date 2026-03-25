@@ -7,6 +7,7 @@ import { getClassAssignments, createAssignmentSingle, getAssignmentById, deleteA
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
 import { updateAnnouncement, updateAssignment, updateMaterial } from '../../services/editService'
+import { sendAnnouncementNotification, sendNewAssignmentNotification } from '../../services/emailService'
 import { useAuth } from '../../context/AuthContext'
 import EditContentModal from '../../components/EditContentModal'
 import Notification from '../../components/Notification'
@@ -444,13 +445,54 @@ export default function TeacherClassDetail() {
       if (postType === 'announcements') {
         if (!formData.title.trim() || !formData.content.trim()) { setNotification({ message: 'Please fill title and content', type: 'error' }); return }
         const r = await createAnnouncement({ title: formData.title.trim(), content: formData.content.trim(), classId, className: classData.name, teacherId: currentUser.uid, teacherName: currentUser.displayName || 'Teacher' })
-        if (r.success) setNotification({ message: 'Announcement posted!', type: 'success' })
+        if (r.success) {
+          setNotification({ message: 'Announcement posted!', type: 'success' })
+          try {
+            const withEmail = (students || []).filter(s => s.email)
+            const emails = withEmail.map(s => s.email)
+            const names = withEmail.map(s => s.name)
+            if (emails.length) {
+              sendAnnouncementNotification({
+                to: emails,
+                studentName: names,
+                teacherName: currentUser.displayName || 'Teacher',
+                className: classData.name,
+                title: formData.title.trim(),
+                content: formData.content.trim(),
+              })
+            }
+          } catch (emailErr) {
+            console.error('[ClassDetail] Announcement email failed:', emailErr.message)
+          }
+        }
         else throw new Error(r.error)
       } else if (postType === 'assignments') {
         if (!formData.title.trim() || !formData.description.trim()) { setNotification({ message: 'Please fill title and description', type: 'error' }); return }
         const deadline = `${formData.deadlineDate || new Date().toLocaleDateString('en-CA')}T${formData.deadlineTime || '23:59'}`
         const r = await createAssignmentSingle({ title: formData.title.trim(), description: formData.description.trim(), classId, className: classData.name, teacherId: currentUser.uid, teacherName: currentUser.displayName || 'Teacher', type: formData.type || 'Written Works', quarter: formData.quarter || 'Q1', possibleScore: parseFloat(formData.possibleScore) || 100, deadline })
-        if (r.success) setNotification({ message: 'Assignment created!', type: 'success' })
+        if (r.success) {
+          setNotification({ message: 'Assignment created!', type: 'success' })
+          try {
+            const withEmail = (students || []).filter(s => s.email)
+            const emails = withEmail.map(s => s.email)
+            const names = withEmail.map(s => s.name)
+            if (emails.length) {
+              sendNewAssignmentNotification({
+                to: emails,
+                studentName: names,
+                teacherName: currentUser.displayName || 'Teacher',
+                className: classData.name,
+                title: formData.title.trim(),
+                description: formData.description.trim(),
+                deadline,
+                type: formData.type || 'Written Works',
+                possibleScore: parseFloat(formData.possibleScore) || 100,
+              })
+            }
+          } catch (emailErr) {
+            console.error('[ClassDetail] Assignment email failed:', emailErr.message)
+          }
+        }
         else throw new Error(r.error)
       } else {
         if (!formData.description.trim() || !formData.files?.length) { setNotification({ message: 'Please add description and at least one file', type: 'error' }); return }
