@@ -40,6 +40,34 @@ export const createAssignmentSingle = async (assignmentData) => {
       createdAt: serverTimestamp()
     })
 
+    // ── Notify the sheets backend so the HPS row is filled immediately ──────
+    // This writes `possibleScore` to the correct column in row 10 as soon as
+    // the teacher creates the assignment — before any student submits.
+    try {
+      const classDoc = await getDoc(doc(db, 'classes', classId))
+      if (classDoc.exists()) {
+        const sheetId = classDoc.data().sheetId
+        if (sheetId) {
+          const hpsResp = await fetch(`${SHEETS_API}/set-highest-possible-score`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sheetId,
+              assignmentType: type,
+              itemNumber,
+              possibleScore,
+              quarter: quarter || 'Q1'
+            })
+          })
+          const hpsResult = await hpsResp.json()
+          console.log('set-highest-possible-score result:', hpsResult)
+        }
+      }
+    } catch (hpsErr) {
+      // Non-critical: the score submission path has a safety-fill fallback
+      console.error('Failed to set HPS in sheet (non-critical):', hpsErr)
+    }
+
     // Create submission records for all students
     const studentsRef = collection(db, 'classes', classId, 'students')
     const studentsSnapshot = await getDocs(studentsRef)
@@ -219,6 +247,7 @@ export const submitAssignment = async (assignmentId, studentId, deadline, score 
                     studentName,
                     assignmentType: assignment.type,
                     assignmentId,
+                    itemNumber: assignment.itemNumber,   // ← added: lets backend place score in exact column
                     score,
                     possibleScore: assignment.possibleScore,
                     quarter: assignment.quarter || 'Q1'
@@ -263,5 +292,48 @@ export const getStudentAssignments = async (studentId, classIds) => {
   } catch (error) {
     console.error('Error fetching student assignments:', error)
     return []
+  }
+}
+
+/**
+ * Repair the HPS row for a class+quarter by re-writing every assignment's
+ * possibleScore to the column that matches its itemNumber.
+ * Call this once from the teacher's Grade page to fix any misplaced scores
+ * that were written by the old empty-slot logic.
+ *
+ * Usage:
+ *   import { repairHPS } from '../services/assignmentService'
+ *   await repairHPS(classId, sheetId, 'Q1')
+ */
+export const repairHPS = async (classId, sheetId, quarter = 'Q1') => {
+  try {
+    if (!sheetId) return { success: false, error: 'No sheetId for this class' }
+
+    // Fetch all assignments for this class+quarter from Firestore
+    const q = query(
+      collection(db, 'assignments'),
+      where('classId', '==', classId),
+      where('quarter', '==', quarter)
+    )
+    const snapshot = await getDocs(q)
+    if (snapshot.empty) return { success: true, message: 'No assignments found', results: [] }
+
+    const assignments = snapshot.docs.map(d => ({
+      assignmentType: d.data().type,
+      itemNumber:     d.data().itemNumber,
+      possibleScore:  d.data().possibleScore
+    })).filter(a => a.itemNumber !== undefined && a.possibleScore !== undefined)
+
+    const resp = await fetch(`${SHEETS_API}/repair-hps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId, quarter, assignments })
+    })
+    const result = await resp.json()
+    console.log('repair-hps result:', result)
+    return result
+  } catch (err) {
+    console.error('repairHPS error:', err)
+    return { success: false, error: err.message }
   }
 }

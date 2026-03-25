@@ -1,4 +1,4 @@
-  require('dotenv').config()
+require('dotenv').config()
   const emailRoutes = require('./emailRoutes')
   const express = require('express')
   const bodyParser = require('body-parser')
@@ -270,152 +270,318 @@
     }
   })
 
-  // ── Record a student score ───────────────────────────────────────────────────
+  // ── Shared: find item columns for a section ──────────────────────────────────
+  // Returns 0-based column indices sorted by their numbered sub-header (1–10),
+  // scoped to the section whose group-header contains `typeKeyword`.
+  // itemCols[0] = item 1, itemCols[1] = item 2, etc.
+  function findItemColumns(groupHeaderRow, subHeaderRow, typeKeyword) {
+    let sectionStart = -1
+    for (let c = 0; c < groupHeaderRow.length; c++) {
+      if (String(groupHeaderRow[c] || '').toLowerCase().includes(typeKeyword.toLowerCase())) {
+        sectionStart = c; break
+      }
+    }
+    if (sectionStart === -1) return []
+
+    let sectionEnd = groupHeaderRow.length
+    for (let c = sectionStart + 1; c < groupHeaderRow.length; c++) {
+      if (String(groupHeaderRow[c] || '').trim() !== '') { sectionEnd = c; break }
+    }
+
+    const itemCols = []
+    for (let c = sectionStart; c < sectionEnd; c++) {
+      const num = parseInt(String(subHeaderRow[c] || '').trim(), 10)
+      if (!isNaN(num) && num >= 1 && num <= 10) itemCols.push({ col: c, num })
+    }
+    itemCols.sort((a, b) => a.num - b.num)
+    return itemCols.map(x => x.col)
+  }
+
+  // Resolve 0-based column index using assignment type + 1-based itemNumber.
+  function resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber) {
+    let keyword
+    if      (assignmentType === 'Written Works')        keyword = 'written'
+    else if (assignmentType === 'Performance Task')     keyword = 'performance'
+    else if (assignmentType === 'Quarterly Assessment') keyword = 'quarterly'
+    else return -1
+
+    const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+    if (itemCols.length === 0) return -1
+
+    // QA only has one slot — always use first column regardless of itemNumber
+    if (assignmentType === 'Quarterly Assessment') return itemCols[0]
+
+    const idx = itemNumber - 1   // itemNumber is 1-based
+    return (idx >= 0 && idx < itemCols.length) ? itemCols[idx] : -1
+  }
+
+  // ── Set Highest Possible Score (call this when a teacher creates an assignment)
+  app.post('/set-highest-possible-score', async (req, res) => {
+    try {
+      const { sheetId, assignmentType, itemNumber, possibleScore, quarter = 'Q1' } = req.body
+
+      if (!sheetId || !assignmentType || itemNumber === undefined || possibleScore === undefined)
+        return res.status(400).json({
+          error: 'Missing required fields: sheetId, assignmentType, itemNumber, possibleScore'
+        })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      // Only read the two header rows — avoids pulling the whole sheet
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!A8:AJ9`
+      })
+      const headerRows     = headerResp.data.values || []
+      const groupHeaderRow = headerRows[0] || []
+      const subHeaderRow   = headerRows[1] || []
+
+      const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+      if (colIndex === -1)
+        return res.status(400).json({
+          error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column. ` +
+                 `Check the sheet has numbered slots 1–10 in the correct section.`
+        })
+
+      const SHEET_HPS_ROW = 10   // row 10 = HIGHEST POSSIBLE SCORE (1-based)
+      const colLetter     = columnToLetter(colIndex + 1)
+      const hpsCell       = `${sheetName}!${colLetter}${SHEET_HPS_ROW}`
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: hpsCell,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[possibleScore]] }
+      })
+
+      console.log(`✅ HPS set: ${assignmentType} item ${itemNumber} → ${hpsCell} = ${possibleScore} (${quarter})`)
+      res.json({ success: true, cell: hpsCell, assignmentType, itemNumber, possibleScore })
+
+    } catch (err) {
+      console.error('set-highest-possible-score error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Repair HPS row (fixes misplaced possible scores from old empty-slot logic) ─
+  // POST body: { sheetId, quarter, assignments: [{ assignmentType, itemNumber, possibleScore }] }
+  // Clears the entire HPS row for the section(s) touched, then rewrites each
+  // assignment to the correct itemNumber column.  Safe to call multiple times.
+  app.post('/repair-hps', async (req, res) => {
+    try {
+      const { sheetId, quarter = 'Q1', assignments } = req.body
+
+      if (!sheetId || !Array.isArray(assignments) || assignments.length === 0)
+        return res.status(400).json({ error: 'sheetId and a non-empty assignments array are required' })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      // Read header rows to resolve column positions
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!A8:AZ9`
+      })
+      const headerRows     = headerResp.data.values || []
+      const groupHeaderRow = headerRows[0] || []
+      const subHeaderRow   = headerRows[1] || []
+
+      const SHEET_HPS_ROW = 10
+
+      // Collect all item columns touched by these assignments and clear them first
+      // (prevents stale values from the old empty-slot scan from lingering)
+      const sectionsToClear = new Set(assignments.map(a => {
+        if (a.assignmentType === 'Written Works')        return 'written'
+        if (a.assignmentType === 'Performance Task')     return 'performance'
+        if (a.assignmentType === 'Quarterly Assessment') return 'quarterly'
+        return null
+      }).filter(Boolean))
+
+      const clearData = []
+      for (const keyword of sectionsToClear) {
+        const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+        for (const c of itemCols) {
+          clearData.push({
+            range: `${sheetName}!${columnToLetter(c + 1)}${SHEET_HPS_ROW}`,
+            values: [['']]
+          })
+        }
+      }
+
+      if (clearData.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: clearData }
+        })
+        console.log(`Cleared ${clearData.length} HPS cells before repair`)
+      }
+
+      // Now write each assignment to the correct column
+      const writeData = []
+      const results   = []
+      for (const a of assignments) {
+        const { assignmentType, itemNumber, possibleScore } = a
+        if (!assignmentType || itemNumber === undefined || possibleScore === undefined) {
+          results.push({ assignmentType, itemNumber, error: 'Missing fields' })
+          continue
+        }
+        const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+        if (colIndex === -1) {
+          results.push({ assignmentType, itemNumber, error: 'Could not resolve column' })
+          continue
+        }
+        const cell = `${sheetName}!${columnToLetter(colIndex + 1)}${SHEET_HPS_ROW}`
+        writeData.push({ range: cell, values: [[possibleScore]] })
+        results.push({ assignmentType, itemNumber, possibleScore, cell, success: true })
+      }
+
+      if (writeData.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: writeData }
+        })
+      }
+
+      console.log(`✅ repair-hps: wrote ${writeData.length} HPS values for ${quarter}`)
+      res.json({ success: true, results })
+
+    } catch (err) {
+      console.error('repair-hps error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
   app.post('/record-score', async (req, res) => {
     try {
-      const { sheetId, studentName, assignmentType, assignmentId, score, possibleScore, quarter = 'Q1' } = req.body
-      if (!sheetId || !studentName || !assignmentType || !assignmentId || score === undefined)
-        return res.status(400).json({ error: 'Missing required fields: sheetId, studentName, assignmentType, assignmentId, score' })
+      const {
+        sheetId, studentName, assignmentType,
+        assignmentId, itemNumber, score, possibleScore,
+        quarter = 'Q1'
+      } = req.body
 
-      const sheets = getSheetsClient()
-      const tabs = await resolveTabNames(sheetId, sheets)
+      if (!sheetId || !studentName || !assignmentType || !assignmentId || score === undefined)
+        return res.status(400).json({
+          error: 'Missing required fields: sheetId, studentName, assignmentType, assignmentId, score'
+        })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
       const sheetName = getQuarterTab(tabs, quarter)
       if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
 
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
-      const rows = response.data.values || []
+      const rows     = response.data.values || []
 
       // ── Sheet layout (1-based rows in Google Sheets):
-      //   Row 8  → group headers: WRITTEN WORKS, PERFORMANCE TASKS, QUARTERLY ASSESSMENT
-      //   Row 9  → sub-headers:   1, 2, 3 … 10, Total, PS, WS
+      //   Row 8  → group headers: WRITTEN WORKS (30%) | PERFORMANCE TASKS (50%) | QUARTERLY ASSESSMENT (20%)
+      //   Row 9  → sub-headers  : 1, 2, 3 … 10, Total, PS, WS   (per section)
       //   Row 10 → HIGHEST POSSIBLE SCORE
       //   Row 11 → MALE / FEMALE section label
-      //   Row 12+ → student data
+      //   Row 12+→ student data
 
-      const groupHeaderRow = rows[7] || []   // row 8
-      const subHeaderRow   = rows[8] || []   // row 9
-      const hpsRow         = rows[9] || []   // row 10 — Highest Possible Score
+      const groupHeaderRow = rows[7] || []   // 0-based index 7  = sheet row 8
+      const subHeaderRow   = rows[8] || []   // 0-based index 8  = sheet row 9
+      const hpsRow         = rows[9] || []   // 0-based index 9  = sheet row 10
       const SHEET_HPS_ROW  = 10              // 1-based sheet row for HPS
 
-      // ── Find student row ─────────────────────────────────────────────────────
+      // ── Resolve the target column ─────────────────────────────────────────────
+      // Primary path: use itemNumber (stored on the Firestore assignment doc).
+      // itemNumber is 1-based and directly encodes the column position within its
+      // section, so "Written Works item 3" always lands in the 3rd WW column.
+      let colIndex = -1
+
+      if (itemNumber !== undefined && itemNumber !== null) {
+        colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+        if (colIndex === -1)
+          return res.status(400).json({
+            error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column. ` +
+                   `Verify the sheet has numbered slots 1–10 in the correct section.`
+          })
+        console.log(`Column resolved by itemNumber ${itemNumber} → col ${colIndex} (${columnToLetter(colIndex + 1)})`)
+
+      } else {
+        // ── Fallback: legacy empty-slot scan (no itemNumber supplied) ────────────
+        // Keeps backward-compatibility with old submissions that predate itemNumber.
+        console.warn(`⚠️  No itemNumber for assignmentId="${assignmentId}". Using legacy empty-slot scan.`)
+
+        let keyword
+        if      (assignmentType === 'Written Works')        keyword = 'written'
+        else if (assignmentType === 'Performance Task')     keyword = 'performance'
+        else if (assignmentType === 'Quarterly Assessment') keyword = 'quarterly'
+        else return res.status(400).json({ error: `Unknown assignmentType: ${assignmentType}` })
+
+        const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+        if (itemCols.length === 0)
+          return res.status(400).json({ error: `Could not find ${assignmentType} item columns in sheet` })
+
+        // Check if this assignmentId is already pinned to a column via HPS row
+        for (const c of itemCols) {
+          if (String(hpsRow[c] || '').trim() === String(assignmentId)) { colIndex = c; break }
+        }
+
+        if (colIndex === -1) {
+          // Find the first empty slot (HPS blank or numeric, student cell blank)
+          let targetRowForScan = -1
+          for (let i = 11; i < rows.length; i++) {
+            if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+              targetRowForScan = i; break
+            }
+          }
+          const studentRowScan = targetRowForScan >= 0 ? (rows[targetRowForScan] || []) : []
+
+          for (const c of itemCols) {
+            const hpsVal    = String(hpsRow[c] || '').trim()
+            const hpsOther  = hpsVal !== '' && hpsVal !== String(assignmentId) && isNaN(Number(hpsVal))
+            if (!hpsOther && String(studentRowScan[c] || '').trim() === '') { colIndex = c; break }
+          }
+          if (colIndex === -1)
+            return res.status(400).json({ error: `All slots for ${assignmentType} are already used` })
+
+          // Pin this assignmentId to the slot via the HPS row
+          const colLetterLeg = columnToLetter(colIndex + 1)
+          const hpsValueLeg  = possibleScore !== undefined ? possibleScore : assignmentId
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `${sheetName}!${colLetterLeg}${SHEET_HPS_ROW}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[hpsValueLeg]] }
+          })
+          console.log(`Legacy pin: assignmentId "${assignmentId}" → col ${colLetterLeg}, HPS = ${hpsValueLeg}`)
+        }
+      }
+
+      // ── Find student row ──────────────────────────────────────────────────────
       let targetRowIndex = -1
       for (let i = 11; i < rows.length; i++) {
-        const name = String(rows[i][1] || '').trim().toLowerCase()
-        if (name === String(studentName).trim().toLowerCase()) {
-          targetRowIndex = i
-          break
+        if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+          targetRowIndex = i; break
         }
       }
       if (targetRowIndex === -1)
         return res.status(404).json({ error: `Student "${studentName}" not found in ${sheetName}` })
 
-      const studentRow = rows[targetRowIndex] || []
-
-      // ── Find item columns within a section ───────────────────────────────────
-      // Returns 0-based column indices whose row-9 sub-header is a number 1–10,
-      // scoped to the section that starts at the group-header keyword.
-      function findItemColumns(typeKeyword) {
-        let sectionStart = -1
-        for (let c = 0; c < groupHeaderRow.length; c++) {
-          if (String(groupHeaderRow[c] || '').toLowerCase().includes(typeKeyword.toLowerCase())) {
-            sectionStart = c
-            break
-          }
-        }
-        if (sectionStart === -1) return []
-
-        // Find next section boundary
-        let sectionEnd = groupHeaderRow.length
-        for (let c = sectionStart + 1; c < groupHeaderRow.length; c++) {
-          const v = String(groupHeaderRow[c] || '').trim()
-          if (v !== '') { sectionEnd = c; break }
-        }
-
-        const itemCols = []
-        for (let c = sectionStart; c < sectionEnd; c++) {
-          const sub = String(subHeaderRow[c] || '').trim()
-          const num = parseInt(sub, 10)
-          if (!isNaN(num) && num >= 1 && num <= 10) {
-            itemCols.push(c)
-          }
-        }
-        return itemCols
-      }
-
-      // ── Resolve target column ────────────────────────────────────────────────
-      let colIndex = -1
-
-      if (assignmentType === 'Quarterly Assessment') {
-        const qaCols = findItemColumns('quarterly')
-        if (qaCols.length === 0)
-          return res.status(400).json({ error: 'Could not find Quarterly Assessment column in sheet' })
-        colIndex = qaCols[0]
-
-        // Write possible score to HPS row if currently empty
-        if (possibleScore !== undefined) {
-          const existingPS = String(hpsRow[colIndex] || '').trim()
-          if (!existingPS || isNaN(Number(existingPS))) {
-            const qaColLetter = columnToLetter(colIndex + 1)
-            await sheets.spreadsheets.values.update({
-              spreadsheetId: sheetId,
-              range: `${sheetName}!${qaColLetter}${SHEET_HPS_ROW}`,
-              valueInputOption: 'USER_ENTERED',
-              requestBody: { values: [[possibleScore]] }
-            })
-            console.log(`Written QA possible score ${possibleScore} to ${sheetName}!${qaColLetter}${SHEET_HPS_ROW}`)
-          }
-        }
-
-      } else {
-        // Written Works or Performance Task
-        const keyword = assignmentType === 'Written Works' ? 'written' : 'performance'
-        const itemCols = findItemColumns(keyword)
-        if (itemCols.length === 0)
-          return res.status(400).json({ error: `Could not find ${assignmentType} item columns in sheet` })
-
-        // 1. Check if this assignmentId is already mapped to a column
-        //    (we store the marker in the HPS row when first assigned)
-        for (const c of itemCols) {
-          const marker = String(hpsRow[c] || '').trim()
-          if (marker === String(assignmentId)) {
-            colIndex = c
-            break
-          }
-        }
-
-        if (colIndex === -1) {
-          // 2. Find the next available empty slot.
-          //    A slot is available when:
-          //      a) The HPS cell is blank OR contains only a plain number (no foreign marker)
-          //      b) The student's own cell in that column is blank
-          for (const c of itemCols) {
-            const hpsVal     = String(hpsRow[c] || '').trim()
-            const studentVal = String(studentRow[c] || '').trim()
-            const hpsIsClaimedByOther = hpsVal !== '' && hpsVal !== String(assignmentId) && isNaN(Number(hpsVal))
-            if (!hpsIsClaimedByOther && studentVal === '') {
-              colIndex = c
-              break
-            }
-          }
-          if (colIndex === -1)
-            return res.status(400).json({ error: `All slots for ${assignmentType} are already used` })
-
-          // Write assignmentId marker (or possibleScore if provided) into HPS row
-          // so future calls can find this column again
-          const colLetter = columnToLetter(colIndex + 1)
-          const hpsValue  = possibleScore !== undefined ? possibleScore : assignmentId
+      // ── Safety-fill HPS if not already set ───────────────────────────────────
+      // /set-highest-possible-score should have already written this when the
+      // assignment was created.  This is just a safety net for the first submission.
+      if (possibleScore !== undefined) {
+        const currentHPS = String(hpsRow[colIndex] || '').trim()
+        if (!currentHPS || isNaN(Number(currentHPS))) {
+          const colLetterHPS = columnToLetter(colIndex + 1)
           await sheets.spreadsheets.values.update({
             spreadsheetId: sheetId,
-            range: `${sheetName}!${colLetter}${SHEET_HPS_ROW}`,
+            range: `${sheetName}!${colLetterHPS}${SHEET_HPS_ROW}`,
             valueInputOption: 'USER_ENTERED',
-            requestBody: { values: [[hpsValue]] }
+            requestBody: { values: [[possibleScore]] }
           })
-          console.log(`Mapped assignmentId "${assignmentId}" → column ${colLetter} in ${sheetName}, HPS value: ${hpsValue}`)
+          console.log(`HPS safety-fill: ${colLetterHPS}${SHEET_HPS_ROW} = ${possibleScore}`)
         }
       }
 
       // ── Write the student score ───────────────────────────────────────────────
-      // colIndex is already the correct 0-based column — no extra ±1 needed
       const colLetter = columnToLetter(colIndex + 1)
       const cellRange = `${sheetName}!${colLetter}${targetRowIndex + 1}`
 
@@ -426,8 +592,8 @@
         requestBody: { values: [[score]] }
       })
 
-      console.log(`✅ Recorded score ${score} for "${studentName}" → ${cellRange} (${assignmentType}, id=${assignmentId})`)
-      res.json({ success: true, cell: cellRange, studentName, score })
+      console.log(`✅ Score recorded: "${studentName}" → ${cellRange} | ${assignmentType} #${itemNumber ?? '?'} (id=${assignmentId}) = ${score}`)
+      res.json({ success: true, cell: cellRange, studentName, score, itemNumber: itemNumber ?? null })
 
     } catch (err) {
       console.error('record-score error', err.message)
