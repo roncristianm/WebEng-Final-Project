@@ -1,24 +1,95 @@
 // sheets-backend/emailService.js
-const nodemailer = require('nodemailer')
 
 const BRAND_COLOR = '#0038A8'
 const BRAND_NAME  = 'Nexxus · BHSA'
 const SCHOOL_NAME = 'Bataan High School For The Arts'
 
-// ── Transporter ───────────────────────────────────────────────────────────────
-function getTransporter() {
-  if (!process.env.BREVO_SMTP_KEY) {
-    throw new Error('BREVO_SMTP_KEY is not set in .env')
+// ── Brevo Transactional Email API ─────────────────────────────────────────────
+// Docs endpoint: POST https://api.brevo.com/v3/smtp/email
+// Uses Brevo API key (recommended env var: BREVO_API_KEY).
+
+function getBrevoApiKey() {
+  const apiKey = process.env.BREVO_API_KEY
+  if (apiKey) return apiKey
+
+  // Backward-compat: some setups stored a key under BREVO_SMTP_KEY.
+  // Brevo API keys usually start with "xkeysib-" (SMTP keys often start with "xsmtpsib-").
+  const legacy = process.env.BREVO_SMTP_KEY
+  if (legacy && /^xkeysib-/i.test(legacy)) return legacy
+
+  throw new Error(
+    'Brevo API key missing. Set BREVO_API_KEY in your backend environment variables.'
+  )
+}
+
+function normalizeRecipients(to) {
+  if (Array.isArray(to)) return to
+  if (typeof to !== 'string') return []
+  // allow comma-separated lists
+  return to.split(',').map((s) => s.trim()).filter(Boolean)
+}
+
+async function brevoSendEmail({ to, subject, html }) {
+  if (typeof fetch !== 'function') {
+    throw new Error('Global fetch() is not available. Use Node 18+ (recommended) or add a fetch polyfill.')
   }
-  return nodemailer.createTransport({
-    host:   'smtp-relay.brevo.com',
-    port:   587,
-    secure: false,
-    auth: {
-      user: process.env.BREVO_SMTP_LOGIN,
-      pass: process.env.BREVO_SMTP_KEY,
-    },
-  })
+
+  const apiKey    = getBrevoApiKey()
+  const fromEmail = process.env.BREVO_FROM_EMAIL || process.env.BREVO_SMTP_LOGIN
+
+  if (!fromEmail) {
+    throw new Error('Missing sender email. Set BREVO_FROM_EMAIL (or BREVO_SMTP_LOGIN as fallback).')
+  }
+
+  const recipients = normalizeRecipients(to)
+  if (!recipients.length) {
+    throw new Error('Missing recipient email: "to" is required')
+  }
+
+  const controller = new AbortController()
+  const timeoutMs  = Number(process.env.BREVO_API_TIMEOUT_MS || 15000)
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'api-key': apiKey,
+      },
+      body: JSON.stringify({
+        sender: { name: BRAND_NAME, email: fromEmail },
+        to: recipients.map((email) => ({ email })),
+        subject,
+        htmlContent: html,
+      }),
+      signal: controller.signal,
+    })
+
+    const text = await resp.text()
+    let data
+    try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
+
+    if (!resp.ok) {
+      const msg = (data && (data.message || data.error || data.raw))
+        ? (data.message || data.error || data.raw)
+        : `Brevo API error (${resp.status})`
+      throw new Error(`${msg}`)
+    }
+
+    return {
+      messageId: data && data.messageId ? data.messageId : undefined,
+      response: data,
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error(`Brevo API request timed out after ${timeoutMs}ms`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 // ── Base HTML template ────────────────────────────────────────────────────────
@@ -233,15 +304,8 @@ function emailVerificationTemplate({ name, verifyLink }) {
 
 // ── Send helpers ──────────────────────────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
-  const fromEmail   = process.env.BREVO_FROM_EMAIL || process.env.BREVO_SMTP_LOGIN
-  const transporter = getTransporter()
-  const info = await transporter.sendMail({
-    from: `"${BRAND_NAME}" <${fromEmail}>`,
-    to,
-    subject,
-    html,
-  })
-  console.log(`[mailer] ✅ Sent → ${to} | ${subject} | ${info.messageId}`)
+  const info = await brevoSendEmail({ to, subject, html })
+  console.log(`[mailer] ✅ Sent → ${Array.isArray(to) ? to.join(',') : to} | ${subject} | ${info.messageId || 'no-messageId'}`)
   return info
 }
 
