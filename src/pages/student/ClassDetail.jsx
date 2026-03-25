@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { getClassById, leaveClass, getClassStudents } from '../../services/classService'
-import { getClassAssignments } from '../../services/assignmentService'
+import { getClassAssignments, submitAssignment } from '../../services/assignmentService'
 import { getClassAnnouncements } from '../../services/announcementService'
 import { getClassMaterials } from '../../services/materialService'
+import { getStudentAssignments } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/StudentClassDetail.css'
@@ -18,7 +19,13 @@ const TAB_LABELS = {
   people:        'Members',
 }
 
-/* ── SVG Icon set (same stroke style as Navbar) ── */
+const TYPE_COLORS = {
+  'Written Works': '#3b82f6',
+  'Performance Task': '#10b981',
+  'Quarterly Assessment': '#f59e0b'
+}
+
+/* ── SVG Icon set ── */
 const Icons = {
   general: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -30,8 +37,7 @@ const Icons = {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
       <polyline points="14 2 14 8 20 8"/>
-      <line x1="16" y1="13" x2="8" y2="13"/>
-      <line x1="16" y1="17" x2="8" y2="17"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
       <polyline points="10 9 9 9 8 9"/>
     </svg>
   ),
@@ -137,15 +143,26 @@ function TypeChip({ type }) {
   return <span className={`scd-chip ${cls}`}>{label}</span>
 }
 
-function FeedCard({ title, meta, chip, overdue, children }) {
+function FeedCard({ title, meta, chip, overdue, onClick, children }) {
   return (
-    <div className={`scd-feed-card ${overdue ? 'scd-feed-card--overdue' : ''}`}>
+    <div
+      className={`scd-feed-card ${overdue ? 'scd-feed-card--overdue' : ''} ${onClick ? 'scd-feed-card--clickable' : ''}`}
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : {}}
+    >
       <div className="scd-feed-card-top">
         <div className="scd-feed-card-main">
           {chip && <TypeChip type={chip} />}
           <h3 className="scd-feed-title">{title}</h3>
         </div>
-        {meta && <span className="scd-feed-meta">{meta}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {meta && <span className="scd-feed-meta">{meta}</span>}
+          {onClick && (
+            <span style={{ fontSize: 11, color: '#0038A8', fontWeight: 700, background: '#eff6ff', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+              View →
+            </span>
+          )}
+        </div>
       </div>
       {children && <div className="scd-feed-body">{children}</div>}
     </div>
@@ -165,20 +182,162 @@ function UpcomingItem({ assignment }) {
   )
 }
 
+/* ── Assignment Detail Modal ── */
+function AssignmentModal({ assignment, submission, onClose, onSubmit, submitting, notification, onNotificationClose }) {
+  const [score, setScore] = useState('')
+  const isOverdue = isDeadlinePassed(assignment.deadline)
+  const status = submission?.status || 'not_submitted'
+
+  const getStatusBadge = (s) => {
+    const badges = {
+      done: { text: 'Submitted', color: '#10b981' },
+      late: { text: 'Late', color: '#ef4444' },
+      not_submitted: { text: 'Not Submitted', color: '#6b7280' }
+    }
+    const b = badges[s] || badges.not_submitted
+    return (
+      <span style={{ padding: '6px 16px', borderRadius: 12, fontSize: '0.85rem', fontWeight: 500, backgroundColor: `${b.color}20`, color: b.color }}>
+        {b.text}
+      </span>
+    )
+  }
+
+  const typeColor = TYPE_COLORS[assignment.type] || '#6b7280'
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="modal-content modal-large" onClick={e => e.stopPropagation()} style={{ maxWidth: 680 }}>
+        <div className="modal-header">
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.3rem' }}>{assignment.title}</h2>
+            <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: 4 }}>
+              <span style={{ color: typeColor, fontWeight: 600 }}>{assignment.type}</span>
+              {assignment.quarter && <> · {assignment.quarter}</>}
+            </p>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="modal-body">
+          {/* Info row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: 'Deadline', value: `${formatDate(assignment.deadline)} ${formatTime(assignment.deadline)}` },
+              { label: 'Possible Score', value: assignment.possibleScore },
+              { label: 'Status', value: getStatusBadge(status) },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ background: '#f9fafb', borderRadius: 10, padding: '12px 14px' }}>
+                <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>{label}</p>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Description */}
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '0.95rem', fontWeight: 700, color: '#374151' }}>Description</h3>
+            <p style={{ color: '#4b5563', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: '#f9fafb', padding: '14px 16px', borderRadius: 10, margin: 0, fontSize: 14 }}>
+              {assignment.description || 'No description provided.'}
+            </p>
+          </div>
+
+          {/* Sheet info */}
+          <div style={{ marginBottom: 20, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: '#0369a1' }}>
+            📊 Your score will be recorded in the <strong>{assignment.quarter}</strong> sheet under <strong>{assignment.type}</strong>.
+          </div>
+
+          {/* Submit or already submitted */}
+          {status === 'not_submitted' ? (
+            <div>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
+                Your Score <span style={{ fontWeight: 400, color: '#6b7280' }}>(out of {assignment.possibleScore})</span>
+              </label>
+              <input
+                type="number"
+                value={score}
+                onChange={e => setScore(e.target.value)}
+                min="0"
+                max={assignment.possibleScore}
+                step="0.5"
+                placeholder={`0 – ${assignment.possibleScore}`}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1.5px solid #d1d5db', fontSize: 15, marginBottom: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
+              />
+              <div style={{ textAlign: 'right' }}>
+                <button
+                  onClick={() => onSubmit(assignment, score, setScore)}
+                  disabled={submitting}
+                  style={{ background: '#0038A8', color: '#fff', border: 'none', padding: '11px 28px', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: 'inherit' }}
+                >
+                  {submitting ? 'Submitting…' : '📤 Submit Assignment'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: '14px 18px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10 }}>
+              <p style={{ margin: 0, color: '#15803d', fontWeight: 700, fontSize: 15 }}>
+                ✓ Submitted{status === 'late' ? ' (Late)' : ''}
+                {submission?.score != null && ` — Score: ${submission.score}/${assignment.possibleScore}`}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Announcement Detail Modal ── */
+function AnnouncementModal({ announcement, onClose }) {
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div className="modal-header">
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.2rem' }}>{announcement.title}</h2>
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: 4 }}>
+              {announcement.className} · {announcement.teacherName}
+            </p>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+            Posted {formatDateTime(announcement.createdAt)}
+          </p>
+          <div style={{ background: '#f9fafb', borderRadius: 10, padding: '16px 18px', color: '#374151', lineHeight: 1.75, fontSize: 15, whiteSpace: 'pre-wrap' }}>
+            {announcement.content}
+          </div>
+        </div>
+        <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: '#0038A8', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ClassDetail() {
   const { classId } = useParams()
   const navigate    = useNavigate()
 
-  const [classData,     setClassData]     = useState(null)
-  const [assignments,   setAssignments]   = useState([])
-  const [announcements, setAnnouncements] = useState([])
-  const [students,      setStudents]      = useState([])
-  const [materials,     setMaterials]     = useState([])
-  const [loading,       setLoading]       = useState(true)
-  const [activeTab,     setActiveTab]     = useState('general')
-  const [notification,  setNotification]  = useState(null)
-  const [confirmDialog, setConfirmDialog] = useState(null)
-  const [copied,        setCopied]        = useState(false)
+  const [classData,       setClassData]       = useState(null)
+  const [assignments,     setAssignments]      = useState([])
+  const [announcements,   setAnnouncements]    = useState([])
+  const [students,        setStudents]         = useState([])
+  const [materials,       setMaterials]        = useState([])
+  const [submissionsMap,  setSubmissionsMap]   = useState({}) // assignmentId -> submission
+  const [loading,         setLoading]          = useState(true)
+  const [activeTab,       setActiveTab]        = useState('general')
+  const [notification,    setNotification]     = useState(null)
+  const [confirmDialog,   setConfirmDialog]    = useState(null)
+  const [copied,          setCopied]           = useState(false)
+
+  // Detail modals
+  const [selectedAssignment,   setSelectedAssignment]   = useState(null)
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
+  const [submitting,           setSubmitting]           = useState(false)
 
   useEffect(() => { loadClassData() }, [classId])
 
@@ -191,15 +350,28 @@ export default function ClassDetail() {
         getClassStudents(classId),
         getClassMaterials(classId),
       ])
-      setClassData(info); setAssignments(asgn); setAnnouncements(ann)
-      setStudents(studs); setMaterials(mats)
+      setClassData(info)
+      setAssignments(asgn)
+      setAnnouncements(ann)
+      setStudents(studs)
+      setMaterials(mats)
+
+      // Load student submissions
+      if (auth.currentUser) {
+        const classIds = [classId]
+        const studentAsgns = await getStudentAssignments(auth.currentUser.uid, classIds)
+        const map = {}
+        studentAsgns.forEach(a => { map[a.id] = a.submission })
+        setSubmissionsMap(map)
+      }
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(classData.classCode)
-    setCopied(true); setTimeout(() => setCopied(false), 2000)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const handleLeaveClass = () => {
@@ -219,6 +391,35 @@ export default function ClassDetail() {
       onCancel: () => setConfirmDialog(null),
       confirmText: 'Leave', type: 'danger',
     })
+  }
+
+  const handleSubmitAssignment = async (assignment, score, setScore) => {
+    if (!assignment) return
+    const parsedScore = score !== '' ? parseFloat(score) : null
+    if (parsedScore === null) {
+      setNotification({ message: 'Please enter your score before submitting.', type: 'error' })
+      return
+    }
+    if (parsedScore < 0 || parsedScore > assignment.possibleScore) {
+      setNotification({ message: `Score must be between 0 and ${assignment.possibleScore}`, type: 'error' })
+      return
+    }
+    setSubmitting(true)
+    const result = await submitAssignment(assignment.id, auth.currentUser.uid, assignment.deadline, parsedScore)
+    setSubmitting(false)
+    if (result.success) {
+      setNotification({
+        message: result.status === 'late'
+          ? `Submitted (Late) — Score ${parsedScore}/${assignment.possibleScore} recorded`
+          : `Submitted! Score ${parsedScore}/${assignment.possibleScore} recorded`,
+        type: result.status === 'late' ? 'warning' : 'success'
+      })
+      setSelectedAssignment(null)
+      setScore('')
+      loadClassData()
+    } else {
+      setNotification({ message: `Error: ${result.error}`, type: 'error' })
+    }
   }
 
   const upcoming = assignments
@@ -241,12 +442,11 @@ export default function ClassDetail() {
   return (
     <div className="scd-page">
 
-      {/* ── BLUE HEADER CARD ── */}
+      {/* ── BLUE HEADER ── */}
       <div className="scd-header">
         <button className="scd-back" onClick={() => navigate('/dashboard/class')}>
           {Icons.back} Classes
         </button>
-
         <div className="scd-header-inner">
           <div className="scd-header-info">
             <div className="scd-header-eyebrow">
@@ -256,7 +456,6 @@ export default function ClassDetail() {
             <h1 className="scd-header-name">{classData.name}</h1>
             <p className="scd-header-teacher">{Icons.teacher} {classData.teacherName}</p>
           </div>
-
           <div className="scd-header-actions">
             <button className="scd-code-pill" onClick={handleCopyCode} title="Copy class code">
               {copied ? Icons.check : Icons.copy}
@@ -291,18 +490,31 @@ export default function ClassDetail() {
           {activeTab === 'general' && (
             <div className="scd-section">
               <h2 className="scd-section-title">Recent Activity</h2>
-              {feed.length === 0 ? <div className="scd-empty">Nothing posted yet.</div>
+              {feed.length === 0
+                ? <div className="scd-empty">Nothing posted yet.</div>
                 : feed.map(item => {
                     if (item._type === 'announcement') return (
-                      <FeedCard key={item.id} chip="announcement" title={item.title} meta={formatDateTime(item.createdAt)}>
-                        <p>{item.content}</p>
+                      <FeedCard
+                        key={item.id} chip="announcement" title={item.title}
+                        meta={formatDateTime(item.createdAt)}
+                        onClick={() => setSelectedAnnouncement(item)}
+                      >
+                        <p>{item.content?.length > 120 ? item.content.slice(0, 120) + '…' : item.content}</p>
                       </FeedCard>
                     )
-                    if (item._type === 'assignment') return (
-                      <FeedCard key={item.id} chip="assignment" title={item.title} meta={`Due ${formatDate(item.deadline)}`} overdue={isDeadlinePassed(item.deadline)}>
-                        {item.description && <p>{item.description}</p>}
-                      </FeedCard>
-                    )
+                    if (item._type === 'assignment') {
+                      const sub = submissionsMap[item.id]
+                      return (
+                        <FeedCard
+                          key={item.id} chip="assignment" title={item.title}
+                          meta={`Due ${formatDate(item.deadline)}`}
+                          overdue={isDeadlinePassed(item.deadline)}
+                          onClick={() => setSelectedAssignment({ ...item, submission: sub })}
+                        >
+                          {item.description && <p>{item.description?.length > 100 ? item.description.slice(0, 100) + '…' : item.description}</p>}
+                        </FeedCard>
+                      )
+                    }
                     if (item._type === 'material') return (
                       <FeedCard key={item.id} chip="material" title={item.description?.slice(0, 80) || 'Material'} meta={formatDateTime(item.createdAt)}>
                         {item.files?.length > 0 && (
@@ -326,21 +538,36 @@ export default function ClassDetail() {
           {activeTab === 'assignments' && (
             <div className="scd-section">
               <h2 className="scd-section-title">Assignments <span className="scd-count">{assignments.length}</span></h2>
-              {assignments.length === 0 ? <div className="scd-empty">No assignments yet.</div>
-                : assignments.map(a => (
-                    <FeedCard key={a.id} title={a.title} meta={`Due ${formatDate(a.deadline)}`} overdue={isDeadlinePassed(a.deadline)}>
-                      <div className="scd-asgn-meta">
-                        <span className="scd-badge">{a.type}</span>
-                        <span className="scd-badge scd-badge--gray">{a.quarter}</span>
-                        {a.possibleScore && <span className="scd-badge scd-badge--gray">{a.possibleScore} pts</span>}
-                      </div>
-                      {a.description && <p className="scd-asgn-desc">{a.description}</p>}
-                      <p className="scd-asgn-time">
-                        {formatDate(a.deadline)} at {formatTime(a.deadline)}
-                        {isDeadlinePassed(a.deadline) && <span className="scd-overdue-tag">Overdue</span>}
-                      </p>
-                    </FeedCard>
-                  ))
+              {assignments.length === 0
+                ? <div className="scd-empty">No assignments yet.</div>
+                : assignments.map(a => {
+                    const sub = submissionsMap[a.id]
+                    const status = sub?.status || 'not_submitted'
+                    const statusColors = { done: '#10b981', late: '#ef4444', not_submitted: '#6b7280' }
+                    const statusLabels = { done: 'Submitted', late: 'Late', not_submitted: 'Not Submitted' }
+                    return (
+                      <FeedCard
+                        key={a.id} title={a.title}
+                        meta={`Due ${formatDate(a.deadline)}`}
+                        overdue={isDeadlinePassed(a.deadline)}
+                        onClick={() => setSelectedAssignment({ ...a, submission: sub })}
+                      >
+                        <div className="scd-asgn-meta">
+                          <span className="scd-badge">{a.type}</span>
+                          <span className="scd-badge scd-badge--gray">{a.quarter}</span>
+                          {a.possibleScore && <span className="scd-badge scd-badge--gray">{a.possibleScore} pts</span>}
+                          <span style={{ padding: '2px 9px', borderRadius: 4, fontSize: '0.72rem', fontWeight: 700, background: `${statusColors[status]}20`, color: statusColors[status] }}>
+                            {statusLabels[status]}
+                          </span>
+                        </div>
+                        {a.description && <p className="scd-asgn-desc">{a.description?.length > 100 ? a.description.slice(0, 100) + '…' : a.description}</p>}
+                        <p className="scd-asgn-time">
+                          {formatDate(a.deadline)} at {formatTime(a.deadline)}
+                          {isDeadlinePassed(a.deadline) && status === 'not_submitted' && <span className="scd-overdue-tag">Overdue</span>}
+                        </p>
+                      </FeedCard>
+                    )
+                  })
               }
             </div>
           )}
@@ -349,10 +576,15 @@ export default function ClassDetail() {
           {activeTab === 'announcements' && (
             <div className="scd-section">
               <h2 className="scd-section-title">Announcements <span className="scd-count">{announcements.length}</span></h2>
-              {announcements.length === 0 ? <div className="scd-empty">No announcements yet.</div>
+              {announcements.length === 0
+                ? <div className="scd-empty">No announcements yet.</div>
                 : announcements.map(a => (
-                    <FeedCard key={a.id} title={a.title} meta={formatDateTime(a.createdAt)}>
-                      <p>{a.content}</p>
+                    <FeedCard
+                      key={a.id} title={a.title}
+                      meta={formatDateTime(a.createdAt)}
+                      onClick={() => setSelectedAnnouncement(a)}
+                    >
+                      <p>{a.content?.length > 120 ? a.content.slice(0, 120) + '…' : a.content}</p>
                       <p className="scd-by">By {a.teacherName}</p>
                     </FeedCard>
                   ))
@@ -364,7 +596,8 @@ export default function ClassDetail() {
           {activeTab === 'materials' && (
             <div className="scd-section">
               <h2 className="scd-section-title">Materials <span className="scd-count">{materials.length}</span></h2>
-              {materials.length === 0 ? <div className="scd-empty">No materials yet.</div>
+              {materials.length === 0
+                ? <div className="scd-empty">No materials yet.</div>
                 : materials.map(m => (
                     <FeedCard key={m.id} title="Material" meta={formatDateTime(m.createdAt)}>
                       {m.description && <p dangerouslySetInnerHTML={{ __html: linkify(m.description) }} />}
@@ -432,11 +665,32 @@ export default function ClassDetail() {
         </aside>
       </div>
 
+      {/* ── Assignment Detail Modal ── */}
+      {selectedAssignment && (
+        <AssignmentModal
+          assignment={selectedAssignment}
+          submission={selectedAssignment.submission}
+          onClose={() => setSelectedAssignment(null)}
+          onSubmit={handleSubmitAssignment}
+          submitting={submitting}
+        />
+      )}
+
+      {/* ── Announcement Detail Modal ── */}
+      {selectedAnnouncement && (
+        <AnnouncementModal
+          announcement={selectedAnnouncement}
+          onClose={() => setSelectedAnnouncement(null)}
+        />
+      )}
+
       {notification && <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
       {confirmDialog && (
-        <ConfirmDialog title={confirmDialog.title} message={confirmDialog.message}
+        <ConfirmDialog
+          title={confirmDialog.title} message={confirmDialog.message}
           onConfirm={confirmDialog.onConfirm} onCancel={confirmDialog.onCancel}
-          confirmText={confirmDialog.confirmText} type={confirmDialog.type} />
+          confirmText={confirmDialog.confirmText} type={confirmDialog.type}
+        />
       )}
     </div>
   )

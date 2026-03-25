@@ -19,16 +19,20 @@ function Calendar() {
   const [teacherEvents, setTeacherEvents] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Day modal (View Date)
+  const [showDayModal, setShowDayModal] = useState(false)
+  const [dayModalEvents, setDayModalEvents] = useState([])
+
   // Create modal states
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null)
-  const [createType, setCreateType] = useState('assignment') // 'assignment' | 'announcement'
+  const [createType, setCreateType] = useState('assignment')
   const [formData, setFormData] = useState({
     title: '',
-    content: '', // announcement
-    description: '', // assignment
+    content: '',
+    description: '',
     classId: '',
-    type: 'Written Works', // assignment
+    type: 'Written Works',
     deadlineDate: '',
     deadlineTime: ''
   })
@@ -76,7 +80,7 @@ function Calendar() {
 
   const getEventsForDate = (day) => {
     const dateToCheck = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-    return teacherEvents.filter(event => 
+    return teacherEvents.filter(event =>
       event.date.getDate() === dateToCheck.getDate() &&
       event.date.getMonth() === dateToCheck.getMonth() &&
       event.date.getFullYear() === dateToCheck.getFullYear()
@@ -86,16 +90,20 @@ function Calendar() {
   const handleDayClick = (day) => {
     const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
     setSelectedDate(clickedDate)
-    
-    // Prefill deadline with clicked date (local timezone fix)
-    const dateStr = clickedDate.toLocaleDateString('en-CA')
+    const dayEvts = getEventsForDate(day)
+    setDayModalEvents(dayEvts)
+    setShowDayModal(true)
+  }
+
+  const handleOpenPost = () => {
+    setShowDayModal(false)
+    const dateStr = selectedDate.toLocaleDateString('en-CA')
     const timeStr = new Date().toTimeString().slice(0, 5)
     setFormData(prev => ({
       ...prev,
       deadlineDate: dateStr,
       deadlineTime: timeStr
     }))
-    
     setShowCreateModal(true)
   }
 
@@ -111,7 +119,7 @@ function Calendar() {
       let result
       const clickedDateStr = selectedDate.toISOString()
       const selectedClass = teacherClasses.find(c => c.id === formData.classId)
-        const commonData = {
+      const commonData = {
         title: formData.title,
         classId: formData.classId,
         className: selectedClass?.name || 'Unknown Class',
@@ -178,20 +186,20 @@ function Calendar() {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayEvents = getEventsForDate(day)
-      const isToday = day === todayDayNum && 
-                      currentDate.getMonth() === today.getMonth() && 
-                      currentDate.getFullYear() === today.getFullYear()
+      const isToday = day === todayDayNum &&
+        currentDate.getMonth() === today.getMonth() &&
+        currentDate.getFullYear() === today.getFullYear()
 
       days.push(
-        <div 
-          key={day} 
+        <div
+          key={day}
           id={`calendar-day-${day}`}
           className={`calendar-day ${isToday ? 'today' : ''} clickable`}
           onClick={() => handleDayClick(day)}
-          onTouchStart={() => {}} 
+          onTouchStart={() => {}}
           role="button"
           tabIndex={0}
-          aria-label={`Create event for day ${day}`}
+          aria-label={`View day ${day}`}
           data-day={day}
         >
           <div className="day-number">{day}</div>
@@ -216,28 +224,7 @@ function Calendar() {
       const timer = setTimeout(() => {
         const todayElement = calendarRef.current?.querySelector('.calendar-day.today')
         if (todayElement) {
-          todayElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',
-            inline: 'nearest'
-          })
-        }
-      }, 300)
-      return () => clearTimeout(timer)
-    }
-  }, [loading, currentDate, listMode, viewMode])
-
-  // Auto-scroll to today
-  useEffect(() => {
-    if (calendarRef.current && listMode === 'schedule' && viewMode === 'month') {
-      const timer = setTimeout(() => {
-        const todayElement = calendarRef.current?.querySelector('.calendar-day.today')
-        if (todayElement) {
-          todayElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',
-            inline: 'nearest'
-          })
+          todayElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
         }
       }, 300)
       return () => clearTimeout(timer)
@@ -246,6 +233,18 @@ function Calendar() {
 
   if (loading) {
     return <div className="loading">Loading calendar...</div>
+  }
+
+  const eventTypeLabel = (type) => {
+    if (type === 'assignment') return 'Assignment'
+    if (type === 'announcement') return 'Announcement'
+    return type
+  }
+
+  const eventTypeColor = (type) => {
+    if (type === 'assignment') return { bg: '#dbeafe', color: '#1e40af', border: '#0038A8' }
+    if (type === 'announcement') return { bg: '#d1fae5', color: '#065f46', border: '#10b981' }
+    return { bg: '#f3f4f6', color: '#374151', border: '#9ca3af' }
   }
 
   return (
@@ -286,7 +285,6 @@ function Calendar() {
           </div>
         )}
 
-        {/* Placeholder other views */}
         {listMode === 'duedates' && (
           <div className="due-dates-list">
             <p>Due dates view (group by date)</p>
@@ -294,25 +292,116 @@ function Calendar() {
         )}
       </div>
 
-      {/* Create Modal */}
+      {/* ── Day Modal (View Date) ── */}
+      {showDayModal && selectedDate && (
+        <div className="modal-overlay" onClick={() => setShowDayModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="modal-header" style={{ alignItems: 'center' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 20 }}>
+                  {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </h2>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
+                  {dayModalEvents.length === 0 ? 'No posts on this date' : `${dayModalEvents.length} post${dayModalEvents.length > 1 ? 's' : ''}`}
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => setShowDayModal(false)}>×</button>
+            </div>
+
+            {/* Events list */}
+            <div className="modal-body" style={{ padding: '20px 28px', maxHeight: 320, overflowY: 'auto' }}>
+              {dayModalEvents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af' }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.4, marginBottom: 10 }}>
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <p style={{ margin: 0, fontSize: 14 }}>Nothing posted on this day</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {dayModalEvents.map(event => {
+                    const colors = eventTypeColor(event.type)
+                    return (
+                      <div key={event.id} style={{
+                        background: colors.bg,
+                        borderLeft: `4px solid ${colors.border}`,
+                        borderRadius: 9,
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            color: colors.color,
+                            background: 'rgba(255,255,255,0.6)',
+                            borderRadius: 4,
+                            padding: '1px 7px'
+                          }}>
+                            {eventTypeLabel(event.type)}
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#0f172a' }}>{event.title}</p>
+                        {event.className && (
+                          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{event.className}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer with two action buttons */}
+            <div className="modal-footer" style={{ justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                className="btn-cancel"
+                onClick={() => setShowDayModal(false)}
+              >
+                Close
+              </button>
+              <button
+                className="btn-submit"
+                onClick={handleOpenPost}
+              >
+                + Post
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create Modal ── */}
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="modal-content create-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ textAlign: 'center', margin: 0, flex: 1 }}>Create for {selectedDate?.toLocaleDateString()}</h3>
+              <h3 style={{ textAlign: 'center', margin: 0, flex: 1 }}>
+                Post for {selectedDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+              </h3>
               <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
             </div>
             <form onSubmit={handleCreateSubmit}>
               <div className="modal-body">
                 {/* Type Tabs */}
                 <div className="type-tabs">
-                  <button 
+                  <button
+                    type="button"
                     className={`tab-btn ${createType === 'assignment' ? 'active' : ''}`}
                     onClick={() => setCreateType('assignment')}
                   >
                     Assignment
                   </button>
-                  <button 
+                  <button
+                    type="button"
                     className={`tab-btn ${createType === 'announcement' ? 'active' : ''}`}
                     onClick={() => setCreateType('announcement')}
                   >
@@ -325,7 +414,7 @@ function Calendar() {
                   <input
                     type="text"
                     value={formData.title}
-                    onChange={e => setFormData({...formData, title: e.target.value})}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
                     required
                   />
                 </label>
@@ -335,27 +424,27 @@ function Calendar() {
                     <label>Description *
                       <textarea
                         value={formData.description}
-                        onChange={e => setFormData({...formData, description: e.target.value})}
+                        onChange={e => setFormData({ ...formData, description: e.target.value })}
                         rows="3"
                         required
                       />
                     </label>
                     <label>Type
-                      <select 
+                      <select
                         value={formData.type}
-                        onChange={e => setFormData({...formData, type: e.target.value})}
+                        onChange={e => setFormData({ ...formData, type: e.target.value })}
                       >
                         <option>Written Works</option>
                         <option>Performance Task</option>
                         <option>Quarterly Assessment</option>
                       </select>
                     </label>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <label>Deadline Date *
-                        <input type="date" value={formData.deadlineDate} onChange={e => setFormData({...formData, deadlineDate: e.target.value})} required />
+                        <input type="date" value={formData.deadlineDate} onChange={e => setFormData({ ...formData, deadlineDate: e.target.value })} required />
                       </label>
                       <label>Time *
-                        <input type="time" value={formData.deadlineTime} onChange={e => setFormData({...formData, deadlineTime: e.target.value})} required />
+                        <input type="time" value={formData.deadlineTime} onChange={e => setFormData({ ...formData, deadlineTime: e.target.value })} required />
                       </label>
                     </div>
                   </>
@@ -363,7 +452,7 @@ function Calendar() {
                   <label>Content *
                     <textarea
                       value={formData.content}
-                      onChange={e => setFormData({...formData, content: e.target.value})}
+                      onChange={e => setFormData({ ...formData, content: e.target.value })}
                       rows="5"
                       required
                     />
@@ -371,15 +460,15 @@ function Calendar() {
                 )}
 
                 <label>Class *
-                    <select
+                  <select
                     name="classId"
                     value={formData.classId}
                     onChange={handleInputChange}
                     required
-                    style={{cursor: 'pointer'}}
+                    style={{ cursor: 'pointer' }}
                   >
                     <option value="" disabled>Select a class</option>
-{teacherClasses.map(cls => (
+                    {teacherClasses.map(cls => (
                       <option key={cls.id} value={cls.id}>{cls.name}</option>
                     ))}
                   </select>
@@ -411,4 +500,3 @@ function Calendar() {
 }
 
 export default Calendar
-
