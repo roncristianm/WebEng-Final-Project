@@ -4,18 +4,16 @@ import { auth } from '../../config/firebase'
 import { getClassById, leaveClass, getClassStudents } from '../../services/classService'
 import { getClassAssignments, submitAssignment } from '../../services/assignmentService'
 import { getClassAnnouncements } from '../../services/announcementService'
-import { getClassMaterials } from '../../services/materialService'
 import { getStudentAssignments } from '../../services/assignmentService'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/StudentClassDetail.css'
 
-const TABS = ['general', 'assignments', 'announcements', 'materials', 'people']
+const TABS = ['general', 'assignments', 'announcements', 'people']
 const TAB_LABELS = {
   general:       'General',
   assignments:   'Assignments',
   announcements: 'Announcements',
-  materials:     'Materials',
   people:        'Members',
 }
 
@@ -326,7 +324,6 @@ export default function ClassDetail() {
   const [assignments,     setAssignments]      = useState([])
   const [announcements,   setAnnouncements]    = useState([])
   const [students,        setStudents]         = useState([])
-  const [materials,       setMaterials]        = useState([])
   const [submissionsMap,  setSubmissionsMap]   = useState({}) // assignmentId -> submission
   const [loading,         setLoading]          = useState(true)
   const [activeTab,       setActiveTab]        = useState('general')
@@ -343,18 +340,16 @@ export default function ClassDetail() {
 
   const loadClassData = async () => {
     try {
-      const [info, asgn, ann, studs, mats] = await Promise.all([
+      const [info, asgn, ann, studs] = await Promise.all([
         getClassById(classId),
         getClassAssignments(classId),
         getClassAnnouncements(classId),
         getClassStudents(classId),
-        getClassMaterials(classId),
       ])
       setClassData(info)
       setAssignments(asgn)
       setAnnouncements(ann)
       setStudents(studs)
-      setMaterials(mats)
 
       // Load student submissions
       if (auth.currentUser) {
@@ -428,7 +423,6 @@ export default function ClassDetail() {
 
   const feed = [
     ...announcements.map(a => ({ ...a, _type: 'announcement', _date: a.createdAt })),
-    ...materials.map(m    => ({ ...m, _type: 'material',      _date: m.createdAt })),
     ...assignments.map(a  => ({ ...a, _type: 'assignment',    _date: a.createdAt || a.deadline })),
   ].filter(i => i._date).sort((a, b) => {
     const ta = a._date.toMillis ? a._date.toMillis() : new Date(a._date).getTime()
@@ -515,19 +509,6 @@ export default function ClassDetail() {
                         </FeedCard>
                       )
                     }
-                    if (item._type === 'material') return (
-                      <FeedCard key={item.id} chip="material" title={item.description?.slice(0, 80) || 'Material'} meta={formatDateTime(item.createdAt)}>
-                        {item.files?.length > 0 && (
-                          <div className="scd-files">
-                            {item.files.map((f, i) => (
-                              <a key={i} href={f.url} target="_blank" rel="noopener" className="scd-file-pill">
-                                {Icons.materials} {f.filename}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </FeedCard>
-                    )
                     return null
                   })
               }
@@ -586,31 +567,6 @@ export default function ClassDetail() {
                     >
                       <p>{a.content?.length > 120 ? a.content.slice(0, 120) + '…' : a.content}</p>
                       <p className="scd-by">By {a.teacherName}</p>
-                    </FeedCard>
-                  ))
-              }
-            </div>
-          )}
-
-          {/* MATERIALS */}
-          {activeTab === 'materials' && (
-            <div className="scd-section">
-              <h2 className="scd-section-title">Materials <span className="scd-count">{materials.length}</span></h2>
-              {materials.length === 0
-                ? <div className="scd-empty">No materials yet.</div>
-                : materials.map(m => (
-                    <FeedCard key={m.id} title="Material" meta={formatDateTime(m.createdAt)}>
-                      {m.description && <p dangerouslySetInnerHTML={{ __html: linkify(m.description) }} />}
-                      {m.files?.length > 0 && (
-                        <div className="scd-files">
-                          {m.files.map((f, i) => (
-                            <a key={i} href={f.url} target="_blank" rel="noopener" className="scd-file-pill">
-                              {Icons.materials} {f.filename}
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                      <p className="scd-by">By {m.teacherName}</p>
                     </FeedCard>
                   ))
               }

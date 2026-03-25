@@ -5,8 +5,7 @@ import { auth } from '../../config/firebase'
 import { getClassById, getClassStudents, deleteClass, removeStudent } from '../../services/classService'
 import { getClassAssignments, createAssignmentSingle, getAssignmentById, deleteAssignment } from '../../services/assignmentService'
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
-import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
-import { updateAnnouncement, updateAssignment, updateMaterial } from '../../services/editService'
+import { updateAnnouncement, updateAssignment } from '../../services/editService'
 import { sendAnnouncementNotification, sendNewAssignmentNotification } from '../../services/emailService'
 import { useAuth } from '../../context/AuthContext'
 import EditContentModal from '../../components/EditContentModal'
@@ -35,8 +34,8 @@ const Icons = {
 }
 
 const TYPE_COLORS = { 'Written Works': '#3b82f6', 'Performance Task': '#10b981', 'Quarterly Assessment': '#f59e0b' }
-const TABS = ['general', 'assignments', 'announcements', 'materials', 'people']
-const TAB_LABELS = { general: 'General', assignments: 'Assignments', announcements: 'Announcements', materials: 'Materials', people: 'Members' }
+const TABS = ['general', 'assignments', 'announcements', 'people']
+const TAB_LABELS = { general: 'General', assignments: 'Assignments', announcements: 'Announcements', people: 'Members' }
 
 function toJSDate(v) {
   if (!v) return null
@@ -155,10 +154,6 @@ function NewPicker({ onPick, onClose }) {
         <button className="tcd-picker-item" onClick={() => onPick('announcements')}>
           <span className="tcd-picker-icon tcd-picker-icon--ann">{Icons.announcements}</span>
           <div><p className="tcd-picker-name">Announcement</p><p className="tcd-picker-desc">Share a message with your class</p></div>
-        </button>
-        <button className="tcd-picker-item" onClick={() => onPick('materials')}>
-          <span className="tcd-picker-icon tcd-picker-icon--mat">{Icons.materials}</span>
-          <div><p className="tcd-picker-name">Material</p><p className="tcd-picker-desc">Upload files or share links</p></div>
         </button>
       </div>
     </div>
@@ -380,7 +375,6 @@ export default function TeacherClassDetail() {
   const [assignments,         setAssignments]         = useState([])
   const [announcements,       setAnnouncements]       = useState([])
   const [students,            setStudents]            = useState([])
-  const [materials,           setMaterials]           = useState([])
   const [studentStatuses,     setStudentStatuses]     = useState({})
   const [loading,             setLoading]             = useState(true)
   const [activeTab,           setActiveTab]           = useState('general')
@@ -400,7 +394,7 @@ export default function TeacherClassDetail() {
   const [loadingDetail,        setLoadingDetail]        = useState(false)
 
   // Edit state
-  const [editType,   setEditType]   = useState(null)   // 'assignment' | 'announcement' | 'material'
+  const [editType,   setEditType]   = useState(null)   // 'assignment' | 'announcement'
   const [editTarget, setEditTarget] = useState(null)   // the object being edited
   const [editSaving, setEditSaving] = useState(false)
 
@@ -408,11 +402,11 @@ export default function TeacherClassDetail() {
 
   const loadClassData = async () => {
     try {
-      const [info, asgn, ann, studs, mats] = await Promise.all([
+      const [info, asgn, ann, studs] = await Promise.all([
         getClassById(classId), getClassAssignments(classId),
-        getClassAnnouncements(classId), getClassStudents(classId), getClassMaterials(classId),
+        getClassAnnouncements(classId), getClassStudents(classId),
       ])
-      setClassData(info); setAssignments(asgn); setAnnouncements(ann); setStudents(studs); setMaterials(mats)
+      setClassData(info); setAssignments(asgn); setAnnouncements(ann); setStudents(studs)
       const { getStudentAssignmentStatus } = await import('../../services/studentAssignmentStatus')
       const statuses = {}
       await Promise.all(studs.map(async s => { statuses[s.id] = await getStudentAssignmentStatus(classId, s.id) }))
@@ -427,10 +421,9 @@ export default function TeacherClassDetail() {
   const openPickerOrModal = (tab) => {
     if (tab === 'general') setShowNewPicker(true)
     else if (tab === 'assignments') openPostModal('assignments')
-    else if (tab === 'materials') openPostModal('materials')
     else openPostModal('announcements')
   }
-  const handlePickerChoice = (type) => { setShowNewPicker(false); if (type === 'assignments') openPostModal('assignments'); else if (type === 'materials') openPostModal('materials'); else openPostModal('announcements') }
+  const handlePickerChoice = (type) => { setShowNewPicker(false); if (type === 'assignments') openPostModal('assignments'); else openPostModal('announcements') }
 
   const handleOpenAssignment = async (assignment) => {
     setLoadingDetail(true)
@@ -494,11 +487,6 @@ export default function TeacherClassDetail() {
           }
         }
         else throw new Error(r.error)
-      } else {
-        if (!formData.description.trim() || !formData.files?.length) { setNotification({ message: 'Please add description and at least one file', type: 'error' }); return }
-        const r = await createMaterial(classId, formData.description.trim(), formData.files, currentUser.uid, currentUser.displayName)
-        if (r.success) setNotification({ message: 'Material posted!', type: 'success' })
-        else throw new Error(r.error)
       }
       setShowPostModal(false); await loadClassData()
     } catch (err) { setNotification({ message: err.message, type: 'error' }) }
@@ -517,7 +505,6 @@ export default function TeacherClassDetail() {
     let result
     if (editType === 'announcement') result = await updateAnnouncement(editTarget.id, fields)
     else if (editType === 'assignment')   result = await updateAssignment(editTarget.id, fields, editTarget)
-    else if (editType === 'material')     result = await updateMaterial(editTarget.id, fields)
     setEditSaving(false)
     if (result?.success) {
       setNotification({ message: `${editType.charAt(0).toUpperCase() + editType.slice(1)} updated!`, type: 'success' })
@@ -529,7 +516,6 @@ export default function TeacherClassDetail() {
   }
 
   const confirmDelete = (title, message, onConfirm) => setConfirmDialog({ title, message, onConfirm, onCancel: () => setConfirmDialog(null), confirmText: 'Delete', type: 'danger' })
-  const handleDeleteMaterial   = (id) => confirmDelete('Delete Material',     'Delete this material?',    async () => { setConfirmDialog(null); const r = await deleteMaterial(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
   const handleDeleteAnn        = (id, t) => confirmDelete('Delete Announcement', `Delete "${t}"?`,         async () => { setConfirmDialog(null); const { deleteAnnouncement } = await import('../../services/announcementService'); const r = await deleteAnnouncement(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
   const handleDeleteAsgn       = (id, t) => confirmDelete('Delete Assignment', `Delete "${t}"?`,           async () => { setConfirmDialog(null); const r = await deleteAssignment(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
   const handleDeleteClass      = () => confirmDelete('Delete Class',          `Delete "${classData?.name}"? All data will be permanently removed.`, async () => { setConfirmDialog(null); const r = await deleteClass(classId); if (r.success) navigate('/teacher-dashboard/class'); else setNotification({ message: r.error, type: 'error' }) })
@@ -556,7 +542,6 @@ export default function TeacherClassDetail() {
 
   const feed = [
     ...announcements.map(a => ({ ...a, _type: 'announcement', _date: a.createdAt })),
-    ...materials.map(m    => ({ ...m, _type: 'material',      _date: m.createdAt })),
     ...assignments.map(a  => ({ ...a, _type: 'assignment',    _date: a.createdAt || a.deadline })),
   ].filter(i => i._date).sort((a, b) => toEpochMs(b._date) - toEpochMs(a._date))
 
@@ -663,18 +648,6 @@ export default function TeacherClassDetail() {
                         )
                       })()
                     )
-                    if (item._type === 'material') return (
-                      <FeedCard key={item.id} chip="material" title={item.description?.slice(0, 80) || 'Material'} meta={fmt(item.createdAt)}
-                        onEdit={() => openEdit('material', item)}
-                        onDelete={() => handleDeleteMaterial(item.id)}
-                      >
-                        {item.files?.length > 0 && (
-                          <div className="tcd-files">
-                            {item.files.map((f, i) => <a key={i} href={f.url} target="_blank" rel="noopener" className="tcd-file-pill">{Icons.materials} {f.filename}</a>)}
-                          </div>
-                        )}
-                      </FeedCard>
-                    )
                     return null
                   })
               }
@@ -737,33 +710,6 @@ export default function TeacherClassDetail() {
                       onClick={() => setSelectedAnnouncement(a)}
                     >
                       <p>{a.content?.length > 120 ? a.content.slice(0, 120) + '…' : a.content}</p>
-                    </FeedCard>
-                  ))
-              }
-            </div>
-          )}
-
-          {/* MATERIALS */}
-          {activeTab === 'materials' && (
-            <div className="tcd-section">
-              <div className="tcd-section-header">
-                <h2 className="tcd-section-title">Materials <span className="tcd-count">{materials.length}</span></h2>
-                <button className="tcd-btn tcd-btn--primary tcd-btn--sm tcd-desktop-only" onClick={() => openPostModal('materials')}>{Icons.plus} New</button>
-              </div>
-              {materials.length === 0
-                ? <div className="tcd-empty">No materials yet.</div>
-                : materials.map(m => (
-                    <FeedCard key={m.id} title="Material" meta={fmt(m.createdAt)}
-                      onEdit={() => openEdit('material', m)}
-                      onDelete={() => handleDeleteMaterial(m.id)}
-                    >
-                      {m.description && <p dangerouslySetInnerHTML={{ __html: linkify(m.description) }} />}
-                      {m.files?.length > 0 && (
-                        <div className="tcd-files">
-                          {m.files.map((f, i) => <a key={i} href={f.url} target="_blank" rel="noopener" className="tcd-file-pill">{Icons.materials} {f.filename}</a>)}
-                        </div>
-                      )}
-                      <p className="tcd-by">By {m.teacherName}</p>
                     </FeedCard>
                   ))
               }
