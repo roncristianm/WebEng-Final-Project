@@ -8,6 +8,7 @@ import { useNotification } from '../../context/NotificationContext'
 import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
+import { SHEETS_EMAIL_API_BASE } from '../../config/sheetsBackend'
 
 function LandingPage() {
   const [email, setEmail]         = useState('')
@@ -62,7 +63,7 @@ function LandingPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/sheets-api/email/send-password-reset', {
+      const res = await fetch(`${SHEETS_EMAIL_API_BASE}/send-password-reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail })

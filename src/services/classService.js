@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
-const SHEETS_API = '/sheets-api'
+import { SHEETS_API_BASE as SHEETS_API } from '../config/sheetsBackend'
 
 const generateClassCode = () => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'

@@ -5,6 +5,7 @@ import { signOut } from 'firebase/auth'
 import { auth } from '../../config/firebase'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
+import { SHEETS_EMAIL_API_BASE } from '../../config/sheetsBackend'
 
 function PendingVerification() {
   const navigate    = useNavigate()
@@ -18,7 +19,7 @@ function PendingVerification() {
     setResending(true)
     setResendMsg('')
     try {
-      const res  = await fetch('/sheets-api/email/resend-verification', {
+      const res  = await fetch(`${SHEETS_EMAIL_API_BASE}/resend-verification`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({

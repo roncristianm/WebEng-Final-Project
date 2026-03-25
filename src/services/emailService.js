@@ -2,7 +2,9 @@
 // Calls the email endpoints on sheets-backend via the Vite proxy (/sheets-api)
 // Never throws — email failures are logged but won't crash the app.
 
-const EMAIL_API = '/sheets-api/email'
+import { SHEETS_EMAIL_API_BASE } from '../config/sheetsBackend'
+
+const EMAIL_API = SHEETS_EMAIL_API_BASE
 
 async function post(path, body) {
   try {
