@@ -1,3 +1,54 @@
+/* Remove border from section-header when inside announcements-section or my-classes-section */
+.announcements-section > .section-header,
+.my-classes-section > .section-header {
+  border: none;
+}
+.class-overdue-counter {
+  margin-top: 24px;
+  font-size: 16px;
+  color: #dc2626;
+  font-weight: 600;
+  text-align: center;
+}
+/* Grade and Section under class title */
+.class-grade-section {
+  font-size: 20px;
+  color: #0038A8;
+  font-weight: 500;
+  margin: 4px 0 8px 0;
+}
+/* =================================================================
+   DASHBOARD.CSS - Usage Guide
+   =================================================================
+   
+   This stylesheet is used by both Student and Teacher Dashboards.
+   
+   STUDENT DASHBOARD (src/pages/student/Dashboard.jsx):
+   - Uses all SHARED sections
+   - Announcements Section (displays announcements)
+   - .class-teacher (displays teacher name in class cards)
+   
+   TEACHER DASHBOARD (src/pages/teacher/Dashboard.jsx):
+   - Uses all SHARED sections
+   - Teacher-specific button styles (.btn-create-class, .btn-create-assignment)
+   - .class-code and .class-code-container (displays class codes)
+   
+   SHARED SECTIONS (used by both):
+   - Dashboard Layout (.dashboard-container, .dashboard-content, .dashboard-page)
+   - Header Section (.dashboard-header, .student-greeting, .header-status-cards, etc.)
+   - Status Cards (.status-card, .status-number, .status-label)
+   - Button Styles (.join-class-btn used for various actions)
+   - My Classes Section (.my-classes-section, .classes-grid, .class-card, etc.)
+   - Modal Styles (.modal-overlay, .modal-content, .modal-header, etc.)
+   - Loading & Empty States (.loading-state, .empty-classes, .empty-state)
+   - Responsive Design (all media queries)
+   
+   ================================================================= */
+
+/* =================================================================
+   SHARED: Used by both Student & Teacher Dashboards
+   ================================================================= */
+
 /* Dashboard Layout */
 .dashboard-container {
   display: flex;
@@ -9,13 +60,17 @@
 
 /* Dashboard Page Specific Styles */
 .dashboard-page {
-  padding: 32px;
+  padding: 24px;
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
   box-sizing: border-box;
   max-width: 100%;
+  overflow: visible;
 }
 
+/* =================================================================
+   SHARED: Header Section
+   ================================================================= */
 /* Top Section - Header with Student Name and Join Button */
 .dashboard-header {
   display: flex;
@@ -26,8 +81,9 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #0038A8;
   flex-wrap: wrap;
+  gap: 24px;
 }
 
 .student-greeting h1 {
@@ -47,24 +103,61 @@
   font-size: 16px;
 }
 
-.join-class-btn {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+.header-status-cards {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.status-card {
+  background: #0038A8;
   color: white;
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+  transition: all 0.3s ease;
+}
+
+.status-number {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-label {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.95;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.join-class-btn {
+  background: #0038A8;
+  color: #FFFFFF;
   border: none;
-  padding: 12px 24px;
+  padding: 16px 24px;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
 
 .join-class-btn:hover {
+  opacity: 0.9;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
 }
 
+/* =================================================================
+   SHARED: Grid Layouts (may be used by other pages)
+   ================================================================= */
 /* Unified Grid Layout */
 .dashboard-grid {
   display: grid;
@@ -82,16 +175,13 @@
   padding: 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 2px solid #e5e7eb;
-  transition: all 0.3s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
 }
 
 .grid-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border-color: #7c3aed;
+  opacity: 0.95;
 }
 
 /* Large Content Cards (Announcements, Assignments, Materials) */
@@ -150,13 +240,9 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #7c3aed, #6d28d9);
+  background: #0038A8;
   transform: scaleX(0);
   transition: transform 0.3s ease;
-}
-
-.grid-card.activity:hover::before {
-  transform: scaleX(1);
 }
 
 .card-icon-large {
@@ -180,42 +266,14 @@
   font-weight: 700;
 }
 
-/* Activity Card Color Coding */
-.grid-card.activity.pending:hover {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-}
-
-.grid-card.activity.completed:hover {
-  border-color: #10b981;
-  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
-}
-
-.grid-card.activity.overdue:hover {
-  border-color: #ef4444;
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-}
-
-.grid-card.activity.posted:hover {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-}
-
-.grid-card.activity.quizzes:hover {
-  border-color: #8b5cf6;
-  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-}
-
-.grid-card.activity.performance:hover {
-  border-color: #ec4899;
-  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
-}
-
+/* =================================================================
+   SHARED: Sidebar Navigation (via Navbar component)
+   ================================================================= */
 /* Sidebar Navigation */
 .sidebar {
   width: 260px;
-  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
-  color: white;
+  background: #0038A8;
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
@@ -232,22 +290,41 @@
 .sidebar-header {
   padding: 32px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sidebar-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.sidebar-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .sidebar-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 17px;
   font-weight: 700;
+  text-align: left;
   color: white;
   letter-spacing: -0.5px;
 }
 
 .sidebar-subtitle {
-  margin: 8px 0 0 0;
-  font-size: 14px;
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
   color: rgba(255, 255, 255, 0.8);
-  font-weight: 500;
+  letter-spacing: 0.3px;
 }
+
 
 .nav-menu {
   flex: 1;
@@ -269,17 +346,11 @@
   text-decoration: none;
   font-size: 16px;
   font-weight: 500;
-  transition: all 0.2s ease;
   border: none;
   background: transparent;
   width: 100%;
   cursor: pointer;
   text-align: left;
-}
-
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
 }
 
 .nav-item.active {
@@ -313,11 +384,9 @@
   font-family: inherit;
 }
 
-.logout-btn:hover {
-  background: rgba(220, 38, 38, 0.2);
-  color: #fecaca;
-}
-
+/* =================================================================
+   SHARED: Main Content Area
+   ================================================================= */
 /* Dashboard Content */
 .dashboard-content {
   flex: 1;
@@ -336,6 +405,8 @@
 
 .page-header {
   margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .page-header h1 {
@@ -364,6 +435,7 @@
   padding: 48px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  border: 1.5px solid #0038A8;
   text-align: center;
   max-width: 600px;
   width: 100%;
@@ -372,7 +444,7 @@
 .placeholder-card h3 {
   margin: 0 0 16px 0;
   font-size: 28px;
-  color: #7c3aed;
+  color: #0038A8;
   font-weight: 600;
 }
 
@@ -396,6 +468,208 @@
   line-height: 1.6;
 }
 
+/* =================================================================
+   TEACHER ONLY: Teacher Dashboard Specific Styles
+   ================================================================= */
+/* Teacher Dashboard Specific Styles */
+.welcome-section {
+  margin-bottom: 40px;
+}
+
+.welcome-section h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 24px 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-create-class {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.btn-create-class:hover {
+  opacity: 0.9;
+}
+
+.btn-create-assignment {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.btn-create-assignment:hover {
+  opacity: 0.9;
+}
+
+/* =================================================================
+   SHARED: My Classes Section
+   Used by both Student Dashboard (shows joined classes)
+   and Teacher Dashboard (shows created classes)
+   ================================================================= */
+.my-classes-section {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  margin-top: 40px;
+  margin-bottom: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid #0038A8;
+}
+
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 32px 40px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid #0038A8;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.section-header h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-add-class {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 56, 168, 0.3);
+}
+
+.btn-add-class:hover {
+  opacity: 0.9;
+}
+
+.empty-classes {
+  text-align: center;
+  padding: 60px 20px;
+  color: #9ca3af;
+}
+
+.empty-classes p {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* =================================================================
+   STUDENT ONLY: Announcements Section
+   ================================================================= */
+/* Announcements Section */
+.announcements-section {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid #0038A8;
+}
+
+.announcements-content {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.announcements-content .empty-state {
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 15px;
+}
+
+/* =================================================================
+   SHARED/OPTIONAL: Quick Stats Section
+   ================================================================= */
+.quick-stats-section {
+  margin-bottom: 40px;
+}
+
+.quick-stats-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 24px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.stat-card {
+  background: #0038A8;
+  border-radius: 16px;
+  padding: 40px 32px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  opacity: 0.95;
+}
+
+.stat-number {
+  font-size: 56px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.95;
+}
+
+/* =================================================================
+   SHARED: Responsive Design
+   ================================================================= */
 /* Responsive Design */
 
 /* Large Desktop (1400px and up) */
@@ -441,6 +715,24 @@
     font-size: 28px;
   }
 
+  .header-status-cards {
+    gap: 12px;
+  }
+
+  .status-card {
+    padding: 10px 24px;
+    gap: 10px;
+  }
+
+  .status-number {
+    font-size: 22px;
+  }
+
+  .status-label {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
   .grid-card {
     padding: 24px;
   }
@@ -451,6 +743,19 @@
 
   .page-header h1 {
     font-size: 32px;
+  }
+
+  /* Teacher Dashboard Responsive */
+  .welcome-section h1 {
+    font-size: 28px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .my-classes-section {
+    padding: 28px;
   }
 }
 
@@ -463,14 +768,22 @@
 
   .sidebar-header {
     padding: 20px 8px;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sidebar-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sidebar-text {
+    display: none;
   }
 
   .sidebar-title {
-    font-size: 18px;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
   }
 
   .sidebar-subtitle {
@@ -528,6 +841,33 @@
 
   .student-greeting h1 {
     font-size: 24px;
+  }
+
+  .header-status-cards {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .status-card {
+    padding: 14px 20px;
+    width: 100%;
+    max-width: 300px;
+    gap: 8px;
+  }
+
+  .status-number {
+    font-size: 20px;
+  }
+
+  .status-label {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .join-class-btn {
+    width: 100%;
+    max-width: 300px;
   }
 
   .greeting-subtitle {
@@ -604,6 +944,38 @@
   .placeholder-card p {
     font-size: 15px;
   }
+
+  /* Teacher Dashboard Responsive */
+  .welcome-section h1 {
+    font-size: 24px;
+  }
+
+  .action-buttons {
+    gap: 12px;
+  }
+
+  .btn-create-class,
+  .btn-create-assignment {
+    padding: 12px 24px;
+    font-size: 13px;
+  }
+
+  .my-classes-section {
+    padding: 24px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 32px 24px;
+  }
+
+  .stat-number {
+    font-size: 48px;
+  }
 }
 
 /* Mobile Landscape (480px to 599px) */
@@ -614,10 +986,20 @@
 
   .sidebar-header {
     padding: 16px 6px;
+    justify-content: center;
+  }
+
+  .sidebar-logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sidebar-text {
+    display: none;
   }
 
   .sidebar-title {
-    font-size: 16px;
+    display: none;
   }
 
   .nav-item {
@@ -659,6 +1041,27 @@
   .student-greeting h1 {
     font-size: 22px;
     margin-bottom: 6px;
+  }
+
+  .header-status-cards {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .status-card {
+    padding: 12px 16px;
+    width: 100%;
+    max-width: 300px;
+    gap: 6px;
+  }
+
+  .status-number {
+    font-size: 18px;
+  }
+
+  .status-label {
+    font-size: 14px;
+    font-weight: 500;
   }
 
   .greeting-subtitle {
@@ -754,10 +1157,20 @@
 
   .sidebar-header {
     padding: 12px 4px;
+    justify-content: center;
+  }
+
+  .sidebar-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sidebar-text {
+    display: none;
   }
 
   .sidebar-title {
-    font-size: 14px;
+    display: none;
   }
 
   .nav-item {
@@ -799,6 +1212,27 @@
   .student-greeting h1 {
     font-size: 20px;
     margin-bottom: 4px;
+  }
+
+  .header-status-cards {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .status-card {
+    padding: 11px 14px;
+    width: 100%;
+    max-width: 300px;
+    gap: 6px;
+  }
+
+  .status-number {
+    font-size: 16px;
+  }
+
+  .status-label {
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .greeting-subtitle {
@@ -896,6 +1330,63 @@
     font-size: 13px;
     margin: 6px 0;
   }
+
+  /* Teacher Dashboard Responsive */
+  .welcome-section h1 {
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-create-class,
+  .btn-create-assignment {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+
+  .my-classes-section {
+    padding: 20px 16px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .btn-add-class {
+    width: 100%;
+  }
+
+  .empty-classes {
+    padding: 40px 16px;
+  }
+
+  .empty-classes p {
+    font-size: 14px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 32px 24px;
+  }
+
+  .stat-number {
+    font-size: 48px;
+  }
+
+  .stat-label {
+    font-size: 15px;
+  }
 }
 
 /* Touch device optimizations */
@@ -922,5 +1413,1678 @@
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .grid-card {
     border-width: 1px; /* Thinner borders on high DPI displays */
+  }
+}
+
+/* =================================================================
+   SHARED: Modal Styles
+   Used by both Student (Join Class) and Teacher (Create Class)
+   ================================================================= */
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 0;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #6b7280;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  opacity: 0.7;
+}
+
+.modal-body {
+  padding: 32px;
+}
+
+.modal-body label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.modal-body input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.modal-body input:focus {
+  outline: none;
+  border-color: #0038A8;
+  box-shadow: 0 0 0 3px rgba(0, 56, 168, 0.1);
+}
+
+.modal-body input::placeholder {
+  color: #9ca3af;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 32px;
+  border-top: 2px solid #f3f4f6;
+}
+
+.btn-cancel {
+  background: white;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  opacity: 0.8;
+}
+
+.btn-submit {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.btn-submit:hover {
+  opacity: 0.9;
+}
+
+.btn-submit:active {
+  transform: translateY(0);
+}
+
+/* Form Group Styles for Modal */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #0038A8;
+  box-shadow: 0 0 0 3px rgba(0, 56, 168, 0.1);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #9ca3af;
+}
+
+.form-group textarea {
+  min-height: 120px;
+  line-height: 1.6;
+}
+
+/* Additional Button Styles */
+.btn-secondary {
+  background: white;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-create {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 56, 168, 0.2);
+}
+
+.btn-create:hover {
+  background: #002a7f;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.btn-create:active {
+  transform: translateY(0);
+}
+
+.btn-create:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Modal Responsive Design */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    max-width: none;
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+  }
+
+  .modal-header h2 {
+    font-size: 20px;
+  }
+
+  .modal-body {
+    padding: 24px;
+  }
+
+  .modal-footer {
+    padding: 20px 24px;
+    flex-direction: column;
+  }
+
+  .btn-cancel,
+  .btn-submit,
+  .btn-secondary,
+  .btn-create {
+    width: 100%;
+  }
+}
+
+/* =================================================================
+   SHARED: Class Cards Styles
+   Student Dashboard: displays joined classes
+   Teacher Dashboard: displays created classes with class codes
+   ================================================================= */
+/* Class Cards Styles */
+.classes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.class-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1.5px solid #0038A8;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.class-card:hover {
+  opacity: 0.95;
+}
+
+.class-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 16px;
+  flex: 1;
+}
+
+.class-card-header h3 {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  color: #1f2937;
+  font-weight: 700;
+  width: 100%;
+}
+
+/* TEACHER ONLY: Class code display */
+.class-code {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  background: #0038A8;
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.class-code-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn-copy-code {
+  background: transparent;
+  border: 1px solid #0038A8;
+  color: #0038A8;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-copy-code:hover {
+  opacity: 0.8;
+}
+
+.btn-copy-code-inline {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-copy-code-inline:hover {
+  opacity: 0.9;
+}
+
+.class-card-body {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.class-stat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.stat-icon {
+  font-size: 18px;
+}
+
+/* =================================================================
+   SHARED/OPTIONAL: Mini Classes List (for dashboard grid card)
+   ================================================================= */
+/* Mini Classes List (for dashboard grid card) */
+.mini-classes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mini-class-item {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+}
+
+.mini-class-item:hover {
+  opacity: 0.9;
+}
+
+.mini-class-name {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.mini-class-teacher {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.view-all-btn {
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: #0038A8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.view-all-btn:hover {
+  opacity: 0.9;
+}
+
+/* =================================================================
+   SHARED/OPTIONAL: Classes Page - Full Grid
+   ================================================================= */
+/* Classes Page - Full Grid */
+.classes-grid-full {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  padding: 20px 0;
+}
+
+.class-card-large {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  border: 1.5px solid #0038A8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.class-card-large:hover {
+  opacity: 0.95;
+}
+
+.class-card-large .class-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
+  width: 100%;
+}
+
+.class-card-large .class-card-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+/* STUDENT ONLY: Teacher name display */
+.class-teacher,
+.class-students {
+  display: block;
+  font-size: 18px;
+  color: #6b7280;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.class-title {
+  margin: 10px 0 8px 0;
+  font-size: 22px;
+  color: #1f2937;
+  font-weight: 900;
+}
+
+.class-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.info-icon {
+  font-size: 20px;
+}
+
+.btn-delete,
+.btn-leave {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-delete:hover,
+.btn-leave:hover {
+  opacity: 0.8;
+}
+
+/* =================================================================
+   SHARED: View All Button
+   ================================================================= */
+.btn-view-all {
+  background: transparent;
+  color: #0038A8;
+  border: 2px solid #0038A8;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-view-all:hover {
+  opacity: 0.8;
+}
+
+/* =================================================================
+   SHARED: Loading and Empty States
+   ================================================================= */
+/* Loading and Empty States */
+.loading-state {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  color: #6b7280;
+  font-size: 18px;
+}
+
+.empty-state-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.empty-state-card {
+  text-align: center;
+  background: white;
+  padding: 48px;
+  border-radius: 16px;
+  border: 2px dashed #d1d5db;
+  max-width: 400px;
+}
+
+.empty-state-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  color: #1f2937;
+}
+
+.empty-state-card p {
+  margin: 0 0 24px 0;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.btn-create-first {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.btn-create-first:hover {
+  opacity: 0.9;
+}
+
+.empty-state-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-state-large svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state-large p {
+  margin: 0;
+  font-size: 16px;
+  font-style: italic;
+}
+
+.announcements-list {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid #0038A8;
+  min-height: 300px;
+}
+
+/* =================================================================
+   SHARED: Additional My Classes Section Styles
+   ================================================================= */
+/* My Classes Section */
+.my-classes-section {
+  margin-bottom: 32px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #1f2937;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.empty-classes {
+  text-align: center;
+  padding: 48px;
+  background: white;
+  border-radius: 16px;
+  border: 2px dashed #d1d5db;
+  color: #6b7280;
+}
+
+.empty-classes p {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* =================================================================
+   SHARED: Action Buttons Group
+   ================================================================= */
+/* Action Buttons Group */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* =================================================================
+   SHARED: Responsive adjustments for class cards
+   ================================================================= */
+/* Responsive adjustments for class cards */
+@media (max-width: 1200px) {
+  .classes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+  
+  .classes-grid-full {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .classes-grid,
+  .classes-grid-full {
+    grid-template-columns: 1fr;
+  }
+  
+  .class-card,
+  .class-card-large {
+    padding: 20px;
+  }
+  
+  .action-buttons {
+    width: 100%;
+  }
+  
+  .action-buttons .join-class-btn {
+    flex: 1;
+  }
+}
+
+/* Class Detail Page Styles */
+.class-detail-container {
+  width: 100%;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.class-detail-header {
+  background: linear-gradient(135deg, #0038A8 0%, #0051d5 100%);
+  color: white;
+  padding: 32px 48px;
+  border-radius: 0;
+  margin-bottom: 0;
+  box-shadow: 0 4px 20px rgba(0, 56, 168, 0.25);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.class-header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.class-detail-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: white;
+  letter-spacing: -0.5px;
+}
+
+.class-detail-teacher {
+  font-size: 18px;
+  margin: 0 0 8px 0;
+  opacity: 0.95;
+  font-weight: 400;
+}
+
+.class-header-teacher-name {
+  font-size: 15px;
+  margin: 0 0 12px 0;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.class-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.class-detail-main {
+  display: block;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 48px 48px;
+}
+
+/* Sidebar - Upcoming */
+.class-detail-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.upcoming-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.upcoming-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.upcoming-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+  color: #1f2937;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.upcoming-item {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.upcoming-item:hover {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  transform: translateX(4px);
+}
+
+.upcoming-item-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  background: #0038A8;
+  color: white;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upcoming-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.upcoming-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.upcoming-item-date {
+  font-size: 13px;
+  margin: 0;
+  color: #6b7280;
+}
+
+.due-label {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.upcoming-empty {
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.upcoming-empty p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.upcoming-view-all {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 2px solid #0038A8;
+  color: #0038A8;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upcoming-view-all:hover {
+  background: #0038A8;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+/* Content Area - Stream */
+.class-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stream-header {
+  background: white;
+  border-radius: 16px;
+  padding: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+  z-index: 10;
+}
+
+.stream-tabs {
+  display: flex;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.stream-tab {
+  flex: 1;
+  padding: 18px 28px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+  position: relative;
+  top: 2px;
+}
+
+.stream-tab:hover {
+  color: #0038A8;
+  background: #f9fafb;
+}
+
+.stream-tab.active {
+  color: #0038A8;
+  border-bottom-color: #0038A8;
+  background: #fafbff;
+}
+
+.stream-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stream-item {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  gap: 20px;
+  transition: all 0.3s ease;
+}
+
+.stream-item:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  border-color: #d1d5db;
+}
+
+.stream-item-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #0038A8 0%, #0051d5 100%);
+  color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.25);
+}
+
+.stream-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stream-item-header {
+  margin-bottom: 14px;
+}
+
+.stream-item-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  line-height: 1.4;
+}
+
+.stream-item-date {
+  font-size: 14px;
+  margin: 0;
+  color: #6b7280;
+}
+
+.stream-item-description {
+  font-size: 15px;
+  margin: 0 0 14px 0;
+  color: #4b5563;
+  line-height: 1.7;
+}
+
+.stream-item-deadline {
+  display: inline-block;
+  font-size: 14px;
+  margin: 0;
+  padding: 10px 16px;
+  background: #eff6ff;
+  border-radius: 8px;
+  border: 1px solid #dbeafe;
+  color: #1f2937;
+}
+
+.deadline-label {
+  font-weight: 700;
+  color: #0038A8;
+}
+
+.stream-item-menu {
+  flex-shrink: 0;
+}
+
+.stream-menu-btn {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.stream-menu-btn:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.stream-empty {
+  background: white;
+  border-radius: 16px;
+  padding: 64px 32px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.stream-empty p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 16px;
+}
+
+.classwork-content,
+.people-content {
+  background: white;
+  border-radius: 16px;
+  padding: 64px 32px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.coming-soon {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 16px;
+}
+
+/* Responsive Design for Class Detail */
+@media (max-width: 992px) {
+  .class-detail-main {
+    padding: 0 32px 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  .class-detail-header {
+    padding: 40px 24px;
+  }
+
+  .class-detail-title {
+    font-size: 36px;
+  }
+
+  .class-detail-teacher {
+    font-size: 18px;
+  }
+
+  .class-detail-main {
+    padding: 0 24px 24px;
+    gap: 20px;
+  }
+
+  .stream-tabs {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .stream-tab {
+    flex: none;
+    min-width: 120px;
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+  
+  .stream-item {
+    padding: 20px;
+    gap: 16px;
+  }
+  
+  .stream-item-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .stream-item-title {
+    font-size: 16px;
+  }
+}
+
+/* Class Info Bar */
+.class-info-bar {
+  background: white;
+  padding: 24px 48px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.class-info-left {
+  flex: 1;
+}
+
+.class-info-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.class-info-code {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 4px 0;
+}
+
+.class-info-teacher {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 4px 0;
+}
+
+.class-code-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: fit-content;
+  backdrop-filter: blur(10px);
+}
+
+.class-code-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.class-code-value {
+  background: white;
+  color: #0038A8;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  letter-spacing: 1px;
+}
+
+.copy-code-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.copy-code-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.copy-code-btn:active {
+  transform: translateY(0);
+}
+
+.class-info-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.class-pic-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: white;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.leave-class-btn {
+  background: rgba(220, 38, 38, 0.9);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.leave-class-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Tab Navigation */
+.class-tabs-container {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 48px;
+}
+
+.class-tabs-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.post-btn {
+  background: #0038A8;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 56, 168, 0.2);
+}
+
+.post-btn:hover {
+  background: #002a7f;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 56, 168, 0.3);
+}
+
+.class-tabs {
+  display: flex;
+  gap: 0;
+  flex: 1;
+}
+
+.class-tab {
+  background: none;
+  border: none;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.class-tab:hover {
+  color: #0038A8;
+  background: #f3f4f6;
+}
+
+.class-tab.active {
+  color: #0038A8;
+  border-bottom-color: #0038A8;
+}
+
+/* Content Wrapper */
+.class-content-wrapper {
+  display: flex;
+  gap: 32px;
+  padding: 32px 48px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.class-main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.class-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+/* Content Sections */
+.content-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.activity-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.activity-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.activity-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.announcement-icon {
+  background: #dbeafe;
+  color: #0038A8;
+}
+
+.assignment-icon {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.activity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 6px 0;
+}
+
+.activity-meta {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 4px 0;
+}
+
+.activity-deadline {
+  font-size: 14px;
+  color: #0038A8;
+  margin: 4px 0 0 0;
+  font-weight: 500;
+}
+
+.activity-deadline.overdue {
+  color: #dc2626;
+}
+
+.activity-description {
+  margin: 12px 0 0 56px;
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.empty-section {
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 16px;
+}
+
+/* Upcoming Sidebar */
+.upcoming-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  position: sticky;
+  top: 32px;
+}
+
+.upcoming-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.upcoming-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.upcoming-item:hover {
+  background: #f3f4f6;
+}
+
+.upcoming-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #15803d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.upcoming-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.upcoming-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcoming-item-date {
+  font-size: 12px;
+  color: #0038A8;
+  margin: 0;
+  font-weight: 500;
+}
+
+.upcoming-item-date.overdue {
+  color: #dc2626;
+}
+
+.upcoming-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* People Section */
+.people-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.people-category {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.people-category-header {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.people-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 20px;
+  transition: all 0.2s ease;
+}
+
+.people-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.people-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* Responsive Design for Class Detail */
+@media (max-width: 1200px) {
+  .class-content-wrapper {
+    flex-direction: column;
+  }
+  
+  .class-sidebar {
+    width: 100%;
+  }
+  
+  .upcoming-section {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .class-detail-header {
+    padding: 24px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+  }
+  
+  .class-header-actions {
+    align-self: flex-end;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .class-detail-title {
+    font-size: 28px;
+  }
+  
+  .class-detail-teacher {
+    font-size: 16px;
+  }
+  
+  .class-info-bar {
+    padding: 20px 24px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .class-info-right {
+    align-self: flex-end;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .class-tabs-container {
+    padding: 0 24px;
+  }
+  
+  .class-content-wrapper {
+    padding: 24px;
+  }
+  
+  .class-tab {
+    padding: 12px 16px;
+    font-size: 14px;
   }
 }

@@ -1,0 +1,1043 @@
+require('dotenv').config()
+  const emailRoutes = require('./emailRoutes')
+  const express = require('express')
+  const bodyParser = require('body-parser')
+  const { google } = require('googleapis')
+  const fs = require('fs')
+  const path = require('path')
+
+  const app = express()
+  const PORT = process.env.PORT || 4000
+
+  app.use(bodyParser.json({ limit: '1mb' }))
+  app.use('/email', emailRoutes)
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*')
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS')
+    res.header('Access-Control-Allow-Headers', 'Content-Type')
+    if (req.method === 'OPTIONS') return res.sendStatus(200)
+    next()
+  })
+
+
+
+  // ── Credentials ─────────────────────────────────────────────────────────────
+  function loadCredentials() {
+    let credentials
+    const localKeyFile = path.join(__dirname, 'credentials.json')
+
+    if (fs.existsSync(localKeyFile)) {
+      credentials = JSON.parse(fs.readFileSync(localKeyFile, 'utf8'))
+    } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
+      credentials = JSON.parse(fs.readFileSync(path.resolve(process.env.GOOGLE_SHEETS_KEY_FILE), 'utf8'))
+    } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
+      const raw = process.env.GOOGLE_SHEETS_CREDENTIALS
+      try { credentials = JSON.parse(raw) }
+      catch (e) {
+        try { credentials = JSON.parse(raw.replace(/\\n/g, '\n')) }
+        catch (e2) { throw new Error('Invalid GOOGLE_SHEETS_CREDENTIALS JSON.') }
+      }
+    } else {
+      throw new Error('No credentials found. Place credentials.json in the sheets-backend folder.')
+    }
+
+    if (credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n')
+    }
+
+    return credentials
+  }
+
+  function getSheetsClient() {
+    const credentials = loadCredentials()
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    })
+    return google.sheets({ version: 'v4', auth })
+  }
+
+  function columnToLetter(col) {
+    let temp = col, letter = ''
+    while (temp > 0) {
+      let mod = (temp - 1) % 26
+      letter = String.fromCharCode(65 + mod) + letter
+      temp = Math.floor((temp - mod) / 26)
+    }
+    return letter
+  }
+
+  // ── Tab name resolver ────────────────────────────────────────────────────────
+  const tabCache = {}
+
+  async function resolveTabNames(sheetId, sheets) {
+    if (tabCache[sheetId]) return tabCache[sheetId]
+
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+      fields: 'sheets.properties.title'
+    })
+    const tabs = meta.data.sheets.map(s => s.properties.title)
+    console.log(`📋 Tabs found in sheet ${sheetId}:`, tabs)
+
+    const find = (keywords) => {
+      const tab = tabs.find(t => {
+        const normalized = t.toLowerCase().replace(/_/g, ' ')
+        return keywords.every(kw => normalized.includes(kw.toLowerCase()))
+      })
+      return tab ? (tab.match(/[\s()']/) ? `'${tab}'` : tab) : null
+    }
+
+    const resolved = {
+      inputData: find(['input data']) || find(['input']) || find(['input', 'data']),
+      q1: find(['q1']),
+      q2: find(['q2']),
+      q3: find(['q3']),
+      q4: find(['q4']),
+    }
+
+    console.log(`Resolved tab names:`, resolved)
+    tabCache[sheetId] = resolved
+    return resolved
+  }
+
+  function clearTabCache(sheetId) {
+    delete tabCache[sheetId]
+  }
+
+  function getQuarterTab(tabs, quarter) {
+    const map = { Q1: tabs.q1, Q2: tabs.q2, Q3: tabs.q3, Q4: tabs.q4 }
+    return map[quarter] || tabs.q1
+  }
+
+  // ── Health ───────────────────────────────────────────────────────────────────
+  app.get('/health', (req, res) => res.json({ ok: true }))
+
+  // ── Debug tabs ───────────────────────────────────────────────────────────────
+  app.get('/debug-tabs', async (req, res) => {
+    try {
+      const { sheetId } = req.query
+      if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
+      clearTabCache(sheetId)
+      const sheets = getSheetsClient()
+      const meta = await sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties.title'
+      })
+      const allTabs = meta.data.sheets.map(s => s.properties.title)
+      const resolved = await resolveTabNames(sheetId, sheets)
+      res.json({ allTabs, resolved })
+    } catch (err) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Get tab names ────────────────────────────────────────────────────────────
+  app.get('/tab-names', async (req, res) => {
+    try {
+      const { sheetId } = req.query
+      if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
+      clearTabCache(sheetId)
+      const sheets = getSheetsClient()
+      const tabs = await resolveTabNames(sheetId, sheets)
+      res.json({ tabs })
+    } catch (err) {
+      console.error('tab-names error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Read all rows from a sheet tab ───────────────────────────────────────────
+  app.get('/read-grades', async (req, res) => {
+    try {
+      const { sheetId, quarter = 'Q1' } = req.query
+      if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
+      const sheets = getSheetsClient()
+      const tabs = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+      res.json({ values: response.data.values || [], sheetName })
+    } catch (err) {
+      console.error('read-grades error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Read grades for a specific student ───────────────────────────────────────
+  app.get('/student-grades', async (req, res) => {
+    try {
+      const { sheetId, studentName, quarter = 'Q1' } = req.query
+      if (!sheetId || !studentName) return res.status(400).json({ error: 'sheetId and studentName required' })
+      const sheets = getSheetsClient()
+      const tabs = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+      const allRows = response.data.values || []
+      if (allRows.length === 0) return res.json({ headers: [], row: [], rowIndex: -1 })
+
+      const groupHeaders = allRows[7] || []
+      const subHeaders = allRows[8] || []
+
+      let studentRow = null, rowIndex = -1
+      for (let i = 11; i < allRows.length; i++) {
+        const name = String(allRows[i][1] || '').trim().toLowerCase()
+        if (name === String(studentName).trim().toLowerCase()) {
+          studentRow = allRows[i]
+          rowIndex = i
+          break
+        }
+      }
+
+      res.json({ groupHeaders, subHeaders, row: studentRow || [], rowIndex })
+    } catch (err) {
+      console.error('student-grades error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Add student to INPUT DATA sheet ─────────────────────────────────────────
+  app.post('/add-student-to-sheet', async (req, res) => {
+    try {
+      const { sheetId, studentName, gender = 'Male' } = req.body
+      if (!sheetId || !studentName) return res.status(400).json({ error: 'sheetId and studentName required' })
+
+      const sheets = getSheetsClient()
+      const tabs = await resolveTabNames(sheetId, sheets)
+      const sheetName = tabs.inputData
+
+      if (!sheetName) return res.status(400).json({ error: 'Could not find INPUT DATA tab in this sheet.' })
+
+      console.log(`Using INPUT DATA tab: ${sheetName}`)
+
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+      const rows = response.data.values || []
+
+      console.log(`Total rows read from INPUT DATA: ${rows.length}`)
+
+      let maleHeaderRow = -1, femaleHeaderRow = -1
+      for (let i = 0; i < rows.length; i++) {
+        const val = String(rows[i][1] || '').trim().toUpperCase()
+        if (val === 'MALE') maleHeaderRow = i
+        if (val === 'FEMALE') femaleHeaderRow = i
+      }
+
+      console.log(`MALE header at row index: ${maleHeaderRow}, FEMALE at: ${femaleHeaderRow}`)
+
+      if (maleHeaderRow === -1) return res.status(400).json({ error: 'Could not find MALE section in INPUT DATA tab.' })
+
+      const isMale = gender.toUpperCase() === 'MALE'
+      const sectionStart = isMale ? maleHeaderRow + 1 : femaleHeaderRow + 1
+      const sectionEnd = isMale
+        ? (femaleHeaderRow > -1 ? femaleHeaderRow : rows.length)
+        : rows.length
+
+      console.log(`Section: rows[${sectionStart}] to rows[${sectionEnd - 1}] (0-based)`)
+
+      let names = []
+      for (let i = sectionStart; i < sectionEnd; i++) {
+        const name = String(rows[i][1] || '').trim()
+        if (name) names.push(name)
+      }
+
+      const alreadyExists = names.some(n => n.toLowerCase() === studentName.trim().toLowerCase())
+      if (alreadyExists) return res.json({ success: true, message: 'Student already in sheet' })
+
+      names.push(studentName.trim())
+      names.sort((a, b) => a.localeCompare(b))
+
+      console.log(`Sorted names after adding "${studentName}":`, names)
+
+      const updateData = names.map((name, idx) => ({
+        range: `${sheetName}!B${sectionStart + idx + 1}`,
+        values: [[name]]
+      }))
+
+      console.log('Writing ranges to INPUT DATA:', updateData.map(d => d.range))
+
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: { valueInputOption: 'USER_ENTERED', data: updateData }
+      })
+
+      console.log(`Added "${studentName}" to INPUT DATA ${gender} section`)
+      res.json({ success: true, message: `Added ${studentName} to INPUT DATA only` })
+    } catch (err) {
+      console.error('add-student-to-sheet error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Shared: find item columns for a section ──────────────────────────────────
+  function findItemColumns(groupHeaderRow, subHeaderRow, typeKeyword) {
+    let sectionStart = -1
+    for (let c = 0; c < groupHeaderRow.length; c++) {
+      if (String(groupHeaderRow[c] || '').toLowerCase().includes(typeKeyword.toLowerCase())) {
+        sectionStart = c; break
+      }
+    }
+    if (sectionStart === -1) return []
+
+    let sectionEnd = groupHeaderRow.length
+    for (let c = sectionStart + 1; c < groupHeaderRow.length; c++) {
+      if (String(groupHeaderRow[c] || '').trim() !== '') { sectionEnd = c; break }
+    }
+
+    const itemCols = []
+    for (let c = sectionStart; c < sectionEnd; c++) {
+      const num = parseInt(String(subHeaderRow[c] || '').trim(), 10)
+      if (!isNaN(num) && num >= 1 && num <= 10) itemCols.push({ col: c, num })
+    }
+    itemCols.sort((a, b) => a.num - b.num)
+    return itemCols.map(x => x.col)
+  }
+
+  function resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber) {
+    let keyword
+    if      (assignmentType === 'Written Works')        keyword = 'written'
+    else if (assignmentType === 'Performance Task')     keyword = 'performance'
+    else if (assignmentType === 'Quarterly Assessment') keyword = 'quarterly'
+    else return -1
+
+    const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+    if (itemCols.length === 0) return -1
+
+    if (assignmentType === 'Quarterly Assessment') return itemCols[0]
+
+    const idx = itemNumber - 1
+    return (idx >= 0 && idx < itemCols.length) ? itemCols[idx] : -1
+  }
+
+  // ── Set Highest Possible Score ───────────────────────────────────────────────
+  app.post('/set-highest-possible-score', async (req, res) => {
+    try {
+      const { sheetId, assignmentType, itemNumber, possibleScore, quarter = 'Q1' } = req.body
+
+      if (!sheetId || !assignmentType || itemNumber === undefined || possibleScore === undefined)
+        return res.status(400).json({
+          error: 'Missing required fields: sheetId, assignmentType, itemNumber, possibleScore'
+        })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!A8:AJ9`
+      })
+      const headerRows     = headerResp.data.values || []
+      const groupHeaderRow = headerRows[0] || []
+      const subHeaderRow   = headerRows[1] || []
+
+      const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+      if (colIndex === -1)
+        return res.status(400).json({
+          error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column. ` +
+                 `Check the sheet has numbered slots 1–10 in the correct section.`
+        })
+
+      const SHEET_HPS_ROW = 10
+      const colLetter     = columnToLetter(colIndex + 1)
+      const hpsCell       = `${sheetName}!${colLetter}${SHEET_HPS_ROW}`
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: hpsCell,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[possibleScore]] }
+      })
+
+      console.log(`✅ HPS set: ${assignmentType} item ${itemNumber} → ${hpsCell} = ${possibleScore} (${quarter})`)
+      res.json({ success: true, cell: hpsCell, assignmentType, itemNumber, possibleScore })
+
+    } catch (err) {
+      console.error('set-highest-possible-score error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Repair HPS row ───────────────────────────────────────────────────────────
+  app.post('/repair-hps', async (req, res) => {
+    try {
+      const { sheetId, quarter = 'Q1', assignments } = req.body
+
+      if (!sheetId || !Array.isArray(assignments) || assignments.length === 0)
+        return res.status(400).json({ error: 'sheetId and a non-empty assignments array are required' })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!A8:AZ9`
+      })
+      const headerRows     = headerResp.data.values || []
+      const groupHeaderRow = headerRows[0] || []
+      const subHeaderRow   = headerRows[1] || []
+
+      const SHEET_HPS_ROW = 10
+
+      const sectionsToClear = new Set(assignments.map(a => {
+        if (a.assignmentType === 'Written Works')        return 'written'
+        if (a.assignmentType === 'Performance Task')     return 'performance'
+        if (a.assignmentType === 'Quarterly Assessment') return 'quarterly'
+        return null
+      }).filter(Boolean))
+
+      const clearData = []
+      for (const keyword of sectionsToClear) {
+        const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+        for (const c of itemCols) {
+          clearData.push({
+            range: `${sheetName}!${columnToLetter(c + 1)}${SHEET_HPS_ROW}`,
+            values: [['']]
+          })
+        }
+      }
+
+      if (clearData.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: clearData }
+        })
+        console.log(`Cleared ${clearData.length} HPS cells before repair`)
+      }
+
+      const writeData = []
+      const results   = []
+      for (const a of assignments) {
+        const { assignmentType, itemNumber, possibleScore } = a
+        if (!assignmentType || itemNumber === undefined || possibleScore === undefined) {
+          results.push({ assignmentType, itemNumber, error: 'Missing fields' })
+          continue
+        }
+        const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+        if (colIndex === -1) {
+          results.push({ assignmentType, itemNumber, error: 'Could not resolve column' })
+          continue
+        }
+        const cell = `${sheetName}!${columnToLetter(colIndex + 1)}${SHEET_HPS_ROW}`
+        writeData.push({ range: cell, values: [[possibleScore]] })
+        results.push({ assignmentType, itemNumber, possibleScore, cell, success: true })
+      }
+
+      if (writeData.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: writeData }
+        })
+      }
+
+      console.log(`✅ repair-hps: wrote ${writeData.length} HPS values for ${quarter}`)
+      res.json({ success: true, results })
+
+    } catch (err) {
+      console.error('repair-hps error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.post('/record-score', async (req, res) => {
+    try {
+      const {
+        sheetId, studentName, assignmentType,
+        assignmentId, itemNumber, score, possibleScore,
+        quarter = 'Q1'
+      } = req.body
+
+      if (!sheetId || !studentName || !assignmentType || !assignmentId || score === undefined)
+        return res.status(400).json({
+          error: 'Missing required fields: sheetId, studentName, assignmentType, assignmentId, score'
+        })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+      const rows     = response.data.values || []
+
+      const groupHeaderRow = rows[7] || []
+      const subHeaderRow   = rows[8] || []
+      const hpsRow         = rows[9] || []
+      const SHEET_HPS_ROW  = 10
+
+      let colIndex = -1
+
+      if (itemNumber !== undefined && itemNumber !== null) {
+        colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+        if (colIndex === -1)
+          return res.status(400).json({
+            error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column. ` +
+                   `Verify the sheet has numbered slots 1–10 in the correct section.`
+          })
+        console.log(`Column resolved by itemNumber ${itemNumber} → col ${colIndex} (${columnToLetter(colIndex + 1)})`)
+
+      } else {
+        console.warn(`⚠️  No itemNumber for assignmentId="${assignmentId}". Using legacy empty-slot scan.`)
+
+        let keyword
+        if      (assignmentType === 'Written Works')        keyword = 'written'
+        else if (assignmentType === 'Performance Task')     keyword = 'performance'
+        else if (assignmentType === 'Quarterly Assessment') keyword = 'quarterly'
+        else return res.status(400).json({ error: `Unknown assignmentType: ${assignmentType}` })
+
+        const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+        if (itemCols.length === 0)
+          return res.status(400).json({ error: `Could not find ${assignmentType} item columns in sheet` })
+
+        for (const c of itemCols) {
+          if (String(hpsRow[c] || '').trim() === String(assignmentId)) { colIndex = c; break }
+        }
+
+        if (colIndex === -1) {
+          let targetRowForScan = -1
+          for (let i = 11; i < rows.length; i++) {
+            if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+              targetRowForScan = i; break
+            }
+          }
+          const studentRowScan = targetRowForScan >= 0 ? (rows[targetRowForScan] || []) : []
+
+          for (const c of itemCols) {
+            const hpsVal    = String(hpsRow[c] || '').trim()
+            const hpsOther  = hpsVal !== '' && hpsVal !== String(assignmentId) && isNaN(Number(hpsVal))
+            if (!hpsOther && String(studentRowScan[c] || '').trim() === '') { colIndex = c; break }
+          }
+          if (colIndex === -1)
+            return res.status(400).json({ error: `All slots for ${assignmentType} are already used` })
+
+          const colLetterLeg = columnToLetter(colIndex + 1)
+          const hpsValueLeg  = possibleScore !== undefined ? possibleScore : assignmentId
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `${sheetName}!${colLetterLeg}${SHEET_HPS_ROW}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[hpsValueLeg]] }
+          })
+          console.log(`Legacy pin: assignmentId "${assignmentId}" → col ${colLetterLeg}, HPS = ${hpsValueLeg}`)
+        }
+      }
+
+      let targetRowIndex = -1
+      for (let i = 11; i < rows.length; i++) {
+        if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+          targetRowIndex = i; break
+        }
+      }
+      if (targetRowIndex === -1)
+        return res.status(404).json({ error: `Student "${studentName}" not found in ${sheetName}` })
+
+      if (possibleScore !== undefined) {
+        const currentHPS = String(hpsRow[colIndex] || '').trim()
+        if (!currentHPS || isNaN(Number(currentHPS))) {
+          const colLetterHPS = columnToLetter(colIndex + 1)
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `${sheetName}!${colLetterHPS}${SHEET_HPS_ROW}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[possibleScore]] }
+          })
+          console.log(`HPS safety-fill: ${colLetterHPS}${SHEET_HPS_ROW} = ${possibleScore}`)
+        }
+      }
+
+      const colLetter = columnToLetter(colIndex + 1)
+      const cellRange = `${sheetName}!${colLetter}${targetRowIndex + 1}`
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: cellRange,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[score]] }
+      })
+
+      console.log(`✅ Score recorded: "${studentName}" → ${cellRange} | ${assignmentType} #${itemNumber ?? '?'} (id=${assignmentId}) = ${score}`)
+      res.json({ success: true, cell: cellRange, studentName, score, itemNumber: itemNumber ?? null })
+
+    } catch (err) {
+      console.error('record-score error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Delete assignment column from sheet (clear HPS + all scores) ───────────
+  app.post('/delete-assignment-from-sheet', async (req, res) => {
+    try {
+      const {
+        sheetId,
+        assignmentType,
+        assignmentId,
+        itemNumber,
+        quarter = 'Q1'
+      } = req.body
+
+      if (!sheetId || !assignmentType)
+        return res.status(400).json({ error: 'sheetId and assignmentType are required' })
+
+      if (itemNumber === undefined && itemNumber === null && !assignmentId)
+        return res.status(400).json({ error: 'Either itemNumber or assignmentId is required' })
+
+      const sheets    = getSheetsClient()
+      const tabs      = await resolveTabNames(sheetId, sheets)
+      const sheetName = getQuarterTab(tabs, quarter)
+      if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${quarter}` })
+
+      // Read headers + HPS row for column resolution.
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!A8:AZ10`
+      })
+      const headerRows     = headerResp.data.values || []
+      const groupHeaderRow = headerRows[0] || []
+      const subHeaderRow   = headerRows[1] || []
+      const hpsRow         = headerRows[2] || []
+
+      let colIndex = -1
+
+      if (itemNumber !== undefined && itemNumber !== null) {
+        colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
+        if (colIndex === -1)
+          return res.status(400).json({
+            error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column. ` +
+                   `Verify the sheet has numbered slots 1–10 in the correct section.`
+          })
+      } else {
+        // Legacy fallback: find the slot that has the assignmentId stored in HPS row.
+        let keyword
+        if      (assignmentType === 'Written Works')        keyword = 'written'
+        else if (assignmentType === 'Performance Task')     keyword = 'performance'
+        else if (assignmentType === 'Quarterly Assessment') keyword = 'quarterly'
+        else return res.status(400).json({ error: `Unknown assignmentType: ${assignmentType}` })
+
+        const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
+        for (const c of itemCols) {
+          if (String(hpsRow[c] || '').trim() === String(assignmentId)) { colIndex = c; break }
+        }
+        if (colIndex === -1)
+          return res.status(404).json({
+            error: 'Could not locate assignment column to clear (missing itemNumber and no legacy assignmentId pin found).'
+          })
+      }
+
+      const SHEET_HPS_ROW = 10
+      const colLetter     = columnToLetter(colIndex + 1)
+      const clearRange    = `${sheetName}!${colLetter}${SHEET_HPS_ROW}:${colLetter}`
+
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: sheetId,
+        range: clearRange
+      })
+
+      console.log(`✅ delete-assignment-from-sheet: cleared ${clearRange} for ${assignmentType} #${itemNumber ?? '?'} (${quarter})`)
+      res.json({ success: true, clearedRange: clearRange, assignmentType, itemNumber: itemNumber ?? null, quarter })
+    } catch (err) {
+      console.error('delete-assignment-from-sheet error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Update assignment in sheet ───────────────────────────────────────────────
+  app.post('/update-assignment-in-sheet', async (req, res) => {
+    try {
+      const { sheetId, old: oldA, new: newA, studentScores = [] } = req.body
+
+      if (!sheetId || !oldA || !newA)
+        return res.status(400).json({ error: 'sheetId, old, and new are required' })
+
+      const sheets = getSheetsClient()
+      const tabs   = await resolveTabNames(sheetId, sheets)
+
+      const SHEET_HPS_ROW = 10
+
+      async function getHeaders(quarter) {
+        const sheetName = getQuarterTab(tabs, quarter)
+        if (!sheetName) return null
+        const r = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `${sheetName}!A8:AZ9`
+        })
+        const rows = r.data.values || []
+        return { sheetName, groupHeaderRow: rows[0] || [], subHeaderRow: rows[1] || [] }
+      }
+
+      async function getAllRows(sheetName) {
+        const r = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+        return r.data.values || []
+      }
+
+      const typeChanged    = oldA.type    !== newA.type
+      const quarterChanged = oldA.quarter !== newA.quarter
+      const scoreChanged   = oldA.possibleScore !== newA.possibleScore
+      const somethingMoved = typeChanged || quarterChanged
+
+      const oldHeaders = await getHeaders(oldA.quarter)
+      if (!oldHeaders) return res.status(400).json({ error: `Cannot find tab for old quarter ${oldA.quarter}` })
+
+      const oldColIndex = resolveColumnByItemNumber(
+        oldHeaders.groupHeaderRow, oldHeaders.subHeaderRow,
+        oldA.type, oldA.itemNumber
+      )
+      if (oldColIndex === -1)
+        return res.status(400).json({ error: `Cannot resolve old column for ${oldA.type} item ${oldA.itemNumber}` })
+
+      const oldColLetter = columnToLetter(oldColIndex + 1)
+
+      const newHeaders = quarterChanged ? await getHeaders(newA.quarter) : oldHeaders
+      if (!newHeaders) return res.status(400).json({ error: `Cannot find tab for new quarter ${newA.quarter}` })
+
+      const newColIndex = resolveColumnByItemNumber(
+        newHeaders.groupHeaderRow, newHeaders.subHeaderRow,
+        newA.type, newA.itemNumber
+      )
+      if (newColIndex === -1)
+        return res.status(400).json({ error: `Cannot resolve new column for ${newA.type} item ${newA.itemNumber}` })
+
+      const newColLetter = columnToLetter(newColIndex + 1)
+
+      const batchClear = []
+      const batchWrite = []
+
+      batchClear.push({
+        range: `${oldHeaders.sheetName}!${oldColLetter}${SHEET_HPS_ROW}`,
+        values: [['']]
+      })
+
+      batchWrite.push({
+        range: `${newHeaders.sheetName}!${newColLetter}${SHEET_HPS_ROW}`,
+        values: [[newA.possibleScore]]
+      })
+
+      if (somethingMoved && studentScores.length > 0) {
+        const oldAllRows = await getAllRows(oldHeaders.sheetName)
+        const newAllRows = quarterChanged
+          ? await getAllRows(newHeaders.sheetName)
+          : oldAllRows
+
+        for (const { studentName, score } of studentScores) {
+          if (score === null || score === undefined) continue
+
+          let oldRowIdx = -1
+          for (let i = 11; i < oldAllRows.length; i++) {
+            if (String(oldAllRows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+              oldRowIdx = i; break
+            }
+          }
+          if (oldRowIdx === -1) continue
+
+          batchClear.push({
+            range: `${oldHeaders.sheetName}!${oldColLetter}${oldRowIdx + 1}`,
+            values: [['']]
+          })
+
+          let newRowIdx = oldRowIdx
+          if (quarterChanged) {
+            newRowIdx = -1
+            for (let i = 11; i < newAllRows.length; i++) {
+              if (String(newAllRows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+                newRowIdx = i; break
+              }
+            }
+            if (newRowIdx === -1) continue
+          }
+
+          batchWrite.push({
+            range: `${newHeaders.sheetName}!${newColLetter}${newRowIdx + 1}`,
+            values: [[score]]
+          })
+        }
+      } else if (!somethingMoved && scoreChanged) {
+        console.log(`Only possibleScore changed (${oldA.possibleScore} → ${newA.possibleScore}), updating HPS only`)
+      }
+
+      if (batchClear.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: batchClear }
+        })
+        console.log(`Cleared ${batchClear.length} old cells`)
+      }
+
+      if (batchWrite.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { valueInputOption: 'USER_ENTERED', data: batchWrite }
+        })
+        console.log(`Wrote ${batchWrite.length} new cells`)
+      }
+
+      const moved = batchWrite.length - 1
+      console.log(`✅ update-assignment-in-sheet: type=${oldA.type}→${newA.type}, quarter=${oldA.quarter}→${newA.quarter}, col=${oldColLetter}→${newColLetter}, ${moved} scores moved`)
+      res.json({
+        success: true,
+        oldCell:  `${oldHeaders.sheetName}!${oldColLetter}`,
+        newCell:  `${newHeaders.sheetName}!${newColLetter}`,
+        scoresMoved: moved
+      })
+
+    } catch (err) {
+      console.error('update-assignment-in-sheet error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Clear a student's score cells when they leave or are removed ─────────────
+  app.post('/clear-student-scores', async (req, res) => {
+    try {
+      const { sheetId, studentName, assignments } = req.body
+      if (!sheetId || !studentName || !Array.isArray(assignments) || assignments.length === 0)
+        return res.status(400).json({ error: 'sheetId, studentName, and assignments array are required' })
+
+      const sheets   = getSheetsClient()
+      const tabs     = await resolveTabNames(sheetId, sheets)
+
+      const byQuarter = {}
+      for (const a of assignments) {
+        const q = a.quarter || 'Q1'
+        if (!byQuarter[q]) byQuarter[q] = []
+        byQuarter[q].push(a)
+      }
+
+      const clearData = []
+
+      for (const [quarter, qAssignments] of Object.entries(byQuarter)) {
+        const sheetName = getQuarterTab(tabs, quarter)
+        if (!sheetName) continue
+
+        const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+        const rows     = response.data.values || []
+
+        const groupHeaderRow = rows[7] || []
+        const subHeaderRow   = rows[8] || []
+
+        let studentRowIdx = -1
+        for (let i = 11; i < rows.length; i++) {
+          if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+            studentRowIdx = i; break
+          }
+        }
+        if (studentRowIdx === -1) continue
+
+        for (const a of qAssignments) {
+          const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, a.type, a.itemNumber)
+          if (colIndex === -1) continue
+          clearData.push({
+            range:  `${sheetName}!${columnToLetter(colIndex + 1)}${studentRowIdx + 1}`,
+            values: [['']]
+          })
+        }
+      }
+
+      if (clearData.length === 0) {
+        return res.json({ success: true, message: 'No cells to clear', cleared: 0 })
+      }
+
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody:   { valueInputOption: 'USER_ENTERED', data: clearData }
+      })
+
+      console.log(`✅ clear-student-scores: cleared ${clearData.length} cells for "${studentName}"`)
+      res.json({ success: true, cleared: clearData.length, studentName })
+
+    } catch (err) {
+      console.error('clear-student-scores error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Remove student from INPUT DATA sheet ────────────────────────────────────
+  app.post('/remove-student-from-sheet', async (req, res) => {
+    try {
+      const { sheetId, studentName, gender = 'Male' } = req.body
+      if (!sheetId || !studentName) return res.status(400).json({ error: 'sheetId and studentName required' })
+
+      const sheets = getSheetsClient()
+      const tabs = await resolveTabNames(sheetId, sheets)
+      const sheetName = tabs.inputData
+
+      if (!sheetName) return res.status(400).json({ error: 'Could not find INPUT DATA tab in this sheet.' })
+
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+      const rows = response.data.values || []
+
+      let maleHeaderRow = -1, femaleHeaderRow = -1
+      for (let i = 0; i < rows.length; i++) {
+        const val = String(rows[i][1] || '').trim().toUpperCase()
+        if (val === 'MALE') maleHeaderRow = i
+        if (val === 'FEMALE') femaleHeaderRow = i
+      }
+
+      if (maleHeaderRow === -1) return res.status(400).json({ error: 'Could not find MALE section in INPUT DATA tab.' })
+
+      const isMale = gender.toUpperCase() === 'MALE'
+      const sectionStart = isMale ? maleHeaderRow + 1 : (femaleHeaderRow > -1 ? femaleHeaderRow + 1 : maleHeaderRow + 1)
+      const sectionEnd = isMale
+        ? (femaleHeaderRow > -1 ? femaleHeaderRow : rows.length)
+        : rows.length
+
+      let names = []
+      let found = false
+      for (let i = sectionStart; i < sectionEnd; i++) {
+        const name = String(rows[i][1] || '').trim()
+        if (name) {
+          if (name.toLowerCase() === studentName.trim().toLowerCase()) {
+            found = true
+          } else {
+            names.push(name)
+          }
+        }
+      }
+
+      if (!found) return res.json({ success: true, message: 'Student not found in sheet (already removed or never added)' })
+
+      const sectionRowCount = sectionEnd - sectionStart
+
+      const updateData = []
+      for (let i = 0; i < sectionRowCount; i++) {
+        updateData.push({
+          range: `${sheetName}!B${sectionStart + i + 1}`,
+          values: [[i < names.length ? names[i] : '']]
+        })
+      }
+
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: { valueInputOption: 'USER_ENTERED', data: updateData }
+      })
+
+      console.log(`Removed "${studentName}" from INPUT DATA ${gender} section`)
+      res.json({ success: true, message: `Removed ${studentName} from INPUT DATA` })
+    } catch (err) {
+      console.error('remove-student-from-sheet error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Remove student row from all quarter grade tabs and shift names up ────────
+  app.post('/remove-student-from-quarter-sheets', async (req, res) => {
+    try {
+      const { sheetId, studentName, quarters = ['Q1', 'Q2', 'Q3', 'Q4'] } = req.body
+      if (!sheetId || !studentName)
+        return res.status(400).json({ error: 'sheetId and studentName required' })
+
+      const sheets  = getSheetsClient()
+      const tabs    = await resolveTabNames(sheetId, sheets)
+
+      // Get the real sheet IDs (numeric sheetId per tab) for deleteRows requests
+      const meta = await sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties'
+      })
+      const sheetProps = meta.data.sheets.map(s => s.properties)
+
+      const results = []
+
+      for (const quarter of quarters) {
+        const sheetName = getQuarterTab(tabs, quarter)
+        if (!sheetName) continue
+
+        // Read all rows from the quarter tab
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: sheetName
+        })
+        const rows = response.data.values || []
+
+        // Find student row (names start at row index 11, i.e. row 12 in sheet)
+        let studentRowIdx = -1
+        for (let i = 11; i < rows.length; i++) {
+          if (String(rows[i][1] || '').trim().toLowerCase() === String(studentName).trim().toLowerCase()) {
+            studentRowIdx = i
+            break
+          }
+        }
+        if (studentRowIdx === -1) {
+          results.push({ quarter, status: 'not found' })
+          continue
+        }
+
+        // Find the numeric sheetId for this tab (needed for deleteRows)
+        const cleanName = sheetName.replace(/^'|'$/g, '')
+        const tabProp = sheetProps.find(p => p.title === cleanName)
+        if (!tabProp) {
+          results.push({ quarter, status: 'tab not found in sheet metadata' })
+          continue
+        }
+        const tabSheetId = tabProp.sheetId
+
+        // Delete the student row using batchUpdate deleteDimension
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId:    tabSheetId,
+                  dimension:  'ROWS',
+                  startIndex: studentRowIdx,     // 0-based
+                  endIndex:   studentRowIdx + 1  // exclusive
+                }
+              }
+            }]
+          }
+        })
+
+        console.log(`✅ Removed row ${studentRowIdx + 1} for "${studentName}" from ${quarter} tab`)
+        results.push({ quarter, status: 'removed', rowIndex: studentRowIdx + 1 })
+      }
+
+      res.json({ success: true, studentName, results })
+    } catch (err) {
+      console.error('remove-student-from-quarter-sheets error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── Append grade rows ────────────────────────────────────────────────────────
+  app.post('/append-grade', async (req, res) => {
+    try {
+      const { sheetId, range = 'Sheet1!A:Z', values } = req.body
+      if (!sheetId || !values || (Array.isArray(values) && values.length === 0))
+        return res.status(400).json({ error: 'sheetId and non-empty values array required' })
+      const sheets = getSheetsClient()
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: Array.isArray(values[0]) ? values : [values] }
+      })
+      return res.json({ success: true })
+    } catch (err) {
+      console.error('append-grade error', err.message)
+      return res.status(500).json({ success: false, error: err.message })
+    }
+  })
+
+  // ── Update single cell ───────────────────────────────────────────────────────
+  app.put('/update-cell', async (req, res) => {
+    try {
+      const { sheetId, range, value } = req.body
+      if (!sheetId || !range) return res.status(400).json({ error: 'sheetId and range required' })
+      const sheets = getSheetsClient()
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[value]] }
+      })
+      res.json({ success: true, range })
+    } catch (err) {
+      console.error('update-cell error', err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.listen(PORT, () => console.log(`✅ Sheets backend running on port ${PORT}`))

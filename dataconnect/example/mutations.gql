@@ -1,0 +1,17 @@
+# Mutations for the education platform
+
+mutation CreateNewUser($displayName: String!, $email: String!, $userType: String!) @auth(level: USER) {
+  user_insert(data: {displayName: $displayName, email: $email, userType: $userType, createdAt_expr: "request.time"})
+}
+
+mutation CreateNewDiscussionPost($authorId: UUID!, $courseId: UUID!, $content: String!) @auth(level: USER) {
+  discussionPost_insert(data: {authorId: $authorId, courseId: $courseId, content: $content, createdAt_expr: "request.time"})
+}
+
+mutation CreateCourse($title: String!, $description: String!, $startDate: Date!, $endDate: Date!, $instructorId: UUID!) @auth(level: USER) {
+  course_insert(data: {title: $title, description: $description, startDate: $startDate, endDate: $endDate, instructorId: $instructorId, createdAt_expr: "request.time"})
+}
+
+mutation DeleteUser($userId: UUID!) @auth(level: USER) {
+  user_delete(key: {id: $userId})
+}

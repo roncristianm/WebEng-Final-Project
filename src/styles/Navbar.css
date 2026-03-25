@@ -1,0 +1,451 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   NavbarFix.css
+   Import this AFTER Dashboard.css to fix the logout button being pushed
+   off-screen on mobile.
+
+   Usage in Navbar.jsx (or main.jsx):
+     import '../../styles/NavbarFix.css'   (adjust path as needed)
+
+   Root cause: .sidebar had overflow-y: auto, so the whole sidebar scrolled.
+   .sidebar-footer was inside that scroll, meaning it could scroll out of view.
+   
+   Fix: sidebar clips overflow, nav-menu scrolls internally, footer stays pinned.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar: flex column, clips overflow — nav-menu handles its own scroll ── */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;       /* sidebar itself never scrolls */
+}
+
+/* ── Header: pinned, never shrinks ── */
+.sidebar-header {
+  flex-shrink: 0;
+}
+
+/* ── Nav menu: takes remaining space, scrolls internally if links overflow ── */
+.nav-menu {
+  flex: 1 1 0;
+  min-height: 0;          /* critical: lets flex child shrink below content size */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.nav-menu::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Footer: pinned at bottom, never shrinks or scrolls away ── */
+.sidebar-footer {
+  flex-shrink: 0;
+  background: #0038A8;    /* prevent transparent bleed-through when scrolling */
+}
+
+/* ── Logout confirmation modal ───────────────────────────────────────────── */
+.nb-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  animation: nb-fade 0.15s ease;
+}
+@keyframes nb-fade { from { opacity: 0 } to { opacity: 1 } }
+
+.nb-modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px 28px 24px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  animation: nb-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes nb-pop {
+  from { opacity: 0; transform: scale(0.94) translateY(6px) }
+  to   { opacity: 1; transform: scale(1) translateY(0) }
+}
+
+.nb-modal-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+.nb-modal-msg {
+  margin: 0 0 24px;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.nb-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.nb-modal-cancel {
+  padding: 9px 18px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background 0.15s, border-color 0.15s;
+}
+.nb-modal-cancel:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+.nb-modal-confirm {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background 0.15s, transform 0.1s;
+}
+.nb-modal-confirm:hover { background: #b91c1c; }
+.nb-modal-confirm:active { transform: scale(0.97); }
+
+/* ── Edit Profile button in sidebar ──────────────────────────────────────── */
+.nb-profile-btn {
+  color: rgba(255,255,255,0.85) !important;
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  width: 100%;
+  cursor: pointer;
+}
+.nb-profile-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* ── Edit Profile modal ───────────────────────────────────────────────────── */
+.ep-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  z-index: 9999;
+  backdrop-filter: blur(3px);
+  animation: ep-fade 0.2s ease;
+}
+@keyframes ep-fade { from { opacity: 0 } to { opacity: 1 } }
+
+.ep-modal {
+  background: #fff;
+  border-radius: 0 20px 20px 0;
+  width: 100%;
+  max-width: 380px;
+  height: 100%;
+  max-height: 100vh;
+  overflow-y: auto;
+  box-shadow: 8px 0 40px rgba(0,0,0,0.18);
+  animation: ep-slide-in 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  display: flex;
+  flex-direction: column;
+  /* offset by sidebar width so it appears right next to the sidebar */
+  margin-left: 260px;
+}
+@keyframes ep-slide-in {
+  from { opacity: 0; transform: translateX(-40px) }
+  to   { opacity: 1; transform: translateX(0) }
+}
+
+/* ── Header with avatar ── */
+.ep-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ep-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #0038A8;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  font-family: 'Montserrat', sans-serif;
+  flex-shrink: 0;
+}
+
+.ep-header-text { flex: 1; min-width: 0; }
+.ep-header-name {
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ep-header-email {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ep-close {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.ep-close:hover { background: #f1f5f9; color: #0f172a; }
+
+/* ── Tabs ── */
+.ep-tabs {
+  display: flex;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 0 22px;
+}
+
+.ep-tab {
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  transition: color 0.15s, border-color 0.15s;
+  position: relative;
+  bottom: -1px;
+}
+.ep-tab:hover { color: #475569; }
+.ep-tab--active {
+  color: #0038A8;
+  border-bottom-color: #0038A8;
+}
+
+/* ── Alert banners ── */
+.ep-alert {
+  margin: 12px 22px 0;
+  padding: 10px 14px;
+  border-radius: 9px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  line-height: 1.4;
+}
+.ep-alert--error   { background: #fee2e2; color: #dc2626; }
+.ep-alert--success { background: #dcfce7; color: #16a34a; }
+
+/* ── Form body ── */
+.ep-body {
+  padding: 18px 22px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ep-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ep-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #374151;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+}
+.ep-required {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.ep-input {
+  padding: 10px 13px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 9px;
+  font-size: 0.88rem;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #0f172a;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  background: #fff;
+}
+.ep-input:focus {
+  border-color: #0038A8;
+  box-shadow: 0 0 0 3px rgba(0,56,168,0.1);
+}
+.ep-input::placeholder { color: #cbd5e1; }
+
+/* ── Footer buttons ── */
+.ep-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 18px 0 22px;
+}
+
+.ep-btn-cancel {
+  padding: 10px 18px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 9px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  transition: background 0.15s;
+}
+.ep-btn-cancel:hover    { background: #f8fafc; }
+.ep-btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ep-btn-save {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 9px;
+  background: #0038A8;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  box-shadow: 0 4px 12px rgba(0,56,168,0.3);
+  transition: background 0.15s, transform 0.12s;
+}
+.ep-btn-save:hover    { background: #002d8a; transform: translateY(-1px); }
+.ep-btn-save:active   { transform: scale(0.97); }
+.ep-btn-save:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* ── Mobile ── */
+@media (max-width: 767px) {
+  /* on mobile sidebar collapses to 70px, panel goes full width */
+  .ep-modal {
+    margin-left: 70px;
+    border-radius: 0 16px 16px 0;
+    max-width: calc(100vw - 70px);
+  }
+}
+@media (max-width: 599px) {
+  .ep-modal {
+    margin-left: 60px;
+    max-width: calc(100vw - 60px);
+  }
+}
+@media (max-width: 479px) {
+  .ep-modal {
+    margin-left: 50px;
+    max-width: calc(100vw - 50px);
+  }
+  .ep-footer { flex-direction: row; }
+}
+
+/* read-only email field */
+.ep-input--readonly {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+  border-color: #f1f5f9;
+}
+.ep-readonly-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Read-only email field ── */
+.ep-input--readonly {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #94a3b8;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  cursor: default;
+  font-size: 0.88rem;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  padding: 10px 13px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 9px;
+  box-sizing: border-box;
+}
+
+.ep-readonly-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #cbd5e1;
+  background: #f1f5f9;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ep-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+}
+
+/* ── Info box on password tab ── */
+.ep-info-box {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 11px;
+  font-size: 0.82rem;
+  color: #1e40af;
+  line-height: 1.5;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+}
+.ep-info-box svg { flex-shrink: 0; margin-top: 1px; color: #3b82f6; }
+.ep-info-box p   { margin: 0; }
+.ep-info-box strong { font-weight: 700; }

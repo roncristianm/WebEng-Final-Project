@@ -1,6 +1,6 @@
-# WebEng Final Project
+# Nexxus.BHSA
 
-A modern web application built with React, Vite, and Firebase.
+A modern web application for Bataan High School for the Arts, built with React, Vite, and Firebase.
 
 ## 📁 Project Structure
 

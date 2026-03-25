@@ -1,0 +1,522 @@
+/* ─────────────────────────────────────────────────────────────
+   StudentClass.css
+   Student "My Classes" page — rich card design
+───────────────────────────────────────────────────────────── */
+
+/* ── Page Layout ── */
+.sc-page {
+  padding: 32px 36px;
+  min-height: 100vh;
+  background: #f0f4f8;
+  box-sizing: border-box;
+}
+
+/* ── Header ── */
+.sc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sc-header-title {
+  margin: 0 0 4px;
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.sc-header-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+/* ── Join Button ── */
+.sc-join-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #0038A8;
+  color: #fff;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 56, 168, 0.35);
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.sc-join-btn:hover {
+  background: #002d8a;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 56, 168, 0.4);
+}
+
+.sc-join-btn:active {
+  transform: translateY(0);
+}
+
+.sc-join-btn--lg {
+  padding: 14px 28px;
+  font-size: 1rem;
+  border-radius: 14px;
+}
+
+/* ── Class count ── */
+.sc-count {
+  margin: 0 0 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Cards Grid ── */
+.sc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+/* ── Card ── */
+.sc-card {
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.sc-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.13);
+}
+
+/* ── Card Banner ── */
+.sc-card-banner {
+  position: relative;
+  height: 110px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sc-card-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* Decorative circles in banner */
+.sc-card-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.3;
+}
+
+.sc-card-circle-1 {
+  width: 100px;
+  height: 100px;
+  top: -30px;
+  right: -20px;
+}
+
+.sc-card-circle-2 {
+  width: 70px;
+  height: 70px;
+  bottom: -25px;
+  left: 20px;
+}
+
+/* Avatar initials */
+.sc-card-avatar {
+  position: relative;
+  z-index: 1;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -1px;
+}
+
+/* ── Card Body ── */
+.sc-card-body {
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.sc-card-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Meta row */
+.sc-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sc-card-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.sc-card-meta-item svg {
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+/* Footer row */
+.sc-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.sc-card-view {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0038A8;
+  letter-spacing: 0.2px;
+}
+
+.sc-card-leave {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+.sc-card-leave:hover {
+  background: #e11d48;
+  border-color: #e11d48;
+}
+
+/* ── Loading ── */
+.sc-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 16px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.sc-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0038A8;
+  border-radius: 50%;
+  animation: sc-spin 0.7s linear infinite;
+}
+
+@keyframes sc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Empty State ── */
+.sc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 24px;
+  gap: 14px;
+}
+
+.sc-empty-icon {
+  font-size: 3.5rem;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.sc-empty-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sc-empty-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  max-width: 320px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+/* ── Join Modal ── */
+.sc-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  box-sizing: border-box;
+  backdrop-filter: blur(3px);
+}
+
+.sc-modal {
+  background: #fff;
+  border-radius: 24px;
+  padding: 36px 32px 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  animation: sc-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sc-pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.sc-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #f1f5f9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.sc-modal-close:hover {
+  background: #e2e8f0;
+}
+
+.sc-modal-icon {
+  font-size: 2.8rem;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.sc-modal-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sc-modal-sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.sc-modal-input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px 18px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-align: center;
+  color: #0f172a;
+  outline: none;
+  font-family: monospace;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.sc-modal-input:focus {
+  border-color: #0038A8;
+  box-shadow: 0 0 0 3px rgba(0, 56, 168, 0.12);
+}
+
+.sc-modal-input::placeholder {
+  color: #cbd5e1;
+  letter-spacing: 1px;
+  font-weight: 400;
+}
+
+.sc-modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.sc-btn-ghost {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.sc-btn-ghost:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.sc-btn-primary {
+  flex: 2;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #0038A8;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 14px rgba(0, 56, 168, 0.3);
+  transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.sc-btn-primary:hover {
+  background: #002d8a;
+}
+
+.sc-btn-primary:disabled,
+.sc-btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sc-page {
+    padding: 20px 16px;
+  }
+
+  .sc-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .sc-join-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .sc-header-title {
+    font-size: 1.5rem;
+  }
+
+  .sc-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .sc-card-banner {
+    height: 96px;
+  }
+
+  .sc-card-body {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sc-page {
+    padding: 16px 12px;
+  }
+
+  .sc-header-title {
+    font-size: 1.35rem;
+  }
+
+  .sc-modal {
+    padding: 28px 20px 24px;
+    border-radius: 20px;
+  }
+
+  .sc-modal-input {
+    font-size: 1rem;
+  }
+
+  .sc-empty {
+    padding: 60px 16px;
+  }
+
+  .sc-grid {
+    gap: 12px;
+  }
+}
