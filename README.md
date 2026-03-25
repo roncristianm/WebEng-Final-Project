@@ -103,7 +103,6 @@ Cloud Functions send emails via Brevo SMTP. Configure these in the Functions env
 - Classes: create (teacher), join/leave (student), roster management
 - Assignments: create/edit/delete, per-student submission tracking, optional grade sync to Google Sheets
 - Announcements: create/delete, per-class feeds
-- Materials: upload files to Firebase Storage, link detection in descriptions
 - Calendar: consolidated assignment/announcement events
 - Automated emails:
    - Firestore triggers (new assignment/announcement/material)
