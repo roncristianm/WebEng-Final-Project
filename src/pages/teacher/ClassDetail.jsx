@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import EditContentModal from '../../components/EditContentModal'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/TeacherClassDetail.css'
+import '../../styles/Teacherclassdetail.css'
 
 /* ── SVG Icon set ── */
 const Icons = {
