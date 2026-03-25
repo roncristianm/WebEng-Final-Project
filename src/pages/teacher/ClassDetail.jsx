@@ -1,3 +1,4 @@
+// src/pages/teacher/ClassDetail.jsx  (UPDATED — edit support for all content types)
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
@@ -5,141 +6,42 @@ import { getClassById, getClassStudents, deleteClass } from '../../services/clas
 import { getClassAssignments, createAssignmentSingle, getAssignmentById } from '../../services/assignmentService'
 import { getClassAnnouncements, createAnnouncementSingle as createAnnouncement } from '../../services/announcementService'
 import { getClassMaterials, createMaterial, deleteMaterial } from '../../services/materialService'
+import { updateAnnouncement, updateAssignment, updateMaterial } from '../../services/editService'
 import { useAuth } from '../../context/AuthContext'
+import EditContentModal from '../../components/EditContentModal'
 import Notification from '../../components/Notification'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import '../../styles/TeacherClassDetail.css'
 
 /* ── SVG Icon set ── */
 const Icons = {
-  general: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-    </svg>
-  ),
-  assignments: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-      <polyline points="10 9 9 9 8 9"/>
-    </svg>
-  ),
-  announcements: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-    </svg>
-  ),
-  materials: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-    </svg>
-  ),
-  people: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ),
-  back: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6"/>
-    </svg>
-  ),
-  teacher: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
-    </svg>
-  ),
-  copy: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="9" width="13" height="13" rx="2"/>
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-    </svg>
-  ),
-  check: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  ),
-  plus: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  ),
-  trash: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-    </svg>
-  ),
-  calendar: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  ),
-  alert: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-  ),
-  close: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  ),
-  empty: (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  ),
+  general: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>),
+  assignments: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>),
+  announcements: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>),
+  materials: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>),
+  people: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>),
+  back: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>),
+  teacher: (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>),
+  copy: (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>),
+  check: (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>),
+  plus: (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>),
+  trash: (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>),
+  edit: (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>),
+  calendar: (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
+  alert: (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>),
+  close: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
+  empty: (<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
 }
 
-const TYPE_COLORS = {
-  'Written Works': '#3b82f6',
-  'Performance Task': '#10b981',
-  'Quarterly Assessment': '#f59e0b'
-}
-
+const TYPE_COLORS = { 'Written Works': '#3b82f6', 'Performance Task': '#10b981', 'Quarterly Assessment': '#f59e0b' }
 const TABS = ['general', 'assignments', 'announcements', 'materials', 'people']
-const TAB_LABELS = {
-  general: 'General', assignments: 'Assignments',
-  announcements: 'Announcements', materials: 'Materials', people: 'Members',
-}
+const TAB_LABELS = { general: 'General', assignments: 'Assignments', announcements: 'Announcements', materials: 'Materials', people: 'Members' }
 
-function fmt(ts) {
-  if (!ts) return ''
-  const d = ts.toDate ? ts.toDate() : new Date(ts)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
-function fmtDate(ts) {
-  if (!ts) return ''
-  const d = ts.toDate ? ts.toDate() : new Date(ts)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-function fmtTime(ts) {
-  if (!ts) return ''
-  const d = ts.toDate ? ts.toDate() : new Date(ts)
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-}
-function isOD(dl) {
-  if (!dl) return false
-  const d = dl.toDate ? dl.toDate() : new Date(dl)
-  return d < new Date()
-}
-function linkify(t = '') {
-  return t.replace(/https?:\/\/[^\s<>"']+/gi, u => `<a href="${u}" target="_blank" rel="noopener" class="tcd-link">${u}</a>`)
-}
+function fmt(ts) { if (!ts) return ''; const d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) }
+function fmtDate(ts) { if (!ts) return ''; const d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+function fmtTime(ts) { if (!ts) return ''; const d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
+function isOD(dl) { if (!dl) return false; const d = dl.toDate ? dl.toDate() : new Date(dl); return d < new Date() }
+function linkify(t = '') { return t.replace(/https?:\/\/[^\s<>"']+/gi, u => `<a href="${u}" target="_blank" rel="noopener" class="tcd-link">${u}</a>`) }
 
 function TypeChip({ type }) {
   const m = { announcement: ['Announcement','tcd-chip--ann'], assignment: ['Assignment','tcd-chip--asgn'], material: ['Material','tcd-chip--mat'] }
@@ -147,7 +49,8 @@ function TypeChip({ type }) {
   return <span className={`tcd-chip ${cls}`}>{label}</span>
 }
 
-function FeedCard({ title, meta, chip, overdue, onDelete, onClick, children }) {
+/* ── Feed Card — with edit + delete buttons ── */
+function FeedCard({ title, meta, chip, overdue, onDelete, onEdit, onClick, children }) {
   return (
     <div
       className={`tcd-feed-card ${overdue ? 'tcd-feed-card--overdue' : ''}`}
@@ -165,6 +68,16 @@ function FeedCard({ title, meta, chip, overdue, onDelete, onClick, children }) {
             <span style={{ fontSize: 11, color: '#0038A8', fontWeight: 700, background: '#eff6ff', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
               View →
             </span>
+          )}
+          {onEdit && (
+            <button
+              className="tcd-icon-btn"
+              onClick={e => { e.stopPropagation(); onEdit() }}
+              title="Edit"
+              style={{ color: '#0038A8' }}
+            >
+              {Icons.edit}
+            </button>
           )}
           {onDelete && (
             <button
@@ -189,40 +102,16 @@ function NewPicker({ onPick, onClose }) {
       <div className="tcd-picker" onClick={e => e.stopPropagation()}>
         <p className="tcd-picker-label">What would you like to create?</p>
         <button className="tcd-picker-item" onClick={() => onPick('assignments')}>
-          <span className="tcd-picker-icon tcd-picker-icon--asgn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-          </span>
-          <div>
-            <p className="tcd-picker-name">Assignment</p>
-            <p className="tcd-picker-desc">Set a graded task with a deadline</p>
-          </div>
+          <span className="tcd-picker-icon tcd-picker-icon--asgn">{Icons.assignments}</span>
+          <div><p className="tcd-picker-name">Assignment</p><p className="tcd-picker-desc">Set a graded task with a deadline</p></div>
         </button>
         <button className="tcd-picker-item" onClick={() => onPick('announcements')}>
-          <span className="tcd-picker-icon tcd-picker-icon--ann">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-          </span>
-          <div>
-            <p className="tcd-picker-name">Announcement</p>
-            <p className="tcd-picker-desc">Share a message with your class</p>
-          </div>
+          <span className="tcd-picker-icon tcd-picker-icon--ann">{Icons.announcements}</span>
+          <div><p className="tcd-picker-name">Announcement</p><p className="tcd-picker-desc">Share a message with your class</p></div>
         </button>
         <button className="tcd-picker-item" onClick={() => onPick('materials')}>
-          <span className="tcd-picker-icon tcd-picker-icon--mat">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-            </svg>
-          </span>
-          <div>
-            <p className="tcd-picker-name">Material</p>
-            <p className="tcd-picker-desc">Upload files or share links</p>
-          </div>
+          <span className="tcd-picker-icon tcd-picker-icon--mat">{Icons.materials}</span>
+          <div><p className="tcd-picker-name">Material</p><p className="tcd-picker-desc">Upload files or share links</p></div>
         </button>
       </div>
     </div>
@@ -235,7 +124,6 @@ function PostModal({ postType, formData, setFormData, posting, onClose, onSubmit
   const title  = isAnn ? 'New Announcement' : isAsgn ? 'New Assignment' : 'New Material'
   const today  = new Date().toLocaleDateString('en-CA')
   const nowTime = new Date().toTimeString().slice(0,5)
-
   return (
     <div className="tcd-overlay" onClick={onClose}>
       <div className="tcd-modal" onClick={e => e.stopPropagation()}>
@@ -245,41 +133,35 @@ function PostModal({ postType, formData, setFormData, posting, onClose, onSubmit
         </div>
         <form onSubmit={onSubmit}>
           <div className="tcd-modal-body">
-            {isAnn && (
-              <>
-                <div className="tcd-field"><label>Title *</label><input value={formData.title} onChange={e => setFormData(f => ({ ...f, title: e.target.value }))} placeholder="Announcement title" required /></div>
-                <div className="tcd-field"><label>Content *</label><textarea value={formData.content} onChange={e => setFormData(f => ({ ...f, content: e.target.value }))} rows={4} placeholder="Write your announcement…" required /></div>
-              </>
-            )}
-            {isAsgn && (
-              <>
-                <div className="tcd-field"><label>Title *</label><input value={formData.title} onChange={e => setFormData(f => ({ ...f, title: e.target.value }))} placeholder="Assignment title" required /></div>
-                <div className="tcd-field"><label>Description *</label><textarea value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Instructions…" required /></div>
-                <div className="tcd-field"><label>Type *</label>
-                  <select value={formData.type || 'Written Works'} onChange={e => setFormData(f => ({ ...f, type: e.target.value }))} required>
-                    <option>Written Works</option><option>Performance Task</option><option>Quarterly Assessment</option>
+            {isAnn && (<>
+              <div className="tcd-field"><label>Title *</label><input value={formData.title} onChange={e => setFormData(f => ({...f,title:e.target.value}))} placeholder="Announcement title" required /></div>
+              <div className="tcd-field"><label>Content *</label><textarea value={formData.content} onChange={e => setFormData(f => ({...f,content:e.target.value}))} rows={4} placeholder="Write your announcement…" required /></div>
+            </>)}
+            {isAsgn && (<>
+              <div className="tcd-field"><label>Title *</label><input value={formData.title} onChange={e => setFormData(f => ({...f,title:e.target.value}))} placeholder="Assignment title" required /></div>
+              <div className="tcd-field"><label>Description *</label><textarea value={formData.description} onChange={e => setFormData(f => ({...f,description:e.target.value}))} rows={3} placeholder="Instructions…" required /></div>
+              <div className="tcd-field"><label>Type *</label>
+                <select value={formData.type||'Written Works'} onChange={e => setFormData(f => ({...f,type:e.target.value}))} required>
+                  <option>Written Works</option><option>Performance Task</option><option>Quarterly Assessment</option>
+                </select>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+                <div className="tcd-field"><label>Quarter *</label>
+                  <select value={formData.quarter||'Q1'} onChange={e => setFormData(f => ({...f,quarter:e.target.value}))} required>
+                    <option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
                   </select>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="tcd-field"><label>Quarter *</label>
-                    <select value={formData.quarter || 'Q1'} onChange={e => setFormData(f => ({ ...f, quarter: e.target.value }))} required>
-                      <option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
-                    </select>
-                  </div>
-                  <div className="tcd-field"><label>Possible Score *</label><input type="number" min="1" value={formData.possibleScore || 100} onChange={e => setFormData(f => ({ ...f, possibleScore: e.target.value }))} required /></div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="tcd-field"><label>Deadline Date *</label><input type="date" defaultValue={today} onChange={e => setFormData(f => ({ ...f, deadlineDate: e.target.value }))} required /></div>
-                  <div className="tcd-field"><label>Deadline Time *</label><input type="time" defaultValue={nowTime} onChange={e => setFormData(f => ({ ...f, deadlineTime: e.target.value }))} required /></div>
-                </div>
-              </>
-            )}
-            {!isAnn && !isAsgn && (
-              <>
-                <div className="tcd-field"><label>Description *</label><textarea value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} rows={5} placeholder="Describe this material or paste a link…" required /></div>
-                <div className="tcd-field"><label>Files *</label><input type="file" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png" onChange={e => setFormData(f => ({ ...f, files: e.target.files }))} required /></div>
-              </>
-            )}
+                <div className="tcd-field"><label>Possible Score *</label><input type="number" min="1" value={formData.possibleScore||100} onChange={e => setFormData(f => ({...f,possibleScore:e.target.value}))} required /></div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+                <div className="tcd-field"><label>Deadline Date *</label><input type="date" defaultValue={today} onChange={e => setFormData(f => ({...f,deadlineDate:e.target.value}))} required /></div>
+                <div className="tcd-field"><label>Deadline Time *</label><input type="time" defaultValue={nowTime} onChange={e => setFormData(f => ({...f,deadlineTime:e.target.value}))} required /></div>
+              </div>
+            </>)}
+            {!isAnn && !isAsgn && (<>
+              <div className="tcd-field"><label>Description *</label><textarea value={formData.description} onChange={e => setFormData(f => ({...f,description:e.target.value}))} rows={5} placeholder="Describe this material or paste a link…" required /></div>
+              <div className="tcd-field"><label>Files *</label><input type="file" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.jpg,.png" onChange={e => setFormData(f => ({...f,files:e.target.files}))} required /></div>
+            </>)}
           </div>
           <div className="tcd-modal-footer">
             <button type="button" className="tcd-btn tcd-btn--ghost" onClick={onClose} disabled={posting}>Cancel</button>
@@ -291,8 +173,8 @@ function PostModal({ postType, formData, setFormData, posting, onClose, onSubmit
   )
 }
 
-/* ── Assignment Detail Modal (Teacher — read-only + submissions) ── */
-function AssignmentDetailModal({ assignment, onClose }) {
+/* ── Assignment Detail Modal ── */
+function AssignmentDetailModal({ assignment, onClose, onEdit }) {
   const typeColor = TYPE_COLORS[assignment.type] || '#6b7280'
   const submissions = assignment.submissions || []
   const stats = {
@@ -301,15 +183,12 @@ function AssignmentDetailModal({ assignment, onClose }) {
     notSubmitted: submissions.filter(s => s.status === 'not_submitted').length,
   }
   const [filter, setFilter] = useState('all')
-
   const getStatusBadge = (status) => {
     const b = { done: { text: 'Done', color: '#10b981' }, late: { text: 'Late', color: '#ef4444' }, not_submitted: { text: 'Pending', color: '#6b7280' } }
     const badge = b[status] || b.not_submitted
     return <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: '0.8rem', fontWeight: 600, backgroundColor: `${badge.color}20`, color: badge.color }}>{badge.text}</span>
   }
-
   const filtered = filter === 'all' ? submissions : submissions.filter(s => s.status === filter)
-
   return (
     <div className="tcd-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
       <div className="tcd-modal" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
@@ -321,11 +200,22 @@ function AssignmentDetailModal({ assignment, onClose }) {
               {assignment.quarter && <> · {assignment.quarter}</>}
             </p>
           </div>
-          <button className="tcd-icon-btn" onClick={onClose}>{Icons.close}</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => { onClose(); onEdit(assignment) }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: '#eff6ff', color: '#0038A8', border: '1.5px solid #bfdbfe',
+                borderRadius: 8, padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {Icons.edit} Edit
+            </button>
+            <button className="tcd-icon-btn" onClick={onClose}>{Icons.close}</button>
+          </div>
         </div>
-
         <div className="tcd-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          {/* Info grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
             {[
               { label: 'Deadline', value: `${fmtDate(assignment.deadline)} ${fmtTime(assignment.deadline)}` },
@@ -337,8 +227,6 @@ function AssignmentDetailModal({ assignment, onClose }) {
               </div>
             ))}
           </div>
-
-          {/* Description */}
           {assignment.description && (
             <div style={{ marginBottom: 18 }}>
               <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Description</p>
@@ -347,8 +235,6 @@ function AssignmentDetailModal({ assignment, onClose }) {
               </p>
             </div>
           )}
-
-          {/* Submission stats */}
           <div style={{ marginBottom: 14 }}>
             <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Submissions</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -358,53 +244,29 @@ function AssignmentDetailModal({ assignment, onClose }) {
                 { key: 'late',          label: 'Late',    count: stats.late,          color: '#ef4444' },
                 { key: 'not_submitted', label: 'Pending', count: stats.notSubmitted,  color: '#6b7280' },
               ].map(f => (
-                <button
-                  key={f.key}
-                  onClick={() => setFilter(f.key)}
-                  style={{
-                    padding: '6px 14px',
-                    border: `2px solid ${filter === f.key ? f.color : `${f.color}30`}`,
-                    background: filter === f.key ? f.color : '#fff',
-                    color: filter === f.key ? '#fff' : f.color,
-                    borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'inherit',
-                    transition: 'all 0.15s'
-                  }}
-                >
+                <button key={f.key} onClick={() => setFilter(f.key)} style={{ padding: '6px 14px', border: `2px solid ${filter === f.key ? f.color : `${f.color}30`}`, background: filter === f.key ? f.color : '#fff', color: filter === f.key ? '#fff' : f.color, borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                   {f.label} ({f.count})
                 </button>
               ))}
             </div>
-
             {filtered.length === 0 ? (
               <p style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>No students in this category.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {filtered.map(sub => (
-                  <div key={sub.studentId} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '12px 14px', background: '#f8fafc', borderRadius: 9,
-                    border: '1px solid #e2e8f0', gap: 12
-                  }}>
+                  <div key={sub.studentId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: '#f8fafc', borderRadius: 9, border: '1px solid #e2e8f0', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 10, background: '#dbeafe', color: '#1d4ed8',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 14, flexShrink: 0
-                      }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
                         {sub.studentName?.[0]?.toUpperCase()}
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.studentName}</p>
-                        <p style={{ margin: 0, fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.studentEmail}</p>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#0f172a' }}>{sub.studentName}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{sub.studentEmail}</p>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                       {getStatusBadge(sub.status)}
-                      {sub.score != null && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#059669' }}>
-                          {sub.score}/{assignment.possibleScore}
-                        </span>
-                      )}
+                      {sub.score != null && <span style={{ fontSize: 12, fontWeight: 700, color: '#059669' }}>{sub.score}/{assignment.possibleScore}</span>}
                     </div>
                   </div>
                 ))}
@@ -412,7 +274,6 @@ function AssignmentDetailModal({ assignment, onClose }) {
             )}
           </div>
         </div>
-
         <div className="tcd-modal-footer">
           <button className="tcd-btn tcd-btn--primary" onClick={onClose}>Close</button>
         </div>
@@ -421,8 +282,8 @@ function AssignmentDetailModal({ assignment, onClose }) {
   )
 }
 
-/* ── Announcement Detail Modal (Teacher) ── */
-function AnnouncementDetailModal({ announcement, onClose }) {
+/* ── Announcement Detail Modal ── */
+function AnnouncementDetailModal({ announcement, onClose, onEdit }) {
   return (
     <div className="tcd-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
       <div className="tcd-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
@@ -431,7 +292,20 @@ function AnnouncementDetailModal({ announcement, onClose }) {
             <h2 className="tcd-modal-title">{announcement.title}</h2>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>{announcement.className}</p>
           </div>
-          <button className="tcd-icon-btn" onClick={onClose}>{Icons.close}</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => { onClose(); onEdit(announcement) }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: '#eff6ff', color: '#0038A8', border: '1.5px solid #bfdbfe',
+                borderRadius: 8, padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {Icons.edit} Edit
+            </button>
+            <button className="tcd-icon-btn" onClick={onClose}>{Icons.close}</button>
+          </div>
         </div>
         <div className="tcd-modal-body">
           <p style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>
@@ -449,6 +323,7 @@ function AnnouncementDetailModal({ announcement, onClose }) {
   )
 }
 
+/* ── Main Component ── */
 export default function TeacherClassDetail() {
   const { classId } = useParams()
   const navigate = useNavigate()
@@ -476,6 +351,11 @@ export default function TeacherClassDetail() {
   const [selectedAssignment,   setSelectedAssignment]   = useState(null)
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
   const [loadingDetail,        setLoadingDetail]        = useState(false)
+
+  // Edit state
+  const [editType,   setEditType]   = useState(null)   // 'assignment' | 'announcement' | 'material'
+  const [editTarget, setEditTarget] = useState(null)   // the object being edited
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => { loadClassData() }, [classId])
 
@@ -505,15 +385,10 @@ export default function TeacherClassDetail() {
   }
   const handlePickerChoice = (type) => { setShowNewPicker(false); if (type === 'assignments') openPostModal('assignments'); else if (type === 'materials') openPostModal('materials'); else openPostModal('announcements') }
 
-  // Open assignment detail with full submission data
   const handleOpenAssignment = async (assignment) => {
     setLoadingDetail(true)
-    try {
-      const full = await getAssignmentById(assignment.id)
-      setSelectedAssignment(full || assignment)
-    } catch {
-      setSelectedAssignment(assignment)
-    }
+    try { const full = await getAssignmentById(assignment.id); setSelectedAssignment(full || assignment) }
+    catch { setSelectedAssignment(assignment) }
     setLoadingDetail(false)
   }
 
@@ -528,12 +403,7 @@ export default function TeacherClassDetail() {
       } else if (postType === 'assignments') {
         if (!formData.title.trim() || !formData.description.trim()) { setNotification({ message: 'Please fill title and description', type: 'error' }); return }
         const deadline = `${formData.deadlineDate || new Date().toLocaleDateString('en-CA')}T${formData.deadlineTime || '23:59'}`
-        const r = await createAssignmentSingle({
-          title: formData.title.trim(), description: formData.description.trim(), classId,
-          className: classData.name, teacherId: currentUser.uid, teacherName: currentUser.displayName || 'Teacher',
-          type: formData.type || 'Written Works', quarter: formData.quarter || 'Q1',
-          possibleScore: parseFloat(formData.possibleScore) || 100, deadline,
-        })
+        const r = await createAssignmentSingle({ title: formData.title.trim(), description: formData.description.trim(), classId, className: classData.name, teacherId: currentUser.uid, teacherName: currentUser.displayName || 'Teacher', type: formData.type || 'Written Works', quarter: formData.quarter || 'Q1', possibleScore: parseFloat(formData.possibleScore) || 100, deadline })
         if (r.success) setNotification({ message: 'Assignment created!', type: 'success' })
         else throw new Error(r.error)
       } else {
@@ -547,10 +417,33 @@ export default function TeacherClassDetail() {
     finally { setPosting(false) }
   }
 
+  /* ── Edit handlers ── */
+  const openEdit = (type, item) => {
+    setEditType(type)
+    setEditTarget(item)
+  }
+
+  const handleSaveEdit = async (fields) => {
+    if (!editTarget || !editType) return
+    setEditSaving(true)
+    let result
+    if (editType === 'announcement') result = await updateAnnouncement(editTarget.id, fields)
+    else if (editType === 'assignment')   result = await updateAssignment(editTarget.id, fields)
+    else if (editType === 'material')     result = await updateMaterial(editTarget.id, fields)
+    setEditSaving(false)
+    if (result?.success) {
+      setNotification({ message: `${editType.charAt(0).toUpperCase() + editType.slice(1)} updated!`, type: 'success' })
+      setEditType(null); setEditTarget(null)
+      loadClassData()
+    } else {
+      setNotification({ message: result?.error || 'Failed to save', type: 'error' })
+    }
+  }
+
   const confirmDelete = (title, message, onConfirm) => setConfirmDialog({ title, message, onConfirm, onCancel: () => setConfirmDialog(null), confirmText: 'Delete', type: 'danger' })
-  const handleDeleteMaterial = (id) => confirmDelete('Delete Material', 'Delete this material?', async () => { setConfirmDialog(null); const r = await deleteMaterial(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
-  const handleDeleteAnn = (id, t) => confirmDelete('Delete Announcement', `Delete "${t}"?`, async () => { setConfirmDialog(null); const { deleteAnnouncement } = await import('../../services/announcementService'); const r = await deleteAnnouncement(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
-  const handleDeleteClass = () => confirmDelete('Delete Class', `Delete "${classData?.name}"? All data will be permanently removed.`, async () => { setConfirmDialog(null); const r = await deleteClass(classId); if (r.success) navigate('/teacher-dashboard/class'); else setNotification({ message: r.error, type: 'error' }) })
+  const handleDeleteMaterial   = (id) => confirmDelete('Delete Material',     'Delete this material?',    async () => { setConfirmDialog(null); const r = await deleteMaterial(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
+  const handleDeleteAnn        = (id, t) => confirmDelete('Delete Announcement', `Delete "${t}"?`,         async () => { setConfirmDialog(null); const { deleteAnnouncement } = await import('../../services/announcementService'); const r = await deleteAnnouncement(id); if (r.success) { setNotification({ message: 'Deleted', type: 'success' }); loadClassData() } else setNotification({ message: r.error, type: 'error' }) })
+  const handleDeleteClass      = () => confirmDelete('Delete Class',          `Delete "${classData?.name}"? All data will be permanently removed.`, async () => { setConfirmDialog(null); const r = await deleteClass(classId); if (r.success) navigate('/teacher-dashboard/class'); else setNotification({ message: r.error, type: 'error' }) })
 
   const feed = [
     ...announcements.map(a => ({ ...a, _type: 'announcement', _date: a.createdAt })),
@@ -633,6 +526,7 @@ export default function TeacherClassDetail() {
                 : feed.map(item => {
                     if (item._type === 'announcement') return (
                       <FeedCard key={item.id} chip="announcement" title={item.title} meta={fmt(item.createdAt)}
+                        onEdit={() => openEdit('announcement', item)}
                         onDelete={() => handleDeleteAnn(item.id, item.title)}
                         onClick={() => setSelectedAnnouncement(item)}
                       >
@@ -642,6 +536,7 @@ export default function TeacherClassDetail() {
                     if (item._type === 'assignment') return (
                       <FeedCard key={item.id} chip="assignment" title={item.title} meta={`Due ${fmtDate(item.deadline)}`}
                         overdue={isOD(item.deadline)}
+                        onEdit={() => openEdit('assignment', item)}
                         onClick={() => handleOpenAssignment(item)}
                       >
                         {item.description && <p>{item.description?.length > 100 ? item.description.slice(0, 100) + '…' : item.description}</p>}
@@ -649,6 +544,7 @@ export default function TeacherClassDetail() {
                     )
                     if (item._type === 'material') return (
                       <FeedCard key={item.id} chip="material" title={item.description?.slice(0, 80) || 'Material'} meta={fmt(item.createdAt)}
+                        onEdit={() => openEdit('material', item)}
                         onDelete={() => handleDeleteMaterial(item.id)}
                       >
                         {item.files?.length > 0 && (
@@ -676,6 +572,7 @@ export default function TeacherClassDetail() {
                 : assignments.map(a => (
                     <FeedCard key={a.id} title={a.title} meta={`Due ${fmtDate(a.deadline)}`}
                       overdue={isOD(a.deadline)}
+                      onEdit={() => openEdit('assignment', a)}
                       onClick={() => handleOpenAssignment(a)}
                     >
                       <div className="tcd-asgn-meta">
@@ -705,6 +602,7 @@ export default function TeacherClassDetail() {
                 ? <div className="tcd-empty">No announcements yet.</div>
                 : announcements.map(a => (
                     <FeedCard key={a.id} title={a.title} meta={fmt(a.createdAt)}
+                      onEdit={() => openEdit('announcement', a)}
                       onDelete={() => handleDeleteAnn(a.id, a.title)}
                       onClick={() => setSelectedAnnouncement(a)}
                     >
@@ -725,7 +623,10 @@ export default function TeacherClassDetail() {
               {materials.length === 0
                 ? <div className="tcd-empty">No materials yet.</div>
                 : materials.map(m => (
-                    <FeedCard key={m.id} title="Material" meta={fmt(m.createdAt)} onDelete={() => handleDeleteMaterial(m.id)}>
+                    <FeedCard key={m.id} title="Material" meta={fmt(m.createdAt)}
+                      onEdit={() => openEdit('material', m)}
+                      onDelete={() => handleDeleteMaterial(m.id)}
+                    >
                       {m.description && <p dangerouslySetInnerHTML={{ __html: linkify(m.description) }} />}
                       {m.files?.length > 0 && (
                         <div className="tcd-files">
@@ -817,12 +718,31 @@ export default function TeacherClassDetail() {
         </div>
       )}
       {selectedAssignment && !loadingDetail && (
-        <AssignmentDetailModal assignment={selectedAssignment} onClose={() => setSelectedAssignment(null)} />
+        <AssignmentDetailModal
+          assignment={selectedAssignment}
+          onClose={() => setSelectedAssignment(null)}
+          onEdit={(a) => openEdit('assignment', a)}
+        />
       )}
 
       {/* ── Announcement Detail Modal ── */}
       {selectedAnnouncement && (
-        <AnnouncementDetailModal announcement={selectedAnnouncement} onClose={() => setSelectedAnnouncement(null)} />
+        <AnnouncementDetailModal
+          announcement={selectedAnnouncement}
+          onClose={() => setSelectedAnnouncement(null)}
+          onEdit={(a) => openEdit('announcement', a)}
+        />
+      )}
+
+      {/* ── Edit Modal ── */}
+      {editTarget && editType && (
+        <EditContentModal
+          type={editType}
+          data={editTarget}
+          onSave={handleSaveEdit}
+          onClose={() => { setEditType(null); setEditTarget(null) }}
+          saving={editSaving}
+        />
       )}
 
       {notification && <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
