@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { auth } from '../../config/firebase'
 import { joinClass, getStudentClasses } from '../../services/classService'
 import { getStudentAssignments } from '../../services/assignmentService'
+import { getStudentAnnouncements } from '../../services/announcementService'
 import Notification from '../../components/Notification'
 import '../../styles/StudentDashboard.css'
 
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const [pendingCount,   setPendingCount]   = useState(0)
   const [completedCount, setCompletedCount] = useState(0)
   const [overdueCount,   setOverdueCount]   = useState(0)
+  const [announcements,  setAnnouncements]  = useState([])
   const [loading,        setLoading]        = useState(true)
   const [joining,        setJoining]        = useState(false)
   const [notification,   setNotification]   = useState(null)
@@ -24,27 +26,48 @@ export default function Dashboard() {
 
   const loadClasses = async () => {
     if (!auth.currentUser) return
-    const studentClasses = await getStudentClasses(auth.currentUser.uid)
-    setClasses(studentClasses)
+    setLoading(true)
+    try {
+      const studentClasses = await getStudentClasses(auth.currentUser.uid)
+      setClasses(studentClasses)
 
-    const classIds    = studentClasses.map(c => c.id)
-    const assignments = await getStudentAssignments(auth.currentUser.uid, classIds)
-    const now         = new Date()
+      const classIds    = studentClasses.map(c => c.id)
+      const assignments = await getStudentAssignments(auth.currentUser.uid, classIds)
+      const now         = new Date()
 
-    setPendingCount(assignments.filter(a => {
-      if (!a.submission || a.submission.status === 'not_submitted')
-        return new Date(a.deadline) > now
-      return false
-    }).length)
+      setPendingCount(assignments.filter(a => {
+        if (!a.submission || a.submission.status === 'not_submitted')
+          return new Date(a.deadline) > now
+        return false
+      }).length)
 
-    setCompletedCount(assignments.filter(a => a.submission?.status === 'done').length)
+      setCompletedCount(assignments.filter(a => a.submission?.status === 'done').length)
 
-    setOverdueCount(assignments.filter(a => {
-      if (a.submission?.status === 'not_submitted') return new Date(a.deadline) < now
-      return a.submission?.status === 'late'
-    }).length)
+      setOverdueCount(assignments.filter(a => {
+        if (a.submission?.status === 'not_submitted') return new Date(a.deadline) < now
+        return a.submission?.status === 'late'
+      }).length)
 
-    setLoading(false)
+      const anns = await getStudentAnnouncements(auth.currentUser.uid)
+      setAnnouncements(anns)
+    } catch (err) {
+      console.error('Failed to load student dashboard data:', err)
+      setNotification({ message: 'Failed to load dashboard data.', type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return ''
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })
   }
 
   const handleJoinClass  = () => setShowJoinModal(true)
@@ -155,13 +178,62 @@ export default function Dashboard() {
               </svg>
             </button>
           </div>
-          <div className="sd-ann-empty">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <p>No announcements yet — check back later.</p>
-          </div>
+          {loading ? (
+            <div className="sd-ann-empty">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <p>Loading announcements…</p>
+            </div>
+          ) : announcements.length > 0 ? (
+            <div className="sd-ann-list">
+              {(() => {
+                const a = announcements[0]
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="sd-ann-card sd-ann-card--compact"
+                    onClick={() => navigate('/dashboard/announcements')}
+                    aria-label="View latest announcement"
+                  >
+                    <div className="sd-ann-kicker">
+                      <div className="sd-ann-kicker-left">
+                        <span className="sd-ann-pill">Latest</span>
+                        {a.className && <span className="sd-ann-class">{a.className}</span>}
+                      </div>
+                      {a.createdAt && <span className="sd-ann-kicker-date">{formatDateTime(a.createdAt)}</span>}
+                    </div>
+
+                    <div className="sd-ann-head">
+                      <span className="sd-ann-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                      </span>
+                      <p className="sd-ann-title">{a.title}</p>
+                    </div>
+
+                    {a.content && (
+                      <p className="sd-ann-preview">
+                        {a.content.length > 160 ? a.content.slice(0, 160) + '…' : a.content}
+                      </p>
+                    )}
+                  </button>
+                )
+              })()}
+            </div>
+          ) : (
+            <div className="sd-ann-empty">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <p>No announcements yet — check back later.</p>
+            </div>
+          )}
         </section>
 
         {/* CLASSES */}
