@@ -213,7 +213,7 @@ function Assignment() {
   const handleSaveEdit = async (fields) => {
     if (!editTarget) return
     setEditSaving(true)
-    const result = await updateAssignment(editTarget.id, fields)
+    const result = await updateAssignment(editTarget.id, fields, editTarget)
     setEditSaving(false)
     if (result.success) {
       setNotification({ message: 'Assignment updated!', type: 'success' })

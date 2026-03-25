@@ -205,20 +205,53 @@ export const getClassStudents = async (classId) => {
 
 export const leaveClass = async (classId, studentId) => {
   try {
-    const studentRef = doc(db, 'classes', classId, 'students', studentId)
+    const studentRef  = doc(db, 'classes', classId, 'students', studentId)
+    const studentSnap = await getDoc(studentRef)
+    const studentName = studentSnap.exists() ? studentSnap.data().name : null
+
     await deleteDoc(studentRef)
-    // Remove student's submissions from all assignments in this class
+
+    // Remove student's Firestore submissions
     try {
-      const assignmentsQuery = query(collection(db, 'assignments'), where('classId', '==', classId))
+      const assignmentsQuery    = query(collection(db, 'assignments'), where('classId', '==', classId))
       const assignmentsSnapshot = await getDocs(assignmentsQuery)
-      const deletePromises = assignmentsSnapshot.docs.map(async (assignmentDoc) => {
-        const submissionRef = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
-        await deleteDoc(submissionRef)
+      const deletePromises      = assignmentsSnapshot.docs.map(async (assignmentDoc) => {
+        const submissionRef  = doc(db, 'assignments', assignmentDoc.id, 'submissions', studentId)
+        const submissionSnap = await getDoc(submissionRef)
+        if (submissionSnap.exists()) {
+          await deleteDoc(submissionRef)
+        }
       })
       await Promise.all(deletePromises)
     } catch (err) {
       console.error('Error removing student submissions on leave:', err)
     }
+
+    // Remove student from INPUT DATA tab and clear their score cells from Google Sheets
+    if (studentName) {
+      try {
+        const classDoc = await getDoc(doc(db, 'classes', classId))
+        const sheetId  = classDoc.exists() ? classDoc.data().sheetId : null
+        if (sheetId) {
+          // Remove student name from INPUT DATA tab (removes name and shifts list up)
+          await fetch(`${SHEETS_API}/remove-student-from-sheet`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ sheetId, studentName, gender: studentSnap.exists() ? (studentSnap.data().gender || 'Male') : 'Male' })
+          }).catch(e => console.error('Error removing student from INPUT DATA (non-critical):', e))
+
+          // Remove student row from all Q1–Q4 grade tabs and shift remaining rows up
+          await fetch(`${SHEETS_API}/remove-student-from-quarter-sheets`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ sheetId, studentName, quarters: ['Q1', 'Q2', 'Q3', 'Q4'] })
+          }).catch(e => console.error('Error removing student row from quarter sheets (non-critical):', e))
+        }
+      } catch (sheetErr) {
+        console.error('Error updating sheet on student leave (non-critical):', sheetErr)
+      }
+    }
+
     const classRef = doc(db, 'classes', classId)
     await updateDoc(classRef, { studentCount: increment(-1) })
     return { success: true }
@@ -226,6 +259,11 @@ export const leaveClass = async (classId, studentId) => {
     console.error('Error leaving class:', error)
     return { success: false, error: error.message }
   }
+}
+
+// Teacher removes a student — same logic as leaveClass
+export const removeStudent = async (classId, studentId) => {
+  return leaveClass(classId, studentId)
 }
 
 export const deleteClass = async (classId) => {
