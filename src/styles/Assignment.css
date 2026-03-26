@@ -94,8 +94,6 @@
 
 /* ─────────────────────────────────────────────────────────────
    ASSIGNMENT TYPE COLUMNS
-   Written Works / Performance Task / Quarterly Assessment
-   3 cols desktop → 2 cols tablet → 1 col mobile
 ───────────────────────────────────────────────────────────── */
 .assignment-columns {
   display: grid;
@@ -106,17 +104,15 @@
   box-sizing: border-box;
 }
 
-/* Each column panel */
 .assignment-column {
   display: flex;
   flex-direction: column;
   border-radius: 16px;
   padding: 1.25rem;
   box-sizing: border-box;
-  min-width: 0; /* prevent grid blowout */
+  min-width: 0;
 }
 
-/* Column header */
 .column-header {
   display: flex;
   align-items: center;
@@ -133,7 +129,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
-   ASSIGNMENT CARDS (inside type columns)
+   ASSIGNMENT CARDS
 ───────────────────────────────────────────────────────────── */
 .assignment-card {
   background: white;
@@ -254,7 +250,7 @@
   font-weight: 700;
 }
 
-/* Student-view grid (flat list, not columns) */
+/* Student-view grid */
 .assignments-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -332,7 +328,11 @@
   background: #002d8a;
 }
 
-/* Modal Styles */
+/* ─────────────────────────────────────────────────────────────
+   MODAL STYLES
+   Key fix: modal-content is a flex column with overflow:hidden,
+   modal-body scrolls internally — submit button always reachable.
+───────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -349,13 +349,16 @@
   box-sizing: border-box;
 }
 
+/* ── THE FIX: flex column + overflow hidden so body scrolls, not the whole modal ── */
 .modal-content {
   background: white;
   border-radius: 16px;
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;            /* prevent the container itself from scrolling */
+  display: flex;
+  flex-direction: column;      /* header fixed top, body scrolls, footer fixed bottom */
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease;
   box-sizing: border-box;
@@ -376,6 +379,7 @@
   align-items: flex-start;
   padding: 24px 32px;
   border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;              /* never squish the header */
 }
 
 .modal-header h2 {
@@ -407,8 +411,12 @@
   color: #1f2937;
 }
 
+/* ── Body scrolls internally — this is where the content lives ── */
 .modal-body {
   padding: 28px 32px;
+  overflow-y: auto;            /* scrolls when content taller than available space */
+  flex: 1;                     /* takes all remaining height between header and footer */
+  min-height: 0;               /* critical: lets flex child shrink below content size */
 }
 
 .modal-body label {
@@ -468,6 +476,7 @@
   gap: 12px;
   padding: 20px 32px;
   border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;              /* never squish the footer */
 }
 
 .btn-cancel {
@@ -651,11 +660,9 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
-   RESPONSIVE BREAKPOINTS
-   All @media rules are at the ROOT level — never nested
+   RESPONSIVE
 ───────────────────────────────────────────────────────────── */
 
-/* Large tablet: 3 cols → 2 cols */
 @media (max-width: 1100px) {
   .assignment-columns {
     grid-template-columns: repeat(2, 1fr);
@@ -663,7 +670,6 @@
   }
 }
 
-/* Small tablet */
 @media (max-width: 900px) {
   .assignment-columns {
     grid-template-columns: repeat(2, 1fr);
@@ -679,7 +685,6 @@
   }
 }
 
-/* Mobile landscape */
 @media (max-width: 768px) {
   .page-container {
     padding: 16px;
@@ -736,12 +741,16 @@
     max-width: 100%;
     border-radius: 12px;
     margin: 10px;
+    max-height: 92vh;    /* slightly more room on mobile */
   }
 
   .modal-header,
-  .modal-body,
   .modal-footer {
     padding: 18px 20px;
+  }
+
+  .modal-body {
+    padding: 20px;
   }
 
   .modal-footer {
@@ -773,7 +782,6 @@
   }
 }
 
-/* Mobile portrait */
 @media (max-width: 480px) {
   .page-container {
     padding: 12px;
@@ -827,6 +835,7 @@
     gap: 6px;
   }
 
+  /* Bottom-sheet style on very small screens */
   .modal-overlay {
     padding: 0;
     align-items: flex-end;
@@ -836,6 +845,7 @@
     border-radius: 16px 16px 0 0;
     max-height: 95vh;
     margin: 0;
+    width: 100%;
   }
 
   .modal-header,
