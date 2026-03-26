@@ -11,16 +11,16 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const userName = auth.currentUser?.displayName || 'Student'
 
-  const [showJoinModal,  setShowJoinModal]  = useState(false)
-  const [classCode,      setClassCode]      = useState('')
-  const [classes,        setClasses]        = useState([])
-  const [pendingCount,   setPendingCount]   = useState(0)
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [classCode, setClassCode] = useState('')
+  const [classes, setClasses] = useState([])
+  const [pendingCount, setPendingCount] = useState(0)
   const [completedCount, setCompletedCount] = useState(0)
-  const [overdueCount,   setOverdueCount]   = useState(0)
-  const [announcements,  setAnnouncements]  = useState([])
-  const [loading,        setLoading]        = useState(true)
-  const [joining,        setJoining]        = useState(false)
-  const [notification,   setNotification]   = useState(null)
+  const [overdueCount, setOverdueCount] = useState(0)
+  const [announcements, setAnnouncements] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [joining, setJoining] = useState(false)
+  const [notification, setNotification] = useState(null)
 
   useEffect(() => { loadClasses() }, [])
 
@@ -31,9 +31,9 @@ export default function Dashboard() {
       const studentClasses = await getStudentClasses(auth.currentUser.uid)
       setClasses(studentClasses)
 
-      const classIds    = studentClasses.map(c => c.id)
+      const classIds = studentClasses.map(c => c.id)
       const assignments = await getStudentAssignments(auth.currentUser.uid, classIds)
-      const now         = new Date()
+      const now = new Date()
 
       setPendingCount(assignments.filter(a => {
         if (!a.submission || a.submission.status === 'not_submitted')
@@ -70,7 +70,7 @@ export default function Dashboard() {
     })
   }
 
-  const handleJoinClass  = () => setShowJoinModal(true)
+  const handleJoinClass = () => setShowJoinModal(true)
   const handleCloseModal = () => { setShowJoinModal(false); setClassCode('') }
   const handleClassClick = (id) => navigate(`/dashboard/class/${id}`)
 
@@ -82,13 +82,16 @@ export default function Dashboard() {
     let userGender = 'Male'
     try {
       const { getDoc, doc } = await import('firebase/firestore')
-      const { db }          = await import('../../config/firebase')
+      const { db } = await import('../../config/firebase')
       const snap = await getDoc(doc(db, 'users', auth.currentUser.uid))
       if (snap.exists()) {
-        const raw  = snap.data().gender || 'male'
+        const raw = snap.data().gender || 'male'
         userGender = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
       }
-    } catch (_) {}
+    } catch (e) {
+      // handled
+      console.error(e);
+    }
 
     const result = await joinClass(
       classCode.trim(),
@@ -110,18 +113,18 @@ export default function Dashboard() {
 
   /* deterministic gradient per class name */
   const GRADIENTS = [
-    ['#0038A8','#0057ff'], ['#1a56db','#0284c7'], ['#065f46','#059669'],
-    ['#7c3aed','#a855f7'], ['#b45309','#f59e0b'], ['#be123c','#f43f5e'],
-    ['#0e7490','#06b6d4'], ['#374151','#6b7280'],
+    ['#0038A8', '#0057ff'], ['#1a56db', '#0284c7'], ['#065f46', '#059669'],
+    ['#7c3aed', '#a855f7'], ['#b45309', '#f59e0b'], ['#be123c', '#f43f5e'],
+    ['#0e7490', '#06b6d4'], ['#374151', '#6b7280'],
   ]
   const cardGradient = (name = '') => {
-    const idx  = [...name].reduce((s, c) => s + c.charCodeAt(0), 0) % GRADIENTS.length
+    const idx = [...name].reduce((s, c) => s + c.charCodeAt(0), 0) % GRADIENTS.length
     const [a, b] = GRADIENTS[idx]
     return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`
   }
   const cardInitial = (name = '') => name.trim()[0]?.toUpperCase() || '?'
 
-  const hour     = new Date().getHours()
+  const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
@@ -139,11 +142,11 @@ export default function Dashboard() {
           <div className="sd-hero-text">
             <p className="sd-hero-greeting">{greeting},</p>
             <h1 className="sd-hero-name">{userName}</h1>
-            <p className="sd-hero-sub">Here's your academic overview for today.</p>
+            <p className="sd-hero-sub">Here&apos;s your academic overview for today.</p>
           </div>
           <button className="sd-join-btn" onClick={handleJoinClass}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             Join Class
           </button>
@@ -152,9 +155,9 @@ export default function Dashboard() {
         {/* stat strip */}
         <div className="sd-stats">
           {[
-            { label: 'Pending',   val: pendingCount,   mod: 'pending' },
-            { label: 'Completed', val: completedCount, mod: 'done'    },
-            { label: 'Overdue',   val: overdueCount,   mod: 'overdue' },
+            { label: 'Pending', val: pendingCount, mod: 'pending' },
+            { label: 'Completed', val: completedCount, mod: 'done' },
+            { label: 'Overdue', val: overdueCount, mod: 'overdue' },
           ].map(({ label, val, mod }, i) => (
             <div key={mod} className={`sd-stat sd-stat--${mod}`} style={{ '--i': i }}>
               <span className="sd-stat-val">{loading ? '—' : val}</span>
@@ -174,15 +177,15 @@ export default function Dashboard() {
             <button className="sd-view-all" onClick={() => navigate('/dashboard/announcements')}>
               View all
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"/>
+                <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
           </div>
           {loading ? (
             <div className="sd-ann-empty">
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
               <p>Loading announcements…</p>
             </div>
@@ -209,8 +212,8 @@ export default function Dashboard() {
                     <div className="sd-ann-head">
                       <span className="sd-ann-icon" aria-hidden="true">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                         </svg>
                       </span>
                       <p className="sd-ann-title">{a.title}</p>
@@ -228,8 +231,8 @@ export default function Dashboard() {
           ) : (
             <div className="sd-ann-empty">
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
               <p>No announcements yet — check back later.</p>
             </div>
@@ -249,7 +252,7 @@ export default function Dashboard() {
               <button className="sd-view-all" onClick={() => navigate('/dashboard/class')}>
                 View all
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
+                  <polyline points="9 18 15 12 9 6" />
                 </svg>
               </button>
             </div>
@@ -257,7 +260,7 @@ export default function Dashboard() {
 
           {loading ? (
             <div className="sd-grid">
-              {[0,1,2,3].map(i => (
+              {[0, 1, 2, 3].map(i => (
                 <div key={i} className="sd-skeleton" style={{ '--ci': i }} />
               ))}
             </div>
@@ -279,9 +282,9 @@ export default function Dashboard() {
                     <p className="sd-card-teacher">{cls.teacherName}</p>
                     <p className="sd-card-meta">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                       </svg>
                       {cls.studentCount || 0} students
                     </p>
@@ -293,8 +296,8 @@ export default function Dashboard() {
             <div className="sd-empty">
               <div className="sd-empty-icon">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                 </svg>
               </div>
               <p className="sd-empty-title">No classes yet</p>
@@ -313,7 +316,7 @@ export default function Dashboard() {
               <h3 className="sd-modal-title">Join a Class</h3>
               <button className="sd-modal-x" onClick={handleCloseModal} aria-label="Close">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
