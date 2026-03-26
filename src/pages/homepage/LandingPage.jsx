@@ -156,7 +156,7 @@ function LandingPage() {
         <div className="auth-header">
           <img src={bhsaLogo} alt="BHSA Logo" className="auth-logo" />
           <div className="auth-text">
-            <h1 className="brand-title">Bulsu</h1>
+            <h1 className="brand-title">Bataan High School For The Arts</h1>
             <p className="brand-description">Bayan Ng Bayani, Bayani Ng Sining</p>
           </div>
         </div>
