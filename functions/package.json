@@ -20,7 +20,7 @@
     "nodemailer": "^6.9.13"
   },
   "devDependencies": {
-    "eslint": "^8.15.0",
+    "eslint": "^10.1.0",
     "eslint-config-google": "^0.14.0"
   },
   "private": true
