@@ -100,4 +100,4 @@ Cloud Functions send emails via Brevo SMTP. Configure these in the Functions env
    - Firestore triggers (new assignment/announcement)
    - Scheduled deadline reminders
 
-   working? No?
+   working? No? Yes?
