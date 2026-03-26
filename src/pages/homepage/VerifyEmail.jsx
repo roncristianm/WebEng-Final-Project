@@ -20,27 +20,26 @@ function VerifyEmail() {
 
     if (verified === 'true') {
       setStatus('success')
-      setTimeout(async () => {
-        // If user is logged in, check their role and redirect to correct dashboard
-        if (currentUser) {
-          try {
-            const userDoc  = await getDocFromServer(doc(db, 'users', currentUser.uid))
-            if (userDoc.exists()) {
-              const role = userDoc.data().role
-              if (role === 'teacher') {
-                navigate('/teacher-dashboard', { replace: true })
-              } else {
-                navigate('/dashboard', { replace: true })
-              }
-              return
-            }
-          } catch (err) {
-            console.error('VerifyEmail role check failed:', err)
+
+      // Only auto-redirect if the user is currently logged in.
+      // If they opened the email in a different browser/email webview, they won't be logged in.
+      if (!currentUser) return
+
+      const timeoutId = setTimeout(async () => {
+        try {
+          const userDoc  = await getDocFromServer(doc(db, 'users', currentUser.uid))
+          if (userDoc.exists()) {
+            const role = userDoc.data().role
+            navigate(role === 'teacher' ? '/teacher-dashboard' : '/dashboard', { replace: true })
+            return
           }
+        } catch (err) {
+          console.error('VerifyEmail role check failed:', err)
         }
-        // Not logged in — go to login
         navigate('/login', { replace: true })
       }, 3000)
+
+      return () => clearTimeout(timeoutId)
     } else if (error) {
       setStatus('error')
       const messages = {
@@ -100,13 +99,27 @@ function VerifyEmail() {
             <h2 className="form-title" style={{ marginBottom: '12px', color: '#059669' }}>
               Email Verified!
             </h2>
-            <p style={{ color: '#6b7280', fontSize: '15px', lineHeight: 1.7, marginBottom: '24px' }}>
-              Your email has been verified successfully.<br/>
-              Redirecting you to your dashboard...
-            </p>
-            <button className="btn-primary" onClick={handleManualRedirect}>
-              Go to Dashboard →
-            </button>
+            {currentUser ? (
+              <>
+                <p style={{ color: '#6b7280', fontSize: '15px', lineHeight: 1.7, marginBottom: '24px' }}>
+                  Your email has been verified successfully.<br/>
+                  Redirecting you to your dashboard...
+                </p>
+                <button className="btn-primary" onClick={handleManualRedirect}>
+                  Go to Dashboard →
+                </button>
+              </>
+            ) : (
+              <>
+                <p style={{ color: '#6b7280', fontSize: '15px', lineHeight: 1.7, marginBottom: '24px' }}>
+                  Your email has been verified successfully.<br/>
+                  Please log in to continue.
+                </p>
+                <button className="btn-primary" onClick={() => navigate('/login', { replace: true })}>
+                  Go to Log In →
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
