@@ -134,5 +134,5 @@ jobs:
 
       - name: Deploy Cloud Functions
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: firebase deploy --only functions --project webeng-final-project-a2e02

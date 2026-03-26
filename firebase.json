@@ -2,6 +2,9 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -16,9 +19,6 @@
       }
     ]
   },
-  "firestore": {
-    "rules": "firestore.rules"
-  },
   "emulators": {
     "dataconnect": {
       "dataDir": "dataconnect/.dataconnect/pgliteData"
@@ -27,5 +27,4 @@
   "dataconnect": {
     "source": "dataconnect"
   }
-  
 }
