@@ -10,9 +10,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# ─────────────────────────────────────────────
-# JOBS
-# ─────────────────────────────────────────────
 jobs:
 
   # ── 1. Lint ──────────────────────────────────
@@ -88,7 +85,7 @@ jobs:
         with:
           repoToken:       ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId:       webeng-final-project-a2e02
+          projectId:       nexxus-65975
           channelId:       live
 
   # ── 4. Deploy Firestore Rules ─────────────────
@@ -110,7 +107,7 @@ jobs:
       - name: Deploy Firestore rules
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: firebase deploy --only firestore:rules --project webeng-final-project-a2e02
+        run: firebase deploy --only firestore:rules --project nexxus-65975
 
   # ── 5. Deploy Cloud Functions ────────────────
   deploy-functions:
@@ -134,5 +131,5 @@ jobs:
 
       - name: Deploy Cloud Functions
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: firebase deploy --only functions --project webeng-final-project-a2e02
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: firebase deploy --only functions --project nexxus-65975
