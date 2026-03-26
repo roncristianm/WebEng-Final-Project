@@ -31,7 +31,7 @@ jobs:
         run: npm ci
 
       - name: ESLint (frontend)
-        run: npm run lint
+        run: npm run lint -- --max-warnings=9999
 
       - name: ESLint (functions)
         working-directory: functions

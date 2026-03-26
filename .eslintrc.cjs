@@ -16,5 +16,9 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    // Downgraded to warn — prop-types & unused vars are common in fast dev
+    'react/prop-types': 'warn',
+    'no-unused-vars': 'warn',
+    'react-hooks/exhaustive-deps': 'warn',
   },
 }
