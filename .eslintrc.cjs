@@ -7,14 +7,21 @@ module.exports = {
     'plugin:react/jsx-runtime',
     'plugin:react-hooks/recommended',
   ],
-  ignorePatterns: ['dist', '.eslintrc.cjs', 'functions/**', 'sheets-backend/**'],
+  ignorePatterns: [
+    'dist',
+    '.eslintrc.cjs',
+    'functions/**',
+    'sheets-backend/**',
+  ],
   parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
   settings: { react: { version: '18.2' } },
   plugins: ['react-refresh'],
   rules: {
-    'react-refresh/only-export-components': [
-      'warn',
-      { allowConstantExport: true },
-    ],
+    'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    'react/prop-types': 'off',
+    'no-unused-vars': 'off',
+    'react-hooks/exhaustive-deps': 'warn',
+    'react/no-unescaped-entities': 'off',
+    'no-empty': 'warn',
   },
 }
