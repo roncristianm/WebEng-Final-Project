@@ -31,7 +31,7 @@ The following are in scope:
 | Control | Implementation |
 |---|---|
 | SAST | CodeQL (runs on every push/PR and weekly) |
-| Dependency scanning | Dependabot + Dependency Review Action (blocks high/critical CVEs on PRs) |
+| Dependency scanning | Dependency Review Action (blocks high/critical CVEs on PRs) |
 | Secrets management | GitHub Secrets — never committed to the repository |
 | Firestore access control | Security rules enforce authentication and role-based ownership on every collection |
 | CI/CD least privilege | `GITHUB_TOKEN` scoped to `contents: read` by default; jobs declare only needed permissions |
