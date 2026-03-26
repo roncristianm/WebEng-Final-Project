@@ -7,7 +7,7 @@ module.exports = {
     'plugin:react/jsx-runtime',
     'plugin:react-hooks/recommended',
   ],
-  ignorePatterns: ['dist', '.eslintrc.cjs'],
+  ignorePatterns: ['dist', '.eslintrc.cjs', 'functions/**', 'sheets-backend/**'],
   parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
   settings: { react: { version: '18.2' } },
   plugins: ['react-refresh'],
@@ -16,9 +16,5 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
-    // Downgraded to warn — prop-types & unused vars are common in fast dev
-    'react/prop-types': 'warn',
-    'no-unused-vars': 'warn',
-    'react-hooks/exhaustive-deps': 'warn',
   },
 }
