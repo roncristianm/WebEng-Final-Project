@@ -6,21 +6,53 @@ const { getAuth }                       = require('firebase-admin/auth')
 const fs   = require('fs')
 const path = require('path')
 
+function parseServiceAccount(raw) {
+  // Accept JSON pasted with either real newlines or escaped "\\n" sequences.
+  const normalized = String(raw)
+    .trim()
+    .replace(/\\n/g, '\n')
+  const json = JSON.parse(normalized)
+  if (json && json.private_key) {
+    json.private_key = String(json.private_key).replace(/\\n/g, '\n')
+  }
+  return json
+}
+
 function ensureAdminInit() {
   if (getApps().length) return
+
+  // IMPORTANT:
+  // Password reset + email verification require Firebase Admin credentials for
+  // the SAME Firebase project that your frontend Auth uses.
+  // Do not reuse Google Sheets service-account credentials unless they belong
+  // to the same project and have Firebase Auth access.
   let credential
-  const localKey = path.join(__dirname, 'credentials.json')
-  if (fs.existsSync(localKey)) {
-    credential = cert(JSON.parse(fs.readFileSync(localKey, 'utf8')))
-  } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
-    const raw = process.env.GOOGLE_SHEETS_CREDENTIALS
-    try { credential = cert(JSON.parse(raw)) }
-    catch { credential = cert(JSON.parse(raw.replace(/\\n/g, '\n'))) }
-  } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
-    credential = cert(JSON.parse(fs.readFileSync(process.env.GOOGLE_SHEETS_KEY_FILE, 'utf8')))
+
+  // Preferred env vars
+  if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
+    credential = cert(parseServiceAccount(process.env.FIREBASE_ADMIN_CREDENTIALS))
+  } else if (process.env.FIREBASE_ADMIN_KEY_FILE) {
+    credential = cert(parseServiceAccount(fs.readFileSync(process.env.FIREBASE_ADMIN_KEY_FILE, 'utf8')))
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // Common GCP convention: file path to service account JSON
+    credential = cert(parseServiceAccount(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8')))
   } else {
-    throw new Error('No Firebase Admin credentials found.')
+    // Backward-compat fallbacks (may be wrong project)
+    const localKey = path.join(__dirname, 'credentials.json')
+    if (fs.existsSync(localKey)) {
+      console.warn('[emailRoutes] Using sheets-backend/credentials.json for Firebase Admin. Prefer FIREBASE_ADMIN_CREDENTIALS instead.')
+      credential = cert(parseServiceAccount(fs.readFileSync(localKey, 'utf8')))
+    } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
+      console.warn('[emailRoutes] Using GOOGLE_SHEETS_CREDENTIALS for Firebase Admin. Prefer FIREBASE_ADMIN_CREDENTIALS instead.')
+      credential = cert(parseServiceAccount(process.env.GOOGLE_SHEETS_CREDENTIALS))
+    } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
+      console.warn('[emailRoutes] Using GOOGLE_SHEETS_KEY_FILE for Firebase Admin. Prefer FIREBASE_ADMIN_KEY_FILE instead.')
+      credential = cert(parseServiceAccount(fs.readFileSync(process.env.GOOGLE_SHEETS_KEY_FILE, 'utf8')))
+    } else {
+      throw new Error('No Firebase Admin credentials found. Set FIREBASE_ADMIN_CREDENTIALS (recommended) or FIREBASE_ADMIN_KEY_FILE.')
+    }
   }
+
   initializeApp({ credential })
 }
 const router  = express.Router()
@@ -215,6 +247,8 @@ router.post('/send-password-reset', wrap(async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ success: false, error: 'email is required' })
 
+  console.log(`[emailRoutes] Password reset requested for: ${email}`)
+
   // 1. Look up the user's display name via Admin SDK
   ensureAdminInit()
   let name = 'there'
@@ -222,20 +256,36 @@ router.post('/send-password-reset', wrap(async (req, res) => {
     const userRecord = await getAuth().getUserByEmail(email)
     if (userRecord.displayName) name = userRecord.displayName
   } catch (err) {
-    // If user not found, Firebase Admin throws — treat as success (don't reveal existence)
+    // Don't hard-fail name lookup; still try to generate the link.
+    // If the email truly doesn't exist, generatePasswordResetLink will also fail.
     if (err.code === 'auth/user-not-found') {
-      return res.json({ success: true, message: 'If that email exists, a reset link was sent.' })
+      console.warn(`[emailRoutes] getUserByEmail: user not found for ${email}`)
+    } else {
+      console.warn(`[emailRoutes] getUserByEmail failed (${err.code || 'unknown'}): ${err.message}`)
     }
-    throw err
   }
 
   // 2. Generate the reset link via Admin SDK
   // Generate the Firebase reset link, extract the oobCode,
   // then build a link to OUR page so user never sees Firebase's UI
-  const appUrl      = process.env.APP_URL || 'http://localhost:3000'
-  const firebaseLink = await getAuth().generatePasswordResetLink(email)
-  const oobCode      = new URL(firebaseLink).searchParams.get('oobCode')
-  const resetLink    = `${appUrl}/reset-password?oobCode=${oobCode}`
+  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  let firebaseLink
+  try {
+    firebaseLink = await getAuth().generatePasswordResetLink(email)
+  } catch (err) {
+    // Treat as success if user doesn't exist (avoid account enumeration)
+    if (err.code === 'auth/user-not-found') {
+      console.warn(`[emailRoutes] generatePasswordResetLink: user not found for ${email}`)
+      return res.json({ success: true, message: 'If that email exists, a reset link was sent.' })
+    }
+    throw err
+  }
+
+  const oobCode = new URL(firebaseLink).searchParams.get('oobCode')
+  if (!oobCode) {
+    throw new Error('Failed to generate a valid password reset link (missing oobCode).')
+  }
+  const resetLink = `${appUrl}/reset-password?oobCode=${encodeURIComponent(oobCode)}`
 
   // 3. Send branded email
   await sendEmail({
