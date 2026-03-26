@@ -7,12 +7,32 @@ const fs   = require('fs')
 const path = require('path')
 
 function parseServiceAccount(raw) {
-  // Accept JSON pasted with either real newlines or escaped "\\n" sequences.
-  const normalized = String(raw)
-    .trim()
-    .replace(/\\n/g, '\n')
-  const json = JSON.parse(normalized)
+  // Accept service account JSON provided via env.
+  // IMPORTANT: Don't convert "\n" to real newlines BEFORE JSON.parse() — that breaks JSON strings.
+  // Instead parse first, then normalize the private_key field.
+  const text = String(raw || '').trim()
+  let json
+  try {
+    json = JSON.parse(text)
+  } catch (err) {
+    // Fallback: some .env setups paste a multi-line JSON value (which dotenv can't represent cleanly).
+    // Try to repair by escaping raw newlines inside the private_key field.
+    const repaired = text.replace(
+      /("private_key"\s*:\s*")([\s\S]*?)("\s*[},])/,
+      (_m, p1, p2, p3) => p1 + p2.replace(/\r?\n/g, '\\n') + p3
+    )
+    try {
+      json = JSON.parse(repaired)
+    } catch {
+      throw new Error(
+        'Invalid Firebase Admin credentials JSON. Prefer setting FIREBASE_ADMIN_KEY_FILE to a JSON file path, ' +
+        'or set FIREBASE_ADMIN_CREDENTIALS to a single-line JSON string.'
+      )
+    }
+  }
+
   if (json && json.private_key) {
+    // If the key is double-escaped in env, turn literal "\\n" into real newlines.
     json.private_key = String(json.private_key).replace(/\\n/g, '\n')
   }
   return json
