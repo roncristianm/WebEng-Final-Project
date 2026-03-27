@@ -34,12 +34,10 @@ jobs:
         run: npm ci
 
       - name: ESLint (frontend)
-        run: npm run lint -- --max-warnings=9999
-        continue-on-error: true
+        run: npm run lint
 
       - name: Security audit (frontend)
-        run: npm audit --audit-level=high
-        continue-on-error: true
+        run: npm audit --audit-level=critical
 
   # ── 2. Build ─────────────────────────────────
   build:
@@ -128,3 +126,40 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: firebase deploy --only firestore:rules --project nexxus-65975
+
+  # ── 5. Notify on Failure ──────────────────────
+  notify-failure:
+    name: Notify › Failure
+    runs-on: ubuntu-latest
+    needs: [lint, build]
+    if: failure() && github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post failure comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: { jobs } } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+
+            const failed = jobs
+              .filter(j => j.conclusion === 'failure')
+              .map(j => {
+                const steps = j.steps
+                  .filter(s => s.conclusion === 'failure')
+                  .map(s => `  - \`${s.name}\``)
+                  .join('\n');
+                return steps ? `**${j.name}**\n${steps}` : `**${j.name}**`;
+              })
+              .join('\n\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## CI failed — update rejected\n\nThe following checks did not pass and this PR cannot be merged until they are fixed:\n\n${failed}\n\nPlease address the issues above and push a new commit.`,
+            });
