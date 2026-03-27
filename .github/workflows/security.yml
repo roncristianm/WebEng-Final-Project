@@ -1,0 +1,89 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run every Monday at 08:00 UTC to catch newly-published CVEs
+    - cron: "0 8 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ── 1. Secret Scanning ────────────────────────────────────────────────────────
+  # Scans the full git history for hardcoded credentials, API keys, and tokens.
+  # Catches accidental commits of .env files, credentials.json, private keys, etc.
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history required — gitleaks scans every commit
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── 2. Dependency Audit — Frontend ───────────────────────────────────────────
+  # Fails the pipeline on any high or critical severity vulnerability.
+  # This is the blocking version — unlike the ci-cd.yml audit which has continue-on-error.
+  audit-frontend:
+    name: Audit — Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: npm audit (frontend)
+        run: npm audit --audit-level=high
+
+  # ── 3. Dependency Audit — sheets-backend ─────────────────────────────────────
+  audit-backend:
+    name: Audit — sheets-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install deps
+        run: npm ci
+        working-directory: sheets-backend
+
+      - name: npm audit (sheets-backend)
+        run: npm audit --audit-level=high
+        working-directory: sheets-backend
+
+  # ── 4. Dependency Audit — Firebase Functions ──────────────────────────────────
+  audit-functions:
+    name: Audit — functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install deps
+        run: npm ci
+        working-directory: functions
+
+      - name: npm audit (functions)
+        run: npm audit --audit-level=high
+        working-directory: functions
