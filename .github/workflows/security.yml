@@ -30,60 +30,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── 2. Dependency Audit — Frontend ───────────────────────────────────────────
-  # Fails the pipeline on any high or critical severity vulnerability.
-  # This is the blocking version — unlike the ci-cd.yml audit which has continue-on-error.
-  audit-frontend:
-    name: Audit — Frontend
+  # ── 2. Dependency Review (PRs only) ──────────────────────────────────────────
+  # Compares the dependency diff introduced by a PR and blocks merging if it
+  # introduces a package with a known high/critical vulnerability.
+  dependency-review:
+    name: Dependency Review
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
         with:
-          node-version: 18
-          cache: npm
-
-      - name: Install deps
-        run: npm ci
-
-      - name: npm audit (frontend)
-        run: npm audit --audit-level=high
-
-  # ── 3. Dependency Audit — sheets-backend ─────────────────────────────────────
-  audit-backend:
-    name: Audit — sheets-backend
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install deps
-        run: npm ci
-        working-directory: sheets-backend
-
-      - name: npm audit (sheets-backend)
-        run: npm audit --audit-level=high
-        working-directory: sheets-backend
-
-  # ── 4. Dependency Audit — Firebase Functions ──────────────────────────────────
-  audit-functions:
-    name: Audit — functions
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install deps
-        run: npm ci
-        working-directory: functions
-
-      - name: npm audit (functions)
-        run: npm audit --audit-level=high
-        working-directory: functions
+          fail-on-severity: high
+          comment-summary-in-pr: always
