@@ -10,18 +10,14 @@ const path        = require('path')
 const app  = express()
 const PORT = process.env.PORT || 4000
 
-// ── Error / Log sanitizers ───────────────────────────────────────────────────
+// ── Error sanitizer ───────────────────────────────────────────────────────────
 function safeError(err) {
   return String(err.message || 'Unknown error').replace(/[^\w\s.,:()@\-]/g, '')
 }
 
-function sanitizeLog(val) {
-  return String(val || '').replace(/[\r\n\t]/g, ' ').substring(0, 200)
-}
-
-// ── Rate limiting ────────────────────────────────────────────────────────────
+// ── Rate limiting ─────────────────────────────────────────────────────────────
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
@@ -36,7 +32,7 @@ const emailLimiter = rateLimit({
   message: { error: 'Too many email requests, please try again later.' }
 })
 
-// ── CORS ─────────────────────────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = String(process.env.APP_URL || '')
   .split(',')
   .map((s) => s.trim())
@@ -65,7 +61,7 @@ app.use(apiLimiter)
 app.use('/email', emailLimiter)
 app.use('/email', emailRoutes)
 
-// ── Credentials ──────────────────────────────────────────────────────────────
+// ── Credentials ───────────────────────────────────────────────────────────────
 function loadCredentials() {
   let credentials
   const localKeyFile = path.join(__dirname, 'credentials.json')
@@ -112,7 +108,7 @@ function columnToLetter(col) {
 }
 
 // ── Tab name resolver ─────────────────────────────────────────────────────────
-// Fix: Use Map instead of plain object to prevent remote property injection
+// Use Map instead of plain object to prevent remote property injection
 const tabCache = new Map()
 
 async function resolveTabNames(sheetId, sheets) {
@@ -123,7 +119,6 @@ async function resolveTabNames(sheetId, sheets) {
     fields: 'sheets.properties.title'
   })
   const tabs = meta.data.sheets.map(s => s.properties.title)
-  console.log(`Tabs found in sheet ${sanitizeLog(sheetId)}:`, tabs)
 
   const find = (keywords) => {
     const tab = tabs.find(t => {
@@ -141,7 +136,6 @@ async function resolveTabNames(sheetId, sheets) {
     q4: find(['q4']),
   }
 
-  console.log('Resolved tab names:', resolved)
   tabCache.set(sheetId, resolved)
   return resolved
 }
@@ -167,8 +161,8 @@ app.get('/debug-tabs', async (req, res) => {
     const { sheetId } = req.query
     if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
     clearTabCache(sheetId)
-    const sheets = getSheetsClient()
-    const meta = await sheets.spreadsheets.get({
+    const sheets   = getSheetsClient()
+    const meta     = await sheets.spreadsheets.get({
       spreadsheetId: sheetId,
       fields: 'sheets.properties.title'
     })
@@ -202,11 +196,11 @@ app.get('/read-grades', async (req, res) => {
     const { sheetId, quarter = 'Q1' } = req.query
     if (!sheetId) return res.status(400).json({ error: 'sheetId required' })
     const safeQuarter = VALID_QUARTERS.has(quarter) ? quarter : 'Q1'
-    const sheets    = getSheetsClient()
-    const tabs      = await resolveTabNames(sheetId, sheets)
-    const sheetName = getQuarterTab(tabs, safeQuarter)
-    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${safeQuarter}` })
-    const response  = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
+    const sheets      = getSheetsClient()
+    const tabs        = await resolveTabNames(sheetId, sheets)
+    const sheetName   = getQuarterTab(tabs, safeQuarter)
+    if (!sheetName) return res.status(400).json({ error: 'Could not find tab for requested quarter' })
+    const response    = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     res.json({ values: response.data.values || [], sheetName })
   } catch (err) {
     console.error('read-grades error:', safeError(err))
@@ -220,10 +214,10 @@ app.get('/student-grades', async (req, res) => {
     const { sheetId, studentName, quarter = 'Q1' } = req.query
     if (!sheetId || !studentName) return res.status(400).json({ error: 'sheetId and studentName required' })
     const safeQuarter = VALID_QUARTERS.has(quarter) ? quarter : 'Q1'
-    const sheets    = getSheetsClient()
-    const tabs      = await resolveTabNames(sheetId, sheets)
-    const sheetName = getQuarterTab(tabs, safeQuarter)
-    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${safeQuarter}` })
+    const sheets      = getSheetsClient()
+    const tabs        = await resolveTabNames(sheetId, sheets)
+    const sheetName   = getQuarterTab(tabs, safeQuarter)
+    if (!sheetName) return res.status(400).json({ error: 'Could not find tab for requested quarter' })
 
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     const allRows  = response.data.values || []
@@ -261,12 +255,8 @@ app.post('/add-student-to-sheet', async (req, res) => {
 
     if (!sheetName) return res.status(400).json({ error: 'Could not find INPUT DATA tab in this sheet.' })
 
-    console.log(`Using INPUT DATA tab: ${sanitizeLog(sheetName)}`)
-
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     const rows     = response.data.values || []
-
-    console.log(`Total rows read from INPUT DATA: ${rows.length}`)
 
     let maleHeaderRow = -1, femaleHeaderRow = -1
     for (let i = 0; i < rows.length; i++) {
@@ -275,8 +265,6 @@ app.post('/add-student-to-sheet', async (req, res) => {
       if (val === 'FEMALE') femaleHeaderRow = i
     }
 
-    console.log(`MALE header at row index: ${maleHeaderRow}, FEMALE at: ${femaleHeaderRow}`)
-
     if (maleHeaderRow === -1) return res.status(400).json({ error: 'Could not find MALE section in INPUT DATA tab.' })
 
     const isMale       = gender.toUpperCase() === 'MALE'
@@ -284,8 +272,6 @@ app.post('/add-student-to-sheet', async (req, res) => {
     const sectionEnd   = isMale
       ? (femaleHeaderRow > -1 ? femaleHeaderRow : rows.length)
       : rows.length
-
-    console.log(`Section: rows[${sectionStart}] to rows[${sectionEnd - 1}] (0-based)`)
 
     let names = []
     for (let i = sectionStart; i < sectionEnd; i++) {
@@ -299,8 +285,6 @@ app.post('/add-student-to-sheet', async (req, res) => {
     names.push(studentName.trim())
     names.sort((a, b) => a.localeCompare(b))
 
-    console.log(`Sorted names after adding "${sanitizeLog(studentName)}":`, names)
-
     const updateData = names.map((name, idx) => ({
       range:  `${sheetName}!B${sectionStart + idx + 1}`,
       values: [[name]]
@@ -311,7 +295,7 @@ app.post('/add-student-to-sheet', async (req, res) => {
       requestBody:   { valueInputOption: 'USER_ENTERED', data: updateData }
     })
 
-    console.log(`Added "${sanitizeLog(studentName)}" to INPUT DATA ${sanitizeLog(gender)} section`)
+    console.log('Student added to INPUT DATA section successfully')
     res.json({ success: true, message: `Added ${studentName} to INPUT DATA only` })
   } catch (err) {
     console.error('add-student-to-sheet error:', safeError(err))
@@ -373,7 +357,7 @@ app.post('/set-highest-possible-score', async (req, res) => {
     const sheets      = getSheetsClient()
     const tabs        = await resolveTabNames(sheetId, sheets)
     const sheetName   = getQuarterTab(tabs, safeQuarter)
-    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${safeQuarter}` })
+    if (!sheetName) return res.status(400).json({ error: 'Could not find tab for requested quarter' })
 
     const headerResp = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
@@ -385,9 +369,7 @@ app.post('/set-highest-possible-score', async (req, res) => {
 
     const colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
     if (colIndex === -1)
-      return res.status(400).json({
-        error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column.`
-      })
+      return res.status(400).json({ error: 'Cannot map assignment to a sheet column.' })
 
     const SHEET_HPS_ROW = 10
     const colLetter     = columnToLetter(colIndex + 1)
@@ -400,7 +382,7 @@ app.post('/set-highest-possible-score', async (req, res) => {
       requestBody: { values: [[possibleScore]] }
     })
 
-    console.log(`HPS set: ${sanitizeLog(assignmentType)} item ${itemNumber} → ${sanitizeLog(hpsCell)} = ${possibleScore} (${safeQuarter})`)
+    console.log('HPS set successfully')
     res.json({ success: true, cell: hpsCell, assignmentType, itemNumber, possibleScore })
 
   } catch (err) {
@@ -421,7 +403,7 @@ app.post('/repair-hps', async (req, res) => {
     const sheets      = getSheetsClient()
     const tabs        = await resolveTabNames(sheetId, sheets)
     const sheetName   = getQuarterTab(tabs, safeQuarter)
-    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${safeQuarter}` })
+    if (!sheetName) return res.status(400).json({ error: 'Could not find tab for requested quarter' })
 
     const headerResp = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
@@ -456,7 +438,7 @@ app.post('/repair-hps', async (req, res) => {
         spreadsheetId: sheetId,
         requestBody: { valueInputOption: 'USER_ENTERED', data: clearData }
       })
-      console.log(`Cleared ${clearData.length} HPS cells before repair`)
+      console.log('HPS cells cleared before repair, count:', clearData.length)
     }
 
     const writeData = []
@@ -484,7 +466,7 @@ app.post('/repair-hps', async (req, res) => {
       })
     }
 
-    console.log(`repair-hps: wrote ${writeData.length} HPS values for ${safeQuarter}`)
+    console.log('repair-hps complete, values written:', writeData.length)
     res.json({ success: true, results })
 
   } catch (err) {
@@ -511,7 +493,7 @@ app.post('/record-score', async (req, res) => {
     const sheets      = getSheetsClient()
     const tabs        = await resolveTabNames(sheetId, sheets)
     const sheetName   = getQuarterTab(tabs, safeQuarter)
-    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${safeQuarter}` })
+    if (!sheetName) return res.status(400).json({ error: 'Could not find tab for requested quarter' })
 
     const response       = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
     const rows           = response.data.values || []
@@ -525,13 +507,11 @@ app.post('/record-score', async (req, res) => {
     if (itemNumber !== undefined && itemNumber !== null) {
       colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
       if (colIndex === -1)
-        return res.status(400).json({
-          error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column.`
-        })
-      console.log(`Column resolved by itemNumber ${itemNumber} → col ${colIndex} (${columnToLetter(colIndex + 1)})`)
+        return res.status(400).json({ error: 'Cannot map assignment item to a sheet column.' })
+      console.log('Column resolved by itemNumber, col index:', colIndex)
 
     } else {
-      console.warn(`No itemNumber for assignmentId="${sanitizeLog(assignmentId)}". Using legacy empty-slot scan.`)
+      console.warn('No itemNumber provided. Using legacy empty-slot scan.')
 
       let keyword
       if      (assignmentType === 'Written Works')        keyword = 'written'
@@ -541,7 +521,7 @@ app.post('/record-score', async (req, res) => {
 
       const itemCols = findItemColumns(groupHeaderRow, subHeaderRow, keyword)
       if (itemCols.length === 0)
-        return res.status(400).json({ error: `Could not find ${assignmentType} item columns in sheet` })
+        return res.status(400).json({ error: 'Could not find assignment item columns in sheet' })
 
       for (const c of itemCols) {
         if (String(hpsRow[c] || '').trim() === String(assignmentId)) { colIndex = c; break }
@@ -562,7 +542,7 @@ app.post('/record-score', async (req, res) => {
           if (!hpsOther && String(studentRowScan[c] || '').trim() === '') { colIndex = c; break }
         }
         if (colIndex === -1)
-          return res.status(400).json({ error: `All slots for ${assignmentType} are already used` })
+          return res.status(400).json({ error: 'All slots for this assignment type are already used' })
 
         const colLetterLeg = columnToLetter(colIndex + 1)
         const hpsValueLeg  = possibleScore !== undefined ? possibleScore : assignmentId
@@ -572,7 +552,7 @@ app.post('/record-score', async (req, res) => {
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[hpsValueLeg]] }
         })
-        console.log(`Legacy pin: col ${sanitizeLog(colLetterLeg)}, HPS = ${hpsValueLeg}`)
+        console.log('Legacy pin complete, col index:', colIndex)
       }
     }
 
@@ -583,7 +563,7 @@ app.post('/record-score', async (req, res) => {
       }
     }
     if (targetRowIndex === -1)
-      return res.status(404).json({ error: `Student not found in ${sanitizeLog(sheetName)}` })
+      return res.status(404).json({ error: 'Student not found in sheet' })
 
     if (possibleScore !== undefined) {
       const currentHPS = String(hpsRow[colIndex] || '').trim()
@@ -595,7 +575,7 @@ app.post('/record-score', async (req, res) => {
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[possibleScore]] }
         })
-        console.log(`HPS safety-fill: ${sanitizeLog(colLetterHPS)}${SHEET_HPS_ROW} = ${possibleScore}`)
+        console.log('HPS safety-fill complete, row:', SHEET_HPS_ROW)
       }
     }
 
@@ -609,7 +589,7 @@ app.post('/record-score', async (req, res) => {
       requestBody: { values: [[score]] }
     })
 
-    console.log(`Score recorded: "${sanitizeLog(studentName)}" → ${sanitizeLog(cellRange)} | ${sanitizeLog(assignmentType)} #${itemNumber ?? '?'} = ${score}`)
+    console.log('Score recorded successfully, row index:', targetRowIndex)
     res.json({ success: true, cell: cellRange, studentName, score, itemNumber: itemNumber ?? null })
 
   } catch (err) {
@@ -633,7 +613,7 @@ app.post('/delete-assignment-from-sheet', async (req, res) => {
     const sheets      = getSheetsClient()
     const tabs        = await resolveTabNames(sheetId, sheets)
     const sheetName   = getQuarterTab(tabs, safeQuarter)
-    if (!sheetName) return res.status(400).json({ error: `Could not find tab for ${safeQuarter}` })
+    if (!sheetName) return res.status(400).json({ error: 'Could not find tab for requested quarter' })
 
     const headerResp = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
@@ -649,7 +629,7 @@ app.post('/delete-assignment-from-sheet', async (req, res) => {
     if (itemNumber !== undefined && itemNumber !== null) {
       colIndex = resolveColumnByItemNumber(groupHeaderRow, subHeaderRow, assignmentType, itemNumber)
       if (colIndex === -1)
-        return res.status(400).json({ error: `Cannot map ${assignmentType} item ${itemNumber} to a sheet column.` })
+        return res.status(400).json({ error: 'Cannot map assignment item to a sheet column.' })
     } else {
       let keyword
       if      (assignmentType === 'Written Works')        keyword = 'written'
@@ -671,7 +651,7 @@ app.post('/delete-assignment-from-sheet', async (req, res) => {
 
     await sheets.spreadsheets.values.clear({ spreadsheetId: sheetId, range: clearRange })
 
-    console.log(`delete-assignment-from-sheet: cleared ${sanitizeLog(clearRange)} for ${sanitizeLog(assignmentType)} #${itemNumber ?? '?'} (${safeQuarter})`)
+    console.log('Assignment column cleared successfully')
     res.json({ success: true, clearedRange: clearRange, assignmentType, itemNumber: itemNumber ?? null, quarter: safeQuarter })
   } catch (err) {
     console.error('delete-assignment-from-sheet error:', safeError(err))
@@ -712,25 +692,25 @@ app.post('/update-assignment-in-sheet', async (req, res) => {
     const somethingMoved = typeChanged || quarterChanged
 
     const oldHeaders = await getHeaders(oldA.quarter)
-    if (!oldHeaders) return res.status(400).json({ error: `Cannot find tab for old quarter ${oldA.quarter}` })
+    if (!oldHeaders) return res.status(400).json({ error: 'Cannot find tab for old quarter' })
 
     const oldColIndex = resolveColumnByItemNumber(
       oldHeaders.groupHeaderRow, oldHeaders.subHeaderRow,
       oldA.type, oldA.itemNumber
     )
     if (oldColIndex === -1)
-      return res.status(400).json({ error: `Cannot resolve old column for ${oldA.type} item ${oldA.itemNumber}` })
+      return res.status(400).json({ error: 'Cannot resolve old column for assignment' })
 
     const oldColLetter = columnToLetter(oldColIndex + 1)
     const newHeaders   = quarterChanged ? await getHeaders(newA.quarter) : oldHeaders
-    if (!newHeaders) return res.status(400).json({ error: `Cannot find tab for new quarter ${newA.quarter}` })
+    if (!newHeaders) return res.status(400).json({ error: 'Cannot find tab for new quarter' })
 
     const newColIndex = resolveColumnByItemNumber(
       newHeaders.groupHeaderRow, newHeaders.subHeaderRow,
       newA.type, newA.itemNumber
     )
     if (newColIndex === -1)
-      return res.status(400).json({ error: `Cannot resolve new column for ${newA.type} item ${newA.itemNumber}` })
+      return res.status(400).json({ error: 'Cannot resolve new column for assignment' })
 
     const newColLetter = columnToLetter(newColIndex + 1)
     const batchClear   = []
@@ -770,7 +750,7 @@ app.post('/update-assignment-in-sheet', async (req, res) => {
         batchWrite.push({ range: `${newHeaders.sheetName}!${newColLetter}${newRowIdx + 1}`, values: [[score]] })
       }
     } else if (!somethingMoved && scoreChanged) {
-      console.log(`Only possibleScore changed (${oldA.possibleScore} → ${newA.possibleScore}), updating HPS only`)
+      console.log('Only possibleScore changed, updating HPS only')
     }
 
     if (batchClear.length > 0) {
@@ -778,7 +758,7 @@ app.post('/update-assignment-in-sheet', async (req, res) => {
         spreadsheetId: sheetId,
         requestBody: { valueInputOption: 'USER_ENTERED', data: batchClear }
       })
-      console.log(`Cleared ${batchClear.length} old cells`)
+      console.log('Old cells cleared, count:', batchClear.length)
     }
 
     if (batchWrite.length > 0) {
@@ -786,11 +766,11 @@ app.post('/update-assignment-in-sheet', async (req, res) => {
         spreadsheetId: sheetId,
         requestBody: { valueInputOption: 'USER_ENTERED', data: batchWrite }
       })
-      console.log(`Wrote ${batchWrite.length} new cells`)
+      console.log('New cells written, count:', batchWrite.length)
     }
 
     const moved = batchWrite.length - 1
-    console.log(`update-assignment-in-sheet: ${sanitizeLog(oldA.type)}→${sanitizeLog(newA.type)}, col=${sanitizeLog(oldColLetter)}→${sanitizeLog(newColLetter)}, ${moved} scores moved`)
+    console.log('update-assignment-in-sheet complete, scores moved:', moved)
     res.json({
       success: true,
       oldCell: `${oldHeaders.sheetName}!${oldColLetter}`,
@@ -814,7 +794,7 @@ app.post('/clear-student-scores', async (req, res) => {
     const sheets = getSheetsClient()
     const tabs   = await resolveTabNames(sheetId, sheets)
 
-    // Fix: Use Map instead of plain object to prevent remote property injection
+    // Use Map instead of plain object to prevent remote property injection
     const byQuarter = new Map()
     for (const a of assignments) {
       const q = VALID_QUARTERS.has(a.quarter) ? a.quarter : 'Q1'
@@ -860,7 +840,7 @@ app.post('/clear-student-scores', async (req, res) => {
       requestBody:   { valueInputOption: 'USER_ENTERED', data: clearData }
     })
 
-    console.log(`clear-student-scores: cleared ${clearData.length} cells for "${sanitizeLog(studentName)}"`)
+    console.log('Student scores cleared, count:', clearData.length)
     res.json({ success: true, cleared: clearData.length, studentName })
 
   } catch (err) {
@@ -928,7 +908,7 @@ app.post('/remove-student-from-sheet', async (req, res) => {
       requestBody:   { valueInputOption: 'USER_ENTERED', data: updateData }
     })
 
-    console.log(`Removed "${sanitizeLog(studentName)}" from INPUT DATA ${sanitizeLog(gender)} section`)
+    console.log('Student removed from INPUT DATA section successfully')
     res.json({ success: true, message: `Removed ${studentName} from INPUT DATA` })
   } catch (err) {
     console.error('remove-student-from-sheet error:', safeError(err))
@@ -943,9 +923,12 @@ app.post('/remove-student-from-quarter-sheets', async (req, res) => {
     if (!sheetId || !studentName)
       return res.status(400).json({ error: 'sheetId and studentName required' })
 
-    const safeQuarters = quarters.filter(q => VALID_QUARTERS.has(q))
-    const sheets       = getSheetsClient()
-    const tabs         = await resolveTabNames(sheetId, sheets)
+    const safeQuarters = Array.isArray(quarters)
+      ? quarters.filter(q => VALID_QUARTERS.has(q))
+      : ['Q1', 'Q2', 'Q3', 'Q4']
+
+    const sheets     = getSheetsClient()
+    const tabs       = await resolveTabNames(sheetId, sheets)
 
     const meta = await sheets.spreadsheets.get({
       spreadsheetId: sheetId,
@@ -989,7 +972,7 @@ app.post('/remove-student-from-quarter-sheets', async (req, res) => {
         }
       })
 
-      console.log(`Removed row ${studentRowIdx + 1} for "${sanitizeLog(studentName)}" from ${quarter} tab`)
+      console.log('Student row removed from quarter tab, row index:', studentRowIdx + 1)
       results.push({ quarter, status: 'removed', rowIndex: studentRowIdx + 1 })
     }
 
@@ -1039,4 +1022,4 @@ app.put('/update-cell', async (req, res) => {
   }
 })
 
-app.listen(PORT, () => console.log(`Sheets backend running on port ${PORT}`))
+app.listen(PORT, () => console.log('Sheets backend running on port', PORT))
