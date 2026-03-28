@@ -305,7 +305,7 @@ function emailVerificationTemplate({ name, verifyLink }) {
 // ── Send helpers ──────────────────────────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
   const info = await brevoSendEmail({ to, subject, html })
-  console.log(`[mailer] ✅ Sent → ${Array.isArray(to) ? to.join(',') : to} | ${subject} | ${info.messageId || 'no-messageId'}`)
+  console.log('[mailer] Email sent successfully')
   return info
 }
 
@@ -315,7 +315,7 @@ async function sendBulkEmails(emails) {
   const failed  = results.filter((r) => r.status === 'rejected').length
   results.forEach((r, i) => {
     if (r.status === 'rejected') {
-      console.error(`[mailer] ❌ Failed → ${emails[i].to}: ${r.reason.message}`)
+      console.error('[mailer] Email delivery failed for one recipient')
     }
   })
   return { sent, failed }
