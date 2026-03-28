@@ -1,22 +1,25 @@
 // sheets-backend/emailRoutes.js
 const express = require('express')
-// Initialise Firebase Admin via verificationService (same pattern it already uses)
 const { initializeApp, cert, getApps } = require('firebase-admin/app')
 const { getAuth }                       = require('firebase-admin/auth')
 const fs   = require('fs')
 const path = require('path')
 
+// ── Sanitizers ────────────────────────────────────────────────────────────────
+function safeError(err) {
+  return String(err.message || 'Unknown error').replace(/[^\w\s.,:()@\-]/g, '')
+}
+
+function sanitizeLog(val) {
+  return String(val || '').replace(/[\r\n\t]/g, ' ').substring(0, 200)
+}
+
 function parseServiceAccount(raw) {
-  // Accept service account JSON provided via env.
-  // IMPORTANT: Don't convert "\n" to real newlines BEFORE JSON.parse() — that breaks JSON strings.
-  // Instead parse first, then normalize the private_key field.
   const text = String(raw || '').trim()
   let json
   try {
     json = JSON.parse(text)
   } catch (err) {
-    // Fallback: some .env setups paste a multi-line JSON value (which dotenv can't represent cleanly).
-    // Try to repair by escaping raw newlines inside the private_key field.
     const repaired = text.replace(
       /("private_key"\s*:\s*")([\s\S]*?)("\s*[},])/,
       (_m, p1, p2, p3) => p1 + p2.replace(/\r?\n/g, '\\n') + p3
@@ -32,7 +35,6 @@ function parseServiceAccount(raw) {
   }
 
   if (json && json.private_key) {
-    // If the key is double-escaped in env, turn literal "\\n" into real newlines.
     json.private_key = String(json.private_key).replace(/\\n/g, '\n')
   }
   return json
@@ -41,23 +43,15 @@ function parseServiceAccount(raw) {
 function ensureAdminInit() {
   if (getApps().length) return
 
-  // IMPORTANT:
-  // Password reset + email verification require Firebase Admin credentials for
-  // the SAME Firebase project that your frontend Auth uses.
-  // Do not reuse Google Sheets service-account credentials unless they belong
-  // to the same project and have Firebase Auth access.
   let credential
 
-  // Preferred env vars
   if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
     credential = cert(parseServiceAccount(process.env.FIREBASE_ADMIN_CREDENTIALS))
   } else if (process.env.FIREBASE_ADMIN_KEY_FILE) {
     credential = cert(parseServiceAccount(fs.readFileSync(process.env.FIREBASE_ADMIN_KEY_FILE, 'utf8')))
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    // Common GCP convention: file path to service account JSON
     credential = cert(parseServiceAccount(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8')))
   } else {
-    // Backward-compat fallbacks (may be wrong project)
     const localKey = path.join(__dirname, 'credentials.json')
     if (fs.existsSync(localKey)) {
       console.warn('[emailRoutes] Using sheets-backend/credentials.json for Firebase Admin. Prefer FIREBASE_ADMIN_CREDENTIALS instead.')
@@ -75,7 +69,8 @@ function ensureAdminInit() {
 
   initializeApp({ credential })
 }
-const router  = express.Router()
+
+const router = express.Router()
 const {
   sendEmail,
   sendBulkEmails,
@@ -93,11 +88,12 @@ const {
   refreshVerificationToken,
 } = require('./verificationService')
 
-// Wrap async handlers so errors are caught cleanly
+// ── Wrap async handlers ───────────────────────────────────────────────────────
+// Fix: sanitize err.message before logging and never expose it in the response
 const wrap = (fn) => (req, res) =>
   Promise.resolve(fn(req, res)).catch((err) => {
-    console.error('[emailRoutes]', err.message)
-    res.status(500).json({ success: false, error: err.message })
+    console.error('[emailRoutes]', safeError(err))
+    res.status(500).json({ success: false, error: 'Internal server error' })
   })
 
 // ── POST /email/welcome ───────────────────────────────────────────────────────
@@ -190,8 +186,6 @@ router.post('/password-reset', wrap(async (req, res) => {
 }))
 
 // ── POST /email/send-verification ─────────────────────────────────────────────
-// Body: { uid, email, name }
-// Called right after signup — generates a token and sends the branded email.
 router.post('/send-verification', wrap(async (req, res) => {
   const { uid, email, name } = req.body
   if (!uid || !email || !name)
@@ -210,8 +204,6 @@ router.post('/send-verification', wrap(async (req, res) => {
 }))
 
 // ── POST /email/resend-verification ──────────────────────────────────────────
-// Body: { uid, email, name }
-// Called when user clicks "Resend verification email".
 router.post('/resend-verification', wrap(async (req, res) => {
   const { uid, email, name } = req.body
   if (!uid || !email || !name)
@@ -230,8 +222,6 @@ router.post('/resend-verification', wrap(async (req, res) => {
 }))
 
 // ── GET /email/verify?token=xxx ───────────────────────────────────────────────
-// The link in the email points here. Verifies the token then redirects
-// back to the React app with a result param that VerifyEmail.jsx reads.
 router.get('/verify', wrap(async (req, res) => {
   const { token } = req.query
   const appUrl    = process.env.APP_URL || 'http://localhost:3000'
@@ -256,46 +246,39 @@ router.post('/test', wrap(async (req, res) => {
   const { to } = req.body
   if (!to) return res.status(400).json({ success: false, error: 'to is required' })
   await sendEmail({ to, subject: '✅ Nexxus Email Test', html: welcomeTemplate({ name: 'Test User', role: 'student' }) })
-  res.json({ success: true, message: `Test email sent to ${to}` })
+  res.json({ success: true, message: 'Test email sent successfully' })
 }))
 
 // ── POST /email/send-password-reset ──────────────────────────────────────────
-// Body: { email }
-// Generates a Firebase password reset link via Admin SDK,
-// then sends it through your custom branded email template.
 router.post('/send-password-reset', wrap(async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ success: false, error: 'email is required' })
 
-  console.log(`[emailRoutes] Password reset requested for: ${email}`)
+  // Fix: sanitize email before logging to prevent log injection
+  console.log(`[emailRoutes] Password reset requested for: ${sanitizeLog(email)}`)
 
-  // 1. Look up the user's display name via Admin SDK
   ensureAdminInit()
   let name = 'there'
   try {
     const userRecord = await getAuth().getUserByEmail(email)
     if (userRecord.displayName) name = userRecord.displayName
   } catch (err) {
-    // Don't hard-fail name lookup; still try to generate the link.
-    // If the email truly doesn't exist, generatePasswordResetLink will also fail.
     if (err.code === 'auth/user-not-found') {
-      console.warn(`[emailRoutes] getUserByEmail: user not found for ${email}`)
+      // Fix: don't log the raw email in warn — use sanitized version
+      console.warn('[emailRoutes] getUserByEmail: user not found')
     } else {
-      console.warn(`[emailRoutes] getUserByEmail failed (${err.code || 'unknown'}): ${err.message}`)
+      // Fix: sanitize err.code and err.message before logging
+      console.warn(`[emailRoutes] getUserByEmail failed (${sanitizeLog(err.code || 'unknown')}): ${safeError(err)}`)
     }
   }
 
-  // 2. Generate the reset link via Admin SDK
-  // Generate the Firebase reset link, extract the oobCode,
-  // then build a link to OUR page so user never sees Firebase's UI
   const appUrl = process.env.APP_URL || 'http://localhost:3000'
   let firebaseLink
   try {
     firebaseLink = await getAuth().generatePasswordResetLink(email)
   } catch (err) {
-    // Treat as success if user doesn't exist (avoid account enumeration)
     if (err.code === 'auth/user-not-found') {
-      console.warn(`[emailRoutes] generatePasswordResetLink: user not found for ${email}`)
+      console.warn('[emailRoutes] generatePasswordResetLink: user not found')
       return res.json({ success: true, message: 'If that email exists, a reset link was sent.' })
     }
     throw err
@@ -307,7 +290,6 @@ router.post('/send-password-reset', wrap(async (req, res) => {
   }
   const resetLink = `${appUrl}/reset-password?oobCode=${encodeURIComponent(oobCode)}`
 
-  // 3. Send branded email
   await sendEmail({
     to:      email,
     subject: '🔐 Reset Your Nexxus Password',
