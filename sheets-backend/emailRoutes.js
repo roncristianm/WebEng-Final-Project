@@ -255,7 +255,7 @@ router.post('/send-password-reset', wrap(async (req, res) => {
   if (!email) return res.status(400).json({ success: false, error: 'email is required' })
 
   // Fix: sanitize email before logging to prevent log injection
-  console.log(`[emailRoutes] Password reset requested for: ${sanitizeLog(email)}`)
+  console.log('[emailRoutes] Password reset requested')
 
   ensureAdminInit()
   let name = 'there'
