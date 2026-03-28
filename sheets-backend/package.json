@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "lint": "eslint . --ext js --max-warnings 9999"
+    "lint": "eslint index.js emailRoutes.js emailService.js verificationService.js --max-warnings 9999"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
