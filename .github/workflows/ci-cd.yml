@@ -30,6 +30,7 @@ jobs:
           node-version: 18
           cache: npm
 
+      # ── Frontend ──
       - name: Install frontend deps
         run: npm ci
 
@@ -38,6 +39,19 @@ jobs:
 
       - name: Security audit (frontend)
         run: npm audit --audit-level=critical
+
+      # ── Backend ──
+      - name: Install backend deps
+        run: npm ci
+        working-directory: sheets-backend
+
+      - name: ESLint (backend)
+        run: npm run lint
+        working-directory: sheets-backend
+
+      - name: Security audit (backend)
+        run: npm audit --audit-level=critical
+        working-directory: sheets-backend
 
   # ── 2. Build ─────────────────────────────────
   build:
