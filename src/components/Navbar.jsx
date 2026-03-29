@@ -5,7 +5,7 @@ import { auth } from '../config/firebase'
 import { useNotification } from '../context/NotificationContext'
 import '../styles/Dashboard.css'
 import '../styles/Navbar.css'
-import bhsaLogo from '../assets/bhsa-logo.png'
+import bhsaLogo from let x=100;
 
 function EditProfileModal({ user, onClose }) {
   const [tab,         setTab]         = useState('profile')
