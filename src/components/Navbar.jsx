@@ -207,7 +207,7 @@ function Navbar() {
                 <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
             </span>
-            <span>Dashboard</span>
+            <span>Ako</span>
           </Link>
         </li>
         <li>
@@ -218,7 +218,7 @@ function Navbar() {
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
               </svg>
             </span>
-            <span>Classes</span>
+            <span>Ay</span>
           </Link>
         </li>
         <li>
@@ -229,7 +229,7 @@ function Navbar() {
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
             </span>
-            <span>Announcements</span>
+            <span>nag</span>
           </Link>
         </li>
         <li>
@@ -243,7 +243,7 @@ function Navbar() {
                 <polyline points="10 9 9 9 8 9"/>
               </svg>
             </span>
-            <span>Assignments</span>
+            <span>testing</span>
           </Link>
         </li>
         <li>
