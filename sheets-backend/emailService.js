@@ -313,7 +313,7 @@ async function sendBulkEmails(emails) {
   const results = await Promise.allSettled(emails.map((e) => sendEmail(e)))
   const sent    = results.filter((r) => r.status === 'fulfilled').length
   const failed  = results.filter((r) => r.status === 'rejected').length
-  results.forEach((r, i) => {
+  results.forEach((r) => {
     if (r.status === 'rejected') {
       console.error('[mailer] Email delivery failed for one recipient')
     }

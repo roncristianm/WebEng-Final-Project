@@ -16,8 +16,9 @@ function getAdminDb() {
     const localKey = path.join(__dirname, 'credentials.json')
     if (fs.existsSync(localKey)) {
       credential = cert(JSON.parse(fs.readFileSync(localKey, 'utf8')))
-    } else if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
-      credential = cert(JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS))
+    } else if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
+  const raw = process.env.FIREBASE_ADMIN_CREDENTIALS
+  credential = cert(JSON.parse(raw.replace(/\\n/g, '\n')))
     } else if (process.env.GOOGLE_SHEETS_KEY_FILE) {
       credential = cert(JSON.parse(fs.readFileSync(process.env.GOOGLE_SHEETS_KEY_FILE, 'utf8')))
     } else {
