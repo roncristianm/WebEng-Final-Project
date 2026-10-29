@@ -1,11 +1,10 @@
 // src/pages/homepage/PendingVerification.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signOut } from 'firebase/auth'
+import { sendEmailVerification, signOut } from 'firebase/auth'
 import { auth } from '../../config/firebase'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
-import { FIREBASE_FUNCTIONS_BASE_URL } from '../../config/sheetsBackend'
 
 function PendingVerification() {
   const navigate    = useNavigate()
@@ -19,22 +18,11 @@ function PendingVerification() {
     setResending(true)
     setResendMsg('')
     try {
-      const res  = await fetch(`${FIREBASE_FUNCTIONS_BASE_URL}/resendVerificationEmail`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          uid:   user.uid,
-          email: user.email,
-          name:  user.displayName || 'User',
-        }),
+      await sendEmailVerification(user, {
+        url: `${window.location.origin}/verify?verified=true`,
       })
-      const data = await res.json()
-      if (data.success) {
-        setResendMsg('Verification email sent! Check your inbox.')
-        setResendType('success')
-      } else {
-        throw new Error(data.error)
-      }
+      setResendMsg('Verification email sent! Check your inbox.')
+      setResendType('success')
     } catch (err) {
       setResendMsg('Failed to resend. Please try again.')
       setResendType('error')

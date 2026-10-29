@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../context/NotificationContext'
@@ -85,6 +85,7 @@ function LandingPage() {
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence)
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      await userCredential.user.reload()
 
       // Check Firestore for role and verification status
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
@@ -93,13 +94,20 @@ function LandingPage() {
         const userData = userDoc.data()
 
         // Block unverified users — redirect to pending page
-        if (!userData.emailVerified) {
+        if (!userCredential.user.emailVerified) {
           showNotification('Please verify your email before logging in.', 'error')
           setTimeout(() => {
             navigate('/pending-verification', { replace: true })
           }, 1500)
           setLoading(false)
           return
+        }
+
+        if (!userData.emailVerified) {
+          await updateDoc(doc(db, 'users', userCredential.user.uid), {
+            emailVerified: true,
+            updatedAt: new Date(),
+          })
         }
 
         showNotification('Login successful!', 'success')
