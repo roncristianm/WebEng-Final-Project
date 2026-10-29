@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
@@ -8,7 +8,6 @@ import { useNotification } from '../../context/NotificationContext'
 import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
-import { FIREBASE_FUNCTIONS_BASE_URL } from '../../config/sheetsBackend'
 
 function Signup() {
   const [name, setName]                       = useState('')
@@ -89,24 +88,9 @@ function Signup() {
         updatedAt:     serverTimestamp(),
       })
 
-      // Send verification email via sheets-backend
-      try {
-        const res  = await fetch(`${FIREBASE_FUNCTIONS_BASE_URL}/sendVerificationEmail`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            uid:   userCredential.user.uid,
-            email: email,
-            name:  name,
-          }),
-        })
-        const data = await res.json()
-        if (!data.success) {
-          console.error('[Signup] Verification email failed:', data.error)
-        }
-      } catch (emailErr) {
-        console.error('[Signup] Could not send verification email:', emailErr.message)
-      }
+      await sendEmailVerification(userCredential.user, {
+        url: `${window.location.origin}/verify?verified=true`,
+      })
 
       // Go to pending verification page
       navigate('/pending-verification', { replace: true })

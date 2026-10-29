@@ -273,22 +273,6 @@ function passwordResetTemplate({ name, resetLink }) {
   })
 }
 
-function emailVerificationTemplate({ name, verifyLink }) {
-  return baseTemplate({
-    title: 'Verify Your Nexxus Email',
-    preheader: 'Verify your email address to activate your Nexxus account.',
-    body: `
-      <h2>✉️ Verify Your Email</h2>
-      <p>Hi <strong>${name}</strong>,</p>
-      <p>Click the button below to verify your email address and activate your Nexxus account.</p>
-      <div class="btn-wrap">
-        <a class="btn" href="${verifyLink}">Verify My Email →</a>
-      </div>
-      <p class="meta">This link expires in <strong>24 hours</strong>.</p>
-    `,
-  })
-}
-
 module.exports = {
   welcomeTemplate,
   announcementTemplate,
@@ -296,5 +280,4 @@ module.exports = {
   deadlineReminderTemplate,
   newMaterialTemplate,
   passwordResetTemplate,
-  emailVerificationTemplate,
 }
