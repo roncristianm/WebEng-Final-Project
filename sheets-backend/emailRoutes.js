@@ -7,7 +7,7 @@ const path = require('path')
 
 // ── Sanitizers ────────────────────────────────────────────────────────────────
 function safeError(err) {
-  return String(err.message || 'Unknown error').replace(/[^\w\s.,:()@\-]/g, '')
+  return String(err.message || 'Unknown error').replace(/[^\w\s.,:()@-]/g, '')
 }
 
 function sanitizeLog(val) {

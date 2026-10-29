@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 4000
 
 // ── Error sanitizer ───────────────────────────────────────────────────────────
 function safeError(err) {
-  return String(err.message || 'Unknown error').replace(/[^\w\s.,:()@\-]/g, '')
+  return String(err.message || 'Unknown error').replace(/[^\w\s.,:()@-]/g, '')
 }
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -673,16 +673,16 @@ app.post('/update-assignment-in-sheet', async (req, res) => {
 
     const SHEET_HPS_ROW = 10
 
-    async function getHeaders(quarter) {
+    const getHeaders = async(quarter) => {
       const safeQ     = VALID_QUARTERS.has(quarter) ? quarter : 'Q1'
       const sheetName = getQuarterTab(tabs, safeQ)
       if (!sheetName) return null
       const r    = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${sheetName}!A8:AZ9` })
       const rows = r.data.values || []
       return { sheetName, groupHeaderRow: rows[0] || [], subHeaderRow: rows[1] || [] }
-    }
+    };
 
-    async function getAllRows(sheetName) {
+    const getAllRows = async (sheetName) => {
       const r = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName })
       return r.data.values || []
     }
