@@ -13,3 +13,7 @@ const envBase = normalizeBaseUrl(import.meta.env.VITE_BACKEND_URL)
 export const SHEETS_API_BASE = envBase || '/sheets-api'
 
 export const SHEETS_EMAIL_API_BASE = `${SHEETS_API_BASE}/email`
+
+export const FIREBASE_FUNCTIONS_BASE_URL =
+  import.meta.env.VITE_FIREBASE_FUNCTIONS_BASE_URL ||
+  'https://asia-southeast1-nexxus-65975.cloudfunctions.net'

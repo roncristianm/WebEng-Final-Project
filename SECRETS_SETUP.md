@@ -25,6 +25,7 @@ These come from: **Firebase Console → Project Settings → Your apps → Web a
 | `VITE_FIREBASE_STORAGE_BUCKET` | `storageBucket` |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | `messagingSenderId` |
 | `VITE_FIREBASE_APP_ID` | `appId` |
+| `VITE_FIREBASE_FUNCTIONS_BASE_URL` | Optional. Defaults to `https://asia-southeast1-nexxus-65975.cloudfunctions.net` |
 
 ---
 
