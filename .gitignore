@@ -30,5 +30,4 @@ dist-ssr
 -e 
 # Google Sheets credentials - NEVER commit this
 sheets-backend/credentials.json
-.vercel
 .env*.local
