@@ -145,6 +145,9 @@ jobs:
       - name: Deploy Firestore rules
         run: firebase deploy --only firestore:rules --project nexxus-65975
 
+      - name: Deploy Firebase Functions
+        run: firebase deploy --only functions --project nexxus-65975
+
   # ── 5. Notify on Success ──────────────────────
   notify-success:
     name: Notify › Success

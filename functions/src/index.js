@@ -25,6 +25,7 @@ const { onRequest }         = require('firebase-functions/v2/https')
 const { onDocumentCreated } = require('firebase-functions/v2/firestore')
 const { onSchedule }        = require('firebase-functions/v2/scheduler')
 const { setGlobalOptions }  = require('firebase-functions/v2')
+const { getAuth }           = require('firebase-admin/auth')
 
 const { sendEmail, sendBulkEmails } = require('./mailer')
 const {
@@ -34,7 +35,13 @@ const {
   deadlineReminderTemplate,
   newMaterialTemplate,
   passwordResetTemplate,
+  emailVerificationTemplate,
 } = require('./emailTemplates')
+const {
+  createVerificationToken,
+  refreshVerificationToken,
+  verifyToken,
+} = require('./verificationService')
 const {
   getClassStudents,
   getPendingDeadlines,
@@ -48,7 +55,7 @@ setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 })
 
 // ── Helper: resolve APP_URL with fallback ─────────────────────────────────────
 function appUrl() {
-  return process.env.APP_URL || 'https://bhsanexxus.vercel.app'
+  return process.env.APP_URL || 'https://nexxus-65975.web.app'
 }
 
 // ── CORS helper for HTTP functions ────────────────────────────────────────────
@@ -120,6 +127,67 @@ exports.sendPasswordResetEmail = onRequest(
     }
   }
 )
+
+async function handleVerificationRequest(req, res, refresh) {
+  setCors(res)
+  if (req.method === 'OPTIONS') return res.status(204).send('')
+  if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' })
+
+  const { uid, email, name } = req.body
+  if (!uid || !email || !name) {
+    return res.status(400).json({ success: false, error: 'uid, email, and name are required' })
+  }
+
+  try {
+    const user = await getAuth().getUser(uid)
+    if (user.email !== email) {
+      return res.status(400).json({ success: false, error: 'Email does not match the account' })
+    }
+
+    const token = refresh
+      ? await refreshVerificationToken(uid, email)
+      : await createVerificationToken(uid, email)
+    const verifyLink = `${appUrl()}/verify?token=${encodeURIComponent(token)}`
+
+    await sendEmail({
+      to: email,
+      subject: '✉️ Verify your Nexxus email',
+      html: emailVerificationTemplate({ name, verifyLink }),
+    })
+    return res.json({ success: true })
+  } catch (err) {
+    console.error('[verification email]', err.message)
+    return res.status(500).json({ success: false, error: 'Unable to send verification email' })
+  }
+}
+
+exports.sendVerificationEmail = onRequest({ cors: true }, (req, res) =>
+  handleVerificationRequest(req, res, false)
+)
+
+exports.resendVerificationEmail = onRequest({ cors: true }, (req, res) =>
+  handleVerificationRequest(req, res, true)
+)
+
+exports.verifyEmail = onRequest({ cors: true }, async (req, res) => {
+  setCors(res)
+  const token = req.query.token
+  if (!token) return res.redirect(`${appUrl()}/verify?error=missing_token`)
+
+  try {
+    const result = await verifyToken(token)
+    if (result.success) return res.redirect(`${appUrl()}/verify?verified=true`)
+    const error = result.error.includes('expired')
+      ? 'expired'
+      : result.error.includes('already')
+        ? 'already_used'
+        : 'invalid'
+    return res.redirect(`${appUrl()}/verify?error=${error}`)
+  } catch (err) {
+    console.error('[verifyEmail]', err.message)
+    return res.redirect(`${appUrl()}/verify?error=invalid`)
+  }
+})
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // FIRESTORE TRIGGER 1 — onAnnouncementCreated
