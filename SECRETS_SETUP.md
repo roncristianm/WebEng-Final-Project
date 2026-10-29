@@ -12,7 +12,6 @@ Go to: **GitHub repo → Settings → Secrets and variables → Actions → New 
 | Secret | How to get it |
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase Console → Project Settings → Service Accounts → Generate new private key. Paste the entire JSON content. |
-| `FIREBASE_TOKEN` | Run `firebase login:ci` locally → copy the token printed. Used for CLI deploys (functions, rules). |
 
 ### Vite / Frontend Firebase Config
 
@@ -46,7 +45,7 @@ These are stored in Google Secret Manager and do NOT go in GitHub Secrets.
 1. Go to your repo on GitHub
 2. Click **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret**
-4. Enter the name (e.g. `FIREBASE_TOKEN`) and paste the value
+4. Enter the name (e.g. `FIREBASE_SERVICE_ACCOUNT`) and paste the value
 5. Click **Add secret**
 
 Repeat for each secret in the table above.
