@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext'
 import { db } from '../../config/firebase'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
-import { FIREBASE_FUNCTIONS_BASE_URL } from '../../config/sheetsBackend'
 
 function VerifyEmail() {
   const [searchParams]          = useSearchParams()
@@ -16,14 +15,8 @@ function VerifyEmail() {
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    const token = searchParams.get('token')
     const verified = searchParams.get('verified')
     const error    = searchParams.get('error')
-
-    if (token) {
-      window.location.replace(`${FIREBASE_FUNCTIONS_BASE_URL}/verifyEmail?token=${encodeURIComponent(token)}`)
-      return
-    }
 
     if (verified === 'true') {
       setStatus('success')
