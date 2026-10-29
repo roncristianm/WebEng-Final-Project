@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
+import { sendPasswordResetEmail, signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
@@ -8,7 +8,6 @@ import { useNotification } from '../../context/NotificationContext'
 import Notification from '../../components/Notification'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
-import { SHEETS_EMAIL_API_BASE } from '../../config/sheetsBackend'
 
 function LandingPage() {
   const [email, setEmail]         = useState('')
@@ -63,16 +62,23 @@ function LandingPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch(`${SHEETS_EMAIL_API_BASE}/send-password-reset`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to send reset email.')
+      await sendPasswordResetEmail(auth, resetEmail)
       setResetSent(true)
     } catch (err) {
-      setError(err.message || 'Failed to send reset email. Please try again.')
+      console.error('Password reset error:', err)
+      switch (err.code) {
+        case 'auth/invalid-email':
+          setError('Invalid email address.')
+          break
+        case 'auth/user-not-found':
+          setError('No account was found with that email address.')
+          break
+        case 'auth/too-many-requests':
+          setError('Too many reset requests. Please try again later.')
+          break
+        default:
+          setError('Failed to send reset email. Please try again.')
+      }
     }
     setLoading(false)
   }
