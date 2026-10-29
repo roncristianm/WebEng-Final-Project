@@ -90,9 +90,9 @@ jobs:
           path: dist/
           retention-days: 1
 
-  # ── 3. Deploy to Vercel ───────────────────────
-  deploy-vercel:
-    name: Deploy › Vercel
+  # ── 3. Deploy to Firebase Hosting ─────────────
+  deploy-firebase-hosting:
+    name: Deploy › Firebase Hosting
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -108,16 +108,20 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-      # VERCEL_TOKEN is passed as an env var (not a CLI arg) to avoid leaking it in process lists/logs.
-      - name: Deploy to Vercel
-        run: vercel --prod --yes
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project nexxus-65975
 
   # ── 4. Deploy Firestore Rules ─────────────────
   deploy-firestore-rules:
