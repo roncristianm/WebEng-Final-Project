@@ -51,7 +51,11 @@ const {
 initializeApp()
 
 // Asia-Southeast1 = Singapore, closest to Bataan/Manila
-setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 })
+setGlobalOptions({
+  region: 'asia-southeast1',
+  maxInstances: 10,
+  secrets: ['BREVO_SMTP_LOGIN', 'BREVO_SMTP_KEY', 'BREVO_FROM_EMAIL', 'APP_URL'],
+})
 
 // ── Helper: resolve APP_URL with fallback ─────────────────────────────────────
 function appUrl() {
