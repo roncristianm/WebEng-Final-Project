@@ -28,10 +28,11 @@ function Signup() {
     const checkUserRole = async () => {
       if (currentUser) {
         try {
+          await currentUser.reload()
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
           if (userDoc.exists()) {
             const userData = userDoc.data()
-            if (!userData.emailVerified) {
+            if (!currentUser.emailVerified && !userData.emailVerified) {
               navigate('/pending-verification', { replace: true })
               return
             }
