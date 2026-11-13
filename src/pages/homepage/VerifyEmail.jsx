@@ -18,16 +18,14 @@ function VerifyEmail() {
     if (currentUser) {
       try {
         const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid))
-        if (userDoc.exists()) {
-          const role = userDoc.data().role
-          navigate(role === 'teacher' ? '/teacher-dashboard' : '/dashboard', { replace: true })
-          return
-        }
+        const role = userDoc.exists() ? userDoc.data().role : 'student'
+        navigate(role === 'teacher' ? '/teacher-dashboard' : '/dashboard', { replace: true })
+        return
       } catch (err) {
         console.error('Dashboard redirect failed:', err)
       }
     }
-    navigate('/login', { replace: true })
+    navigate('/dashboard', { replace: true })
   }, [currentUser, navigate])
 
   useEffect(() => {
@@ -58,9 +56,6 @@ function VerifyEmail() {
         }
 
         setStatus('success')
-        if (currentUser) {
-          await redirectToDashboard()
-        }
       }
 
       synchronizeVerification()
