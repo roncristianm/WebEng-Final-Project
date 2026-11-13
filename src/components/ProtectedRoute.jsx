@@ -18,10 +18,15 @@ function ProtectedRoute({ children }) {
       }
       try {
         await currentUser.reload()
+        if (currentUser.emailVerified) {
+          setVerified(true)
+          return
+        }
+
         const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid))
         if (userDoc.exists()) {
           const data = userDoc.data()
-          setVerified(currentUser.emailVerified || data.emailVerified !== false)
+          setVerified(data.emailVerified !== false)
         } else {
           // No Firestore doc yet — let them through (edge case)
           setVerified(true)
