@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { sendEmailVerification, signOut } from 'firebase/auth'
 import { auth } from '../../config/firebase'
+import { APP_URL } from '../../config/app'
 import bhsaLogo from '../../assets/bhsa-logo.png'
 import '../../styles/Auth.css'
 
@@ -19,7 +20,7 @@ function PendingVerification() {
     setResendMsg('')
     try {
       await sendEmailVerification(user, {
-        url: `${window.location.origin}/verify?verified=true`,
+        url: `${APP_URL}/verify?verified=true`,
       })
       setResendMsg('Verification email sent! Check your inbox.')
       setResendType('success')

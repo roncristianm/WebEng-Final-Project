@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db } from '../../config/firebase'
+import { APP_URL } from '../../config/app'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../context/NotificationContext'
 import Notification from '../../components/Notification'
@@ -89,7 +90,7 @@ function Signup() {
       })
 
       await sendEmailVerification(userCredential.user, {
-        url: `${window.location.origin}/verify?verified=true`,
+        url: `${APP_URL}/verify?verified=true`,
       })
 
       // Go to pending verification page
