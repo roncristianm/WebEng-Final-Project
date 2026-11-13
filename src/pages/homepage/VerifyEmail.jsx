@@ -1,5 +1,5 @@
 // src/pages/homepage/VerifyEmail.jsx
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { doc, getDocFromServer, updateDoc } from 'firebase/firestore'
 import { useAuth } from '../../context/AuthContext'
@@ -13,6 +13,22 @@ function VerifyEmail() {
   const { currentUser }         = useAuth()
   const [status, setStatus]     = useState('loading')
   const [errorMsg, setErrorMsg] = useState('')
+
+  const redirectToDashboard = useCallback(async () => {
+    if (currentUser) {
+      try {
+        const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid))
+        if (userDoc.exists()) {
+          const role = userDoc.data().role
+          navigate(role === 'teacher' ? '/teacher-dashboard' : '/dashboard', { replace: true })
+          return
+        }
+      } catch (err) {
+        console.error('Dashboard redirect failed:', err)
+      }
+    }
+    navigate('/login', { replace: true })
+  }, [currentUser, navigate])
 
   useEffect(() => {
     const verified = searchParams.get('verified')
@@ -42,6 +58,9 @@ function VerifyEmail() {
         }
 
         setStatus('success')
+        if (currentUser) {
+          await redirectToDashboard()
+        }
       }
 
       synchronizeVerification()
@@ -57,23 +76,7 @@ function VerifyEmail() {
     } else {
       navigate('/login', { replace: true })
     }
-  }, [searchParams, navigate, currentUser])
-
-  const handleManualRedirect = async () => {
-    if (currentUser) {
-      try {
-        const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid))
-        if (userDoc.exists()) {
-          const role = userDoc.data().role
-          navigate(role === 'teacher' ? '/teacher-dashboard' : '/dashboard', { replace: true })
-          return
-        }
-      } catch (err) {
-        console.error('Manual redirect failed:', err)
-      }
-    }
-    navigate('/login', { replace: true })
-  }
+  }, [searchParams, navigate, currentUser, redirectToDashboard])
 
   if (status === 'loading') {
     return (
@@ -110,7 +113,7 @@ function VerifyEmail() {
                   Your email has been verified successfully.<br/>
                   You can now continue to your dashboard.
                 </p>
-                <button className="btn-primary" onClick={handleManualRedirect}>
+                <button className="btn-primary" onClick={redirectToDashboard}>
                   Go to Dashboard →
                 </button>
               </>
