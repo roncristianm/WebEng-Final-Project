@@ -1,7 +1,7 @@
 // src/pages/homepage/VerifyEmail.jsx
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { doc, getDocFromServer } from 'firebase/firestore'
+import { doc, getDocFromServer, updateDoc } from 'firebase/firestore'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../config/firebase'
 import bhsaLogo from '../../assets/bhsa-logo.png'
@@ -19,27 +19,32 @@ function VerifyEmail() {
     const error    = searchParams.get('error')
 
     if (verified === 'true') {
-      setStatus('success')
-
-      // Only auto-redirect if the user is currently logged in.
-      // If they opened the email in a different browser/email webview, they won't be logged in.
-      if (!currentUser) return
-
-      const timeoutId = setTimeout(async () => {
-        try {
-          const userDoc  = await getDocFromServer(doc(db, 'users', currentUser.uid))
-          if (userDoc.exists()) {
-            const role = userDoc.data().role
-            navigate(role === 'teacher' ? '/teacher-dashboard' : '/dashboard', { replace: true })
+      const synchronizeVerification = async () => {
+        // Firebase updates Auth after the email action is completed. Reload the
+        // user before mirroring that state to Firestore, which protects the
+        // dashboard route from sending the user back to pending verification.
+        if (currentUser) {
+          try {
+            await currentUser.reload()
+            if (!currentUser.emailVerified) {
+              throw new Error('Firebase did not confirm the email verification.')
+            }
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+              emailVerified: true,
+              updatedAt: new Date(),
+            })
+          } catch (err) {
+            console.error('Email verification sync failed:', err)
+            setErrorMsg('Your email could not be verified in this session. Please try the link again.')
+            setStatus('error')
             return
           }
-        } catch (err) {
-          console.error('VerifyEmail role check failed:', err)
         }
-        navigate('/login', { replace: true })
-      }, 3000)
 
-      return () => clearTimeout(timeoutId)
+        setStatus('success')
+      }
+
+      synchronizeVerification()
     } else if (error) {
       setStatus('error')
       const messages = {
@@ -103,7 +108,7 @@ function VerifyEmail() {
               <>
                 <p style={{ color: '#6b7280', fontSize: '15px', lineHeight: 1.7, marginBottom: '24px' }}>
                   Your email has been verified successfully.<br/>
-                  Redirecting you to your dashboard...
+                  You can now continue to your dashboard.
                 </p>
                 <button className="btn-primary" onClick={handleManualRedirect}>
                   Go to Dashboard →
